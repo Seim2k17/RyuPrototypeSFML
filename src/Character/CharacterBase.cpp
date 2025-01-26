@@ -14,6 +14,7 @@
 
 #include <SFML/Graphics/RectangleShape.hpp>
 #include <SFML/Graphics/Shape.hpp>
+#include <SFML/System/Angle.hpp>
 #include <SFML/System/Time.hpp>
 #include <SFML/System/Vector2.hpp>
 #include <Thirdparty/glm/glm.hpp>
@@ -283,7 +284,7 @@ CharacterBase::initPhysics(std::unique_ptr<b2World> &phWorld,
     // std::unique_ptr<sf::Shape> shape =
     // std::make_unique<sf::RectangleShape>(sf::Vector2f(size_x, size_y));
 
-    shape->setOrigin(size_x / 2.0f, size_y / 2.0f);
+    shape->setOrigin({size_x / 2.0f, size_y / 2.0f});
     shape->setPosition(sf::Vector2f(position.x, position.y));
     shape->setTexture(
         &baseTextureManager.getResource(Textures::PhysicAssetsID::Empty));
@@ -302,9 +303,10 @@ CharacterBase::getShapeFromCharPhysicsBody(b2Body *physicsBody) const
     b2BodyUserData &data = physicsBody->GetUserData();
     sf::Shape *shape = reinterpret_cast<sf::RectangleShape *>(data.pointer);
 
-    shape->setPosition(Converter::metersToPixels(physicsBody->GetPosition().x),
-                       Converter::metersToPixels(physicsBody->GetPosition().y));
-    shape->setRotation(Converter::radToDeg<double>(physicsBody->GetAngle()));
+    shape->setPosition({Converter::metersToPixels(physicsBody->GetPosition().x),
+            Converter::metersToPixels(physicsBody->GetPosition().y)});
+    // shape->setRotation(sf::degrees(Converter::radToDeg<double>(physicsBody->GetAngle())));
+    shape->setRotation(sf::radians(physicsBody->GetAngle()));
     return shape;
 }
 
@@ -376,7 +378,7 @@ CharacterBase::checkContactObjects()
 void
 CharacterBase::createRaycasts()
 {
-    auto &charPos = mCharacterAnimation.getPosition();
+    auto const &charPos = mCharacterAnimation.getPosition();
     mRaycastComponent.createCharacterRaycast(
         RaycastPosition::Up, charPos.x, charPos.y - Ryu::Physics::raycastOffset,
         0, mCharacterPhysicsValues.rayCastLength, getMoveDirection(),
@@ -547,7 +549,7 @@ CharacterBase::setupAnimation(Textures::CharacterID aniId)
 
     // set origin of texture to center
     sf::FloatRect bounds = spriteAni.getSprite().getLocalBounds();
-    spriteAni.getSprite().setOrigin(bounds.width / 2.f, bounds.height / 2.f);
+    spriteAni.getSprite().setOrigin({bounds.size.x / 2.f, bounds.size.y / 2.f});
     spriteAni.setPivotAbs(config.pivotAbsolute);
     spriteAni.setPivotNorm(config.pivotNormalized);
     // the first time we need to init physics-body etc

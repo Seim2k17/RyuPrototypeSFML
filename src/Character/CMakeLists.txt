@@ -15,3 +15,4 @@ target_link_libraries(ryucharacterlib PUBLIC ryuscenelib ryustateslib ryudebugli
 
 
 target_include_directories(ryucharacterlib PUBLIC "${RyuPrototype_SOURCE_DIR}/include")
+link_sfml_to_target(ryucharacterlib)

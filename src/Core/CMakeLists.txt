@@ -26,3 +26,4 @@ target_link_libraries(ryucorelib PUBLIC ryuanimationlib ryucontrollib ryusuiteli
 	ImGui-SFML::ImGui-SFML)
 
 target_include_directories(ryucorelib PUBLIC "${RyuPrototype_SOURCE_DIR}/include")
+link_sfml_to_target(ryucorelib)

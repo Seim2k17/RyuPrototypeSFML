@@ -33,3 +33,4 @@ add_library(ryustateslib STATIC "${SRC}" "${HEADER}")
 target_link_libraries(ryustateslib PUBLIC ryucorelib)
 
 target_include_directories(ryustateslib PUBLIC "${RyuPrototype_SOURCE_DIR}/include")
+link_sfml_to_target(ryustateslib)

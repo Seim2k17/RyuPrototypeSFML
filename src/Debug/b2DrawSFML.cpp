@@ -1,4 +1,7 @@
 #include <Ryu/Debug/b2DrawSFML.hpp>
+#include <SFML/Graphics/PrimitiveType.hpp>
+#include <SFML/Graphics/StencilMode.hpp>
+#include <cstdint>
 #include <iostream>
 
 b2DrawSFML::b2DrawSFML(float scale) noexcept
@@ -144,7 +147,7 @@ void b2DrawSFML::DrawSegment(b2Vec2 const& p1, b2Vec2 const& p2, b2Color const& 
         { M_ToPixels(p2), convertedColor }
     };
 
-    m_renderTarget->draw(line, 2u, sf::Lines);
+    m_renderTarget->draw(line, 2u, sf::PrimitiveType::Lines);
 }
 
 
@@ -179,9 +182,9 @@ sf::Color b2DrawSFML::M_ConvertColor(b2Color const& color) const noexcept
 sf::Color b2DrawSFML::M_ConvertColor(b2Color const& color, float newAlpha) const noexcept
 {
     return {
-        static_cast<sf::Uint8>(color.r  * 255.0f),
-        static_cast<sf::Uint8>(color.g  * 255.0f),
-        static_cast<sf::Uint8>(color.b  * 255.0f),
-        static_cast<sf::Uint8>(newAlpha * 255.0f)
+        static_cast<std::uint8_t>(color.r  * 255.0f),
+        static_cast<std::uint8_t>(color.g  * 255.0f),
+        static_cast<std::uint8_t>(color.b  * 255.0f),
+        static_cast<std::uint8_t>(newAlpha * 255.0f)
     };
 }

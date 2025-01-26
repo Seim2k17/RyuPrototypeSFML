@@ -2,12 +2,14 @@
 #include <Ryu/Core/Category.h>
 #include <Ryu/Core/Command.h>
 
+#include <SFML/Graphics/RenderStates.hpp>
 #include <algorithm>
 #include <cassert>
 #include <iostream>
 #include <typeinfo>
 
 //namespace ryu {
+//class RenderStates;
 
 SceneNode::SceneNode()
 : mChildren()

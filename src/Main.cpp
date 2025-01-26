@@ -1,5 +1,7 @@
 #include <Ryu/Core/Game.h>
+#include <fmt/core.h>
 #include <iostream>
+#include <string>
 
 int main()
 {
@@ -10,7 +12,7 @@ int main()
 	}
 	catch(const std::exception& e)
 	{
-		std::cerr << "\nEXCEPTION: " << e.what() << '\n';
+		fmt::print("Exception thrown: {}", (e.what()));
 	}
 	
 	

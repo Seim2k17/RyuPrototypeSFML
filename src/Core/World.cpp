@@ -16,7 +16,9 @@
 #include <SFML/Graphics/RenderWindow.hpp>
 
 #include <SFML/Graphics/Shape.hpp>
+#include <SFML/System/Angle.hpp>
 #include <SFML/System/Vector2.hpp>
+#include <X11/Xcursor/Xcursor.h>
 #include <box2d/b2_body.h>
 #include <box2d/b2_draw.h>
 #include <box2d/b2_world.h>
@@ -34,13 +36,13 @@ World::World(sf::RenderWindow &window)
     : Observer("World"), mWindow(window), mWorldView(window.getDefaultView()),
       mSceneTextures(), mSceneGraph(), mSceneLayers(),
       mWorldBounds(               // TODO: check what it is about bounds
-          0.f,                    // left X position
-          0.f,                    // top Y position
-          mWorldView.getSize().x, // widthb2Color(0.9f, 0.9f, 0.4f)
-          1200) // mWorldView.getSize().y)                  // height
+          {0.f,                    // left X position
+           0.f,},                    // top Y position
+          {mWorldView.getSize().x, // widthb2Color(0.9f, 0.9f, 0.4f)
+           1200}) // mWorldView.getSize().y)                  // height
       ,
-      mSpawnPosition(mWorldView.getSize().x / 2.f,
-                     (mWorldBounds.height - mWorldView.getSize().y)),
+      mSpawnPosition({mWorldView.getSize().x / 2.f,
+              (mWorldBounds.size.y - mWorldView.getSize().y)}),
       mPushBox(nullptr), mPlayer(nullptr),
       phWorld(std::make_unique<b2World>(
           b2Vec2{0.0f, GRAVITY})) /// set gravity to 10 & create physics world
@@ -119,7 +121,7 @@ void World::buildScene() {
 
     std::unique_ptr<SpriteNode> backgroundSprite =
         std::make_unique<SpriteNode>(textureBg, textureRect);
-    backgroundSprite->setPosition(mWorldBounds.left, mWorldBounds.top);
+    backgroundSprite->setPosition({mWorldBounds.position.x, mWorldBounds.position.y}); // TODO before: left/top
     mSceneLayers[static_cast<unsigned>(Layer::Ground1)]->attachChild(
         std::move(backgroundSprite));
 
@@ -149,7 +151,7 @@ World::createPhysicalBox(int pos_x, int pos_y, int size_x, int size_y,
                          std::string name = "EMPTY",
                          b2BodyType type = b2_dynamicBody,
                          Textures::SceneID texture = Textures::SceneID::Unknown,
-                         EntityType entityType = EntityType::None) {
+                         EntityType entityType) {
     // TODO: save all in EntityMap / save adress of physicalBody in StaticEntity
     // !
     b2BodyDef bodyDef;
@@ -177,22 +179,23 @@ World::createPhysicalBox(int pos_x, int pos_y, int size_x, int size_y,
     // sf::RectangleShape shape{sf::Vector2f(size_x,size_y)};
     // TODO howto smartptr ?
     sf::Shape *shape = new sf::RectangleShape(sf::Vector2f(size_x, size_y));
-    shape->setOrigin(size_x / 2.0, size_y / 2.0);
+    shape->setOrigin({(float)(size_x / 2.0), (float)(size_y / 2.0)});
     shape->setPosition(sf::Vector2f(pos_x, pos_y));
 
     auto staticEntity = std::make_unique<EntityStatic>(entityType);
     // std::shared_ptr<EntityStatic> staticEntity =
-    // std::make_shared<EntityStatic>();
+    // std::make_shared<EntityStatic>());
     staticEntity->setShape(shape);
     staticEntity->setName(name);
 
-    auto shapePosition = shape->getGlobalBounds();
+    auto shapePosition = shape->getGlobalBounds().position;
+    auto shapeSize = shape->getGlobalBounds().size;
     std::vector<sf::Vector2f> cornerPoints{
-        {shapePosition.left, shapePosition.top},
-        {shapePosition.left + shapePosition.width, shapePosition.top},
-        {shapePosition.left, shapePosition.top + shapePosition.height},
-        {shapePosition.left + shapePosition.width,
-         shapePosition.top + shapePosition.height}};
+        {shapePosition.x, shapePosition.y},
+        {shapePosition.x + shapeSize.x, shapePosition.y},
+        {shapePosition.x, shapePosition.y + shapeSize.y},
+        {shapePosition.x + shapeSize.x,
+         shapePosition.y + shapeSize.y}};
 
     staticEntity->setCornerPoints(cornerPoints);
 
@@ -285,11 +288,11 @@ sf::Shape *World::getShapeFromPhysicsBody(b2Body *physicsBody) {
     if (shape) {
 
         try {
-            shape->setPosition(
+            shape->setPosition({
                 Converter::metersToPixels(physicsBody->GetPosition().x),
-                Converter::metersToPixels(physicsBody->GetPosition().y));
+                Converter::metersToPixels(physicsBody->GetPosition().y)});
             shape->setRotation(
-                Converter::radToDeg<double>(physicsBody->GetAngle()));
+                sf::degrees(Converter::radToDeg<double>(physicsBody->GetAngle())));
         } catch (std::exception) {
             fmt::print("No shape.\n");
         }
@@ -355,7 +358,7 @@ CommandQueue &World::getActiveCommands() { return mActiveCommands; }
 
 void World::createText(const sf::String text, sf::Text &textToShow) {
     sf::Font font;
-    if (!font.loadFromFile("assets/fonts/droid_sans.ttf")) {
+    if (!font.openFromFile("assets/fonts/droid_sans.ttf")) {
         std::cout << "Font Error: font-file not found.\n";
     }
 

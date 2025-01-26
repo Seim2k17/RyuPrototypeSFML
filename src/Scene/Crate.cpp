@@ -2,11 +2,16 @@
 #include <Ryu/Core/AssetManager.h>
 #include <Ryu/Core/AssetIdentifiers.h>
 
+#include <SFML/Graphics/Sprite.hpp>
+#include <SFML/Graphics/Texture.hpp>
 #include <iostream>
 
+// TODO: check how to solve this better, since SFML 3.0 the Sprite ctor needs a Texture
+sf::Texture dummyTexture;
 
 Crate::Crate()
-: mBody(nullptr)
+: Sprite(dummyTexture)
+, mBody(nullptr)
 , mFixture(nullptr)
 , mCrateTextureManager()
 {

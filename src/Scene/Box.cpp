@@ -1,6 +1,7 @@
 #include <Ryu/Scene/Box.h>
 #include <Ryu/Core/AssetIdentifiers.h>
 #include <Ryu/Core/AssetManager.h>
+#include <SFML/Graphics/Transformable.hpp>
 #include <iostream>
 #include <Ryu/Core/Category.h>
 
@@ -23,12 +24,12 @@ Box::Box(Type boxType, const SceneTextureHolder& textures)
     : mType(boxType), mSprite(textures.getResource(toTextureID(boxType)))
 
 {
-    setPosition(sf::Vector2f(760.f,60.f));
+    setPosition({760.f,60.f});
     // TODO: add another ctor for positioning !
     
     // set origin of texture to center 
     sf::FloatRect bounds = mSprite.getLocalBounds();
-    mSprite.setOrigin(bounds.width / 2.f, bounds.height / 2.f);
+    mSprite.setOrigin(bounds.getCenter()); //er() width / 2.f, bounds.height / 2.f);
     setVelocity(sf::Vector2f(50.f,0.f));
 }
 
@@ -47,7 +48,7 @@ Box::updateCurrent(sf::Time dt)
         setVelocity(velocity); 
     }
 
-    move(velocity.x * dt.asSeconds(),0.f);
+    move({velocity.x * dt.asSeconds(),0.f});
 
     // t,b,c
 }

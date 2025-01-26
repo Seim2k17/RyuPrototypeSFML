@@ -861,9 +861,16 @@ Editor::createAnimationDetails(int selectedAni, TaggedSheetAnimation& sheet)
      // std::cout << "whygetcursoscreenpos???\n";
     ImGui::EndChild();
     ImGui::BeginChild("PlayButton");
+    // TODO: make nice etc. ImGui needs an id for bnuttons sinc update xyz
+    const char *btId = new char('0');
+
     ImGuiComboFlags flags = 0;
     // TODO us real play/stop etc button .... tmp play button is a arrowbutton
-    
+
+    /*
+    ** TODO: rethink the following lines, sinc update bla the ImageButtons doesnt wirk this way
+     */
+    /*
     //if(ImGui::ArrowButton("Play",ImGuiDir_Right)) {aniIsPlaying = ! aniIsPlaying;}
     if(ImGui::ImageButton(guiTextureManager.getResource(Textures::GuiID::StartFrame)))
     {
@@ -895,6 +902,7 @@ Editor::createAnimationDetails(int selectedAni, TaggedSheetAnimation& sheet)
     if(ImGui::ImageButton(guiTextureManager.getResource(Textures::GuiID::EndFrame)))
     {
     }
+    */
     setTooltipText();
 
     // show frames as a timeline
@@ -1046,7 +1054,7 @@ Editor::setSpritesheetAnimationDetails(const AnimationConfig& config, sf::Time a
     textureSet = true;
     // set origin of texture to center
     sf::FloatRect bounds = spritesheetAnimation.getSprite().getLocalBounds();
-    spritesheetAnimation.getSprite().setOrigin(bounds.width / 2.f, bounds.height / 2.f);
+    spritesheetAnimation.getSprite().setOrigin(bounds.getCenter());
  
 }
 

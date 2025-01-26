@@ -110,12 +110,12 @@ void DebugWidgets::DebugSpritesheetInfo() {
                 playerCharacter->getSpriteAnimation().getFrameSize().y);
     ImGui::Separator();
     ImGui::Text("LocalBounds: (%f/%f)",
-                playerCharacter->getSpriteAnimation().getLocalBounds().height,
-                playerCharacter->getSpriteAnimation().getLocalBounds().width);
+                playerCharacter->getSpriteAnimation().getLocalBounds().size.y,
+                playerCharacter->getSpriteAnimation().getLocalBounds().size.x);
     ImGui::Separator();
     ImGui::Text("GlobalBounds: (%f/%f)",
-                playerCharacter->getSpriteAnimation().getGlobalBounds().height,
-                playerCharacter->getSpriteAnimation().getGlobalBounds().width);
+                playerCharacter->getSpriteAnimation().getGlobalBounds().size.y,
+                playerCharacter->getSpriteAnimation().getGlobalBounds().size.x);
     // ImGui::Text("Spritesheetname: %s", playerCharacter->
     ImGui::Separator();
 }

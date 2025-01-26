@@ -27,7 +27,7 @@ const sf::Time TimePerFrame = sf::seconds(1.f / 60.f);
 
 Game::Game()
 :Observer("Game")
-,mWindow(sf::VideoMode(1200, 800), "SFML Application")
+,mWindow(sf::VideoMode({1200, 800}), "SFML Application")
 ,mWorld(mWindow)
 ,mPlayerController(std::make_unique<PlayerController>(mWorld.getPlayer()))
 ,mIsPaused(false)
@@ -143,11 +143,10 @@ void Game::run()
 		{
 			timeSinceLastUpdate -= TimePerFrame;
 			CommandQueue& commands = mWorld.getActiveCommands();
-			sf::Event event;
-			
-			while (mWindow.pollEvent(event))
+
+			while (const std::optional event = mWindow.pollEvent())
 			{
-				ImGui::SFML::ProcessEvent(mWindow, event);
+				ImGui::SFML::ProcessEvent(mWindow, event.value());
 				processEvents(event, commands);
 			}
 			if (!mIsPaused )
@@ -166,29 +165,28 @@ void Game::run()
 	ImGui::SFML::Shutdown();
 }
 
-void Game::processEvents(sf::Event& event, CommandQueue& commands) 
+void Game::processEvents(std::optional<sf::Event> event, CommandQueue& commands)
 {
 		// Player-related one-time events
-		mPlayerController->handleEvent(event, commands);
+		mPlayerController->handleEvent(event.value(), commands);
+		//auto evt = event->getIf<T>()
 
-		switch(event.type)
-		{		
-			case sf::Event::GainedFocus:
-			{
+
+		if (event->is<sf::Event::FocusGained>())
+		{
 				mIsPaused = false;
-				break;
-			}
-			case sf::Event::LostFocus:
-			{
-				mIsPaused = true;
-				break;
-			}
-			case sf::Event::Closed:
-			{
-				mWindow.close();
-				break;
-			}
 		}
+
+		if (event->is<sf::Event::FocusLost>())
+		{
+			mIsPaused = true;
+		}
+
+		if (event->is<sf::Event::Closed>())
+		{
+			mWindow.close();
+		}
+
 }
 
 

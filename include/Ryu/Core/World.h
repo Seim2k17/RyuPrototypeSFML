@@ -27,7 +27,7 @@ static b2DrawSFML debugDrawer;
 
 
 // namespace ryu {
-class World : private sf::NonCopyable, public Observer {
+class World : /*private sf::NonCopyable*/ public Observer {
 
   public:
     explicit World(sf::RenderWindow &window);
@@ -59,7 +59,7 @@ class World : private sf::NonCopyable, public Observer {
     void setPhysics();
     b2Body* createPhysicalBox(int pos_x, int pos_y, int size_x, int size_y,
                               std::string name, b2BodyType type,
-                              Textures::SceneID texture, EntityType entityType);
+                              Textures::SceneID texture, EntityType entityType = EntityType::None);
     b2Body* createPhysicalBox(LevelObject obj);
 
   private:

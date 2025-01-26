@@ -1,6 +1,9 @@
 #pragma once
 
-#include <SFML/Graphics.hpp>
+//#include <SFML/Graphics.hpp>
+#include <SFML/Graphics/Drawable.hpp>
+#include <SFML/Graphics/Transformable.hpp>
+#include <SFML/System/Time.hpp>
 #include <memory>
 #include <vector>
 
@@ -9,14 +12,17 @@ class Command;
 //namespace ryu {
 
 class SceneNode : public sf::Drawable, 
-                public sf::Transformable, 
-                private sf::NonCopyable
+                public sf::Transformable
+                //private sf::NonCopyable (removed in SFML 3)
 {
     public:
         typedef std::unique_ptr<SceneNode> Ptr;
 
     public:
-        SceneNode();
+        SceneNode(); // = default;
+        //SceneNode(const SceneNode&) = delete;
+        //SceneNode& operator=(const SceneNode&) = delete;
+
         virtual ~SceneNode();
 
         void attachChild(Ptr child);

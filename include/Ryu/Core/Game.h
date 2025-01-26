@@ -9,6 +9,7 @@
 #include <RyuSuite/RAnimator.h>
 
 #include <memory>
+#include <optional>
 
 class CharacterIchi;
 class PlayerController;
@@ -24,7 +25,7 @@ class Game : public Observer
     World& getWorld() {return mWorld;}
     void onNotify(const SceneNode& entity, RyuEvent event) override;
   private:
-	  void processEvents(sf::Event& event, CommandQueue& commands);
+	  void processEvents(std::optional<sf::Event> event, CommandQueue& commands);
 	  void update(sf::Time deltaTime);
 	  void render();
 	  void handleUserInput(sf::Keyboard::Key key, bool keyPressed);

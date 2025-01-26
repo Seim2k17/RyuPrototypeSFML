@@ -5,6 +5,7 @@
 #include <Ryu/Animation/EditorEnums.h>
 #include <Ryu/Animation/SpritesheetAnimation.h>
 
+#include <SFML/Graphics/Rect.hpp>
 #include <SFML/Graphics/RenderTarget.hpp>
 #include <SFML/Graphics/Texture.hpp>
 
@@ -17,9 +18,12 @@
 #include <vector>
 #include <memory>
 
+// TODO: check to do better
+// since SFML v3 we need a texture for a sprite
+sf::Texture dummyTexture;
 
 SpritesheetAnimation::SpritesheetAnimation()
-    : mSprite(), mFrameSize(), mNumFrames(0), mCurrentFrame(0),
+    : mSprite(dummyTexture), mFrameSize(), mNumFrames(0), mCurrentFrame(0),
       mDuration(sf::Time::Zero), mElapsedTime(sf::Time::Zero), mRepeat(false), maxTextureSize(sf::Texture::getMaximumSize())
     , animationIdName(""),
       mStartFrame({0, 0}), mFrames({}), mOwner(nullptr)
@@ -29,7 +33,7 @@ SpritesheetAnimation::SpritesheetAnimation()
 }
 
 SpritesheetAnimation::SpritesheetAnimation(baseCharPtr owner)
-    : mSprite(), mFrameSize(), mNumFrames(0), mCurrentFrame(0),
+    : mSprite(dummyTexture), mFrameSize(), mNumFrames(0), mCurrentFrame(0),
       mDuration(sf::Time::Zero), mElapsedTime(sf::Time::Zero), mRepeat(false),maxTextureSize(sf::Texture::getMaximumSize())
     , animationIdName(""),
       mStartFrame({0, 0}), mFrames({}), mOwner(owner)
@@ -47,7 +51,7 @@ SpritesheetAnimation::SpritesheetAnimation(const sf::Texture &texture,
     , mPivotAbs({}), mPivotNorm({})
 { // set origin of texture to center
     sf::FloatRect bounds = mSprite.getLocalBounds();
-    mSprite.setOrigin(bounds.width / 2.f, bounds.height / 2.f);
+    mSprite.setOrigin({bounds.size.x / 2.f, bounds.size.y / 2.f});
     fmt::print("Maximum TextureSize: {}\n", maxTextureSize);
     //std::cout << "Boundswidth: " << bounds.width
     //          << "Boundsheight: " << bounds.height << "\n";
@@ -59,7 +63,7 @@ void SpritesheetAnimation::setTexture(const sf::Texture &texture) {
 }
 
 const sf::Texture *SpritesheetAnimation::getTexture() const {
-    return mSprite.getTexture();
+    return &mSprite.getTexture();
 }
 
 void SpritesheetAnimation::setFrameSize(sf::Vector2i frameSize) {
@@ -234,11 +238,11 @@ void SpritesheetAnimation::update(sf::Time dt) {
     //fmt::print(">>>SpriteAniPos: ({}/{})\n",getPosition().x,getPosition().y);
     sf::Time timePerFrame = sf::milliseconds(mFrames.at(0).duration);
     mElapsedTime += dt;
-    sf::Vector2i textureBounds(mSprite.getTexture()->getSize());
+    sf::Vector2i textureBounds(mSprite.getTexture().getSize());
     sf::IntRect textureRect = mSprite.getTextureRect();
     if (mCurrentFrame == 0) {
-        textureRect = sf::IntRect(mStartFrame.x, mStartFrame.y, mFrameSize.x,
-                                  mFrameSize.y);
+        textureRect = sf::IntRect({mStartFrame.x, mStartFrame.y}, {mFrameSize.x,
+            mFrameSize.y});
     }
 
     // std::cout << "texRec:" << textureRect.width << "," << textureRect.height
@@ -252,10 +256,12 @@ void SpritesheetAnimation::update(sf::Time dt) {
         }
 
 
-        textureRect.left += textureRect.width;
-        if (textureRect.left + textureRect.width > textureBounds.x) {
-            textureRect.left = 0;
-            textureRect.top += textureRect.height;
+        auto& texturePos = textureRect.position;
+        auto textureSize = textureRect.size;
+        texturePos.x += textureSize.x;
+        if (texturePos.x + textureSize.x > textureBounds.x) {
+            texturePos.x = 0;
+            texturePos.y += textureSize.y;
         }
         mElapsedTime -= timePerFrame;
         // fire event / find it be carefully not to create it !!!!
@@ -275,8 +281,8 @@ void SpritesheetAnimation::update(sf::Time dt) {
             if (mRepeat) {
                 mCurrentFrame = (mCurrentFrame + 1) % mNumFrames;
                 if (mCurrentFrame == 0) {
-                    textureRect = sf::IntRect(mStartFrame.x, mStartFrame.y,
-                                              mFrameSize.x, mFrameSize.y);
+                    textureRect = sf::IntRect({mStartFrame.x, mStartFrame.y},
+                                              {mFrameSize.x, mFrameSize.y});
                 }
             } else {
                 mCurrentFrame++;

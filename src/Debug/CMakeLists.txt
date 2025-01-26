@@ -11,3 +11,4 @@ set(HEADER
 add_library(ryudebuglib SHARED "${SRC}" "${HEADER}")
 
 target_include_directories(ryudebuglib PUBLIC "${RyuPrototype_SOURCE_DIR}/include")
+link_sfml_to_target(ryudebuglib)

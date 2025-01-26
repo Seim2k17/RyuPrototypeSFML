@@ -30,9 +30,7 @@ target_link_libraries(
 	# ryucharacterlib
 	# ryustateslib
   fmt::fmt
-	${SFML_LIBRARIES} 
-	${SFML_DEPENDENCIES} 
-	ImGui-SFML::ImGui-SFML 
+	ImGui-SFML::ImGui-SFML
 	nlohmann_json::nlohmann_json 
 )
 
@@ -42,5 +40,6 @@ gtest_discover_tests(Template_test)
 #add_library(ryudebuglib SHARED "${SRC}" ) #"${HEADER}")
 
 target_include_directories(Template_test PUBLIC "${RyuPrototype_SOURCE_DIR}/include")
+#link_sfml_to_target(Template_test)
 
 add_subdirectory("Animation")

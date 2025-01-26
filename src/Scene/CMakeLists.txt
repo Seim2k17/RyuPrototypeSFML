@@ -22,3 +22,5 @@ add_library(ryuscenelib SHARED "${SRC}" "${HEADER}")
 target_include_directories(ryuscenelib PUBLIC 
     "${RyuPrototype_SOURCE_DIR}/include"
 )
+
+link_sfml_to_target(ryuscenelib)

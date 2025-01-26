@@ -14,3 +14,4 @@ set(HEADER
 add_library(ryuphysicslib SHARED "${SRC}" "${HEADER}")
 
 target_include_directories(ryuphysicslib PUBLIC "${RyuPrototype_SOURCE_DIR}/include")
+link_sfml_to_target(ryuphysicslib)

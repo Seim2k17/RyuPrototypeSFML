@@ -9,6 +9,7 @@
 #include <Ryu/Core/CommandQueue.h>
 #include <Ryu/Character/CharacterIchi.h>
 
+#include <SFML/Window/Event.hpp>
 #include <SFML/Window/Keyboard.hpp>
 #include <fmt/core.h>
 #include <iostream>
@@ -89,23 +90,23 @@ PlayerController::setActionBindingCharacterSpeed()
 void
 PlayerController::initializeBindings()
 {
-    mKeyBindingPress[sf::Keyboard::Left] = EInput::PressLeft;
-    mKeyBindingPress[sf::Keyboard::A] = EInput::PressLeft;
-    mKeyBindingPress[sf::Keyboard::Right] = EInput::PressRight;
-    mKeyBindingPress[sf::Keyboard::D] = EInput::PressRight;
-    mKeyBindingPress[sf::Keyboard::Up] = EInput::PressUp;
-    mKeyBindingPress[sf::Keyboard::W] = EInput::PressUp;
-    mKeyBindingPress[sf::Keyboard::Down] = EInput::PressDown;
-    mKeyBindingPress[sf::Keyboard::S] = EInput::PressDown;
+    mKeyBindingPress[sf::Keyboard::Key::Left] = EInput::PressLeft;
+    mKeyBindingPress[sf::Keyboard::Key::A] = EInput::PressLeft;
+    mKeyBindingPress[sf::Keyboard::Key::Right] = EInput::PressRight;
+    mKeyBindingPress[sf::Keyboard::Key::D] = EInput::PressRight;
+    mKeyBindingPress[sf::Keyboard::Key::Up] = EInput::PressUp;
+    mKeyBindingPress[sf::Keyboard::Key::W] = EInput::PressUp;
+    mKeyBindingPress[sf::Keyboard::Key::Down] = EInput::PressDown;
+    mKeyBindingPress[sf::Keyboard::Key::S] = EInput::PressDown;
 
-    mKeyBindingRelease[sf::Keyboard::Left] = EInput::ReleaseLeft;
-    mKeyBindingRelease[sf::Keyboard::A] = EInput::ReleaseLeft;
-    mKeyBindingRelease[sf::Keyboard::Right] = EInput::ReleaseRight;
-    mKeyBindingRelease[sf::Keyboard::D] = EInput::ReleaseRight;
-    mKeyBindingRelease[sf::Keyboard::Up] = EInput::ReleaseUp;
-    mKeyBindingRelease[sf::Keyboard::W] = EInput::ReleaseUp;
-    mKeyBindingRelease[sf::Keyboard::Down] = EInput::ReleaseDown;
-    mKeyBindingRelease[sf::Keyboard::S] = EInput::ReleaseDown;
+    mKeyBindingRelease[sf::Keyboard::Key::Left] = EInput::ReleaseLeft;
+    mKeyBindingRelease[sf::Keyboard::Key::A] = EInput::ReleaseLeft;
+    mKeyBindingRelease[sf::Keyboard::Key::Right] = EInput::ReleaseRight;
+    mKeyBindingRelease[sf::Keyboard::Key::D] = EInput::ReleaseRight;
+    mKeyBindingRelease[sf::Keyboard::Key::Up] = EInput::ReleaseUp;
+    mKeyBindingRelease[sf::Keyboard::Key::W] = EInput::ReleaseUp;
+    mKeyBindingRelease[sf::Keyboard::Key::Down] = EInput::ReleaseDown;
+    mKeyBindingRelease[sf::Keyboard::Key::S] = EInput::ReleaseDown;
 
     setActionBindingCharacterSpeed();
 
@@ -142,12 +143,12 @@ PlayerController::handleEvent(const sf::Event& event, CommandQueue& commands)
 
     //std::cout << "PlayerHandleEvent " << event.type << std::endl;
     // first test for one-time events
-    if(event.type == sf::Event::KeyPressed)
+    if(const auto* keyPressed = event.getIf<sf::Event::KeyPressed>())
     {
-        switch (event.key.code)
+        switch (keyPressed->scancode)
         {
-            case sf::Keyboard::D:
-            case sf::Keyboard::Right:
+            case sf::Keyboard::Scancode::D:
+            case sf::Keyboard::Scancode::Right:
             {
                 playerCharacter->handleInput(EInput::PressRight);
                 playerCharacter->getSpriteAnimation().flipAnimationRight();
@@ -155,8 +156,8 @@ PlayerController::handleEvent(const sf::Event& event, CommandQueue& commands)
                 break;
             }
 
-            case sf::Keyboard::A:
-            case sf::Keyboard::Left:
+            case sf::Keyboard::Scancode::A:
+            case sf::Keyboard::Scancode::Left:
             {
                 playerCharacter->handleInput(EInput::PressLeft);
                 playerCharacter->getSpriteAnimation().flipAnimationLeft();
@@ -164,21 +165,21 @@ PlayerController::handleEvent(const sf::Event& event, CommandQueue& commands)
                 break;
             }
 
-            case sf::Keyboard::W:
-            case sf::Keyboard::Up:
+            case sf::Keyboard::Scancode::W:
+            case sf::Keyboard::Scancode::Up:
             {
                 playerCharacter->handleInput(EInput::PressUp);
                 break;
             }
 
-            case sf::Keyboard::S:
-            case sf::Keyboard::Down:
+            case sf::Keyboard::Scancode::S:
+            case sf::Keyboard::Scancode::Down:
             {
                 //std::cout << "Left pressed " << std::endl;
                 playerCharacter->handleInput(EInput::PressDown);
                 break;
             }
-            case sf::Keyboard::E:
+            case sf::Keyboard::Scancode::E:
             {
                 //std::cout << "Left pressed " << std::endl;
                 playerCharacter->jumpForward();
@@ -186,7 +187,7 @@ PlayerController::handleEvent(const sf::Event& event, CommandQueue& commands)
             }
             // TODO: introduce debug trigger
             // Debug Area
-            case sf::Keyboard::P:
+            case sf::Keyboard::Scancode::P:
             {
                 Command output;
                 output.category = static_cast<unsigned>(Category::Type::Player);
@@ -197,18 +198,18 @@ PlayerController::handleEvent(const sf::Event& event, CommandQueue& commands)
                 notify(*playerCharacter,RyuEvent::DebugToggle);
                 break;
             }
-            case sf::Keyboard::F1:
+            case sf::Keyboard::Scancode::F1:
             {
                 notify(*playerCharacter,RyuEvent::ImGuiDemoToggle);
                 break;
             }
-            case sf::Keyboard::F2:
+            case sf::Keyboard::Scancode::F2:
             {
                  notify(*playerCharacter,RyuEvent::RyuAnimatorToggle);
                  break;
             }
 
-            case sf::Keyboard::O:
+            case sf::Keyboard::Scancode::O:
             {
                 std::cout << "Scale(" << playerCharacter->getSpriteAnimation().getSprite().getScale().x << "," 
                 << playerCharacter->getSpriteAnimation().getSprite().getScale().y <<  ")\n"; //.scale({1,1});
@@ -217,17 +218,17 @@ PlayerController::handleEvent(const sf::Event& event, CommandQueue& commands)
 
                 break;
             }
-            case sf::Keyboard::R:
+            case sf::Keyboard::Scancode::R:
             {
                 playerCharacter->toggleTestStates();;
                 break;
             }
-            case sf::Keyboard::U:
+            case sf::Keyboard::Scancode::U:
             {
                 playerCharacter->getSpriteAnimation().getSprite().setScale({-1,1});
                 break;
             }
-            case sf::Keyboard::I:
+            case sf::Keyboard::Scancode::I:
             {
                 playerCharacter->getSpriteAnimation().getSprite().setScale({1,1});
                 break;
@@ -237,20 +238,20 @@ PlayerController::handleEvent(const sf::Event& event, CommandQueue& commands)
                 break;
         }
     }
-    if(event.type == sf::Event::KeyReleased)
+    if(const auto * keyReleased = event.getIf<sf::Event::KeyReleased>())
     {
-        switch (event.key.code)
+        switch (keyReleased->scancode)
         {
-            case sf::Keyboard::D:
-            case sf::Keyboard::Right:
+            case sf::Keyboard::Scancode::D:
+            case sf::Keyboard::Scancode::Right:
             {
                 playerCharacter->handleInput(EInput::ReleaseRight);
                 commands = {};
                 commands.push(mActionBindingRelease[EInput::ReleaseRight]);
                 break;
             }
-            case sf::Keyboard::A:
-            case sf::Keyboard::Left:
+            case sf::Keyboard::Scancode::A:
+            case sf::Keyboard::Scancode::Left:
             {
                 playerCharacter->handleInput(EInput::ReleaseLeft);
                 /* TODO: make this less boilerplate ! 
@@ -262,8 +263,8 @@ PlayerController::handleEvent(const sf::Event& event, CommandQueue& commands)
                 break;
             }
 
-            case sf::Keyboard::S:
-            case sf::Keyboard::Down:
+            case sf::Keyboard::Scancode::S:
+            case sf::Keyboard::Scancode::Down:
             {
                 playerCharacter->handleInput(EInput::ReleaseDown);
                 commands = {};
@@ -271,8 +272,8 @@ PlayerController::handleEvent(const sf::Event& event, CommandQueue& commands)
                 break;
             }
 
-            case sf::Keyboard::W:
-            case sf::Keyboard::Up:
+            case sf::Keyboard::Scancode::W:
+            case sf::Keyboard::Scancode::Up:
             {
                 playerCharacter->handleInput(EInput::ReleaseUp);
                 commands = {};
@@ -339,5 +340,5 @@ PlayerController::getAssignedKey(EInput action) const
 			return binding.first;
     }
 	
-	return sf::Keyboard::Unknown;
+	return sf::Keyboard::Key::Unknown;
 }
