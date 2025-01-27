@@ -3,6 +3,7 @@ set (SRC_TEMPLATE
     )
 
 find_package(GTest CONFIG REQUIRED)
+find_package(SFML 3.0.0 COMPONENTS Audio Graphics Window System Network REQUIRED)
 #[[]  
 set(HEADER
      "${RyuPrototype_SOURCE_DIR}/include/Ryu/Debug/b2DrawSFML.hpp"
@@ -17,7 +18,7 @@ add_executable(
 )
 
 target_link_libraries(
-  Template_test
+  Template_test PUBLIC
   GTest::gtest_main
 	# ryucorelib 
  #  ryudebuglib
@@ -31,6 +32,11 @@ target_link_libraries(
 	# ryustateslib
   fmt::fmt
 	ImGui-SFML::ImGui-SFML
+  SFML::Graphics
+  SFML::Window
+  SFML::System
+  SFML::Audio
+  SFML::Network
 	nlohmann_json::nlohmann_json 
 )
 
@@ -40,6 +46,5 @@ gtest_discover_tests(Template_test)
 #add_library(ryudebuglib SHARED "${SRC}" ) #"${HEADER}")
 
 target_include_directories(Template_test PUBLIC "${RyuPrototype_SOURCE_DIR}/include")
-#link_sfml_to_target(Template_test)
 
 add_subdirectory("Animation")

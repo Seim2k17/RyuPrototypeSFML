@@ -17,7 +17,7 @@ set(HEADER
      "${RyuPrototype_SOURCE_DIR}/include/Ryu/Scene/SceneNode.h"
 )
 
-add_library(ryuscenelib SHARED "${SRC}" "${HEADER}")
+add_library(ryuscenelib STATIC "${SRC}" "${HEADER}")
 
 target_include_directories(ryuscenelib PUBLIC 
     "${RyuPrototype_SOURCE_DIR}/include"

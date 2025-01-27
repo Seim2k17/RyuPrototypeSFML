@@ -144,10 +144,10 @@ void Game::run()
 			timeSinceLastUpdate -= TimePerFrame;
 			CommandQueue& commands = mWorld.getActiveCommands();
 
-			while (const std::optional event = mWindow.pollEvent())
+			while (const std::optional<sf::Event> event = mWindow.pollEvent())
 			{
 				ImGui::SFML::ProcessEvent(mWindow, event.value());
-				processEvents(event, commands);
+				processEvents(event.value(), commands);
 			}
 			if (!mIsPaused )
 			{

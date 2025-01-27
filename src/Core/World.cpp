@@ -328,7 +328,8 @@ void World::draw() {
     }
 
     if (pBoxTest) {
-        mWindow.draw(*(getShapeFromPhysicsBody(pBoxTest)));
+        // TODO: segfault
+        // mWindow.draw(*(getShapeFromPhysicsBody(pBoxTest)));
     }
 
     // Clear window

@@ -11,7 +11,7 @@ set(HEADER
      "${RyuPrototype_SOURCE_DIR}/include/Ryu/Physics/RaycastTypes.h"
 )
 
-add_library(ryuphysicslib SHARED "${SRC}" "${HEADER}")
+add_library(ryuphysicslib STATIC "${SRC}" "${HEADER}")
 
 target_include_directories(ryuphysicslib PUBLIC "${RyuPrototype_SOURCE_DIR}/include")
 link_sfml_to_target(ryuphysicslib)

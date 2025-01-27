@@ -14,18 +14,33 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 set(CMAKE_CXX_STANDARD 20)
 
 # fetch SFML from git
-include(FetchContent)
-message(STATUS "Fetching SFML...")
-FetchContent_Declare(SFML
-    GIT_REPOSITORY https://github.com/SFML/SFML.git
-    GIT_TAG 3.0.0
-    GIT_SHALLOW ON
-    EXCLUDE_FROM_ALL
-    SYSTEM
-)
+#include(FetchContent)
+#message(STATUS "Fetching SFML...")
+#FetchContent_Declare(SFML
+#    GIT_REPOSITORY https://github.com/SFML/SFML.git
+#    GIT_TAG 3.0.0
+#    GIT_SHALLOW ON
+#    EXCLUDE_FROM_ALL
+#    SYSTEM
+#)
+#FetchContent_MakeAvailable(SFML)
+#message(STATUS "SFML fetched and built.")
 
-FetchContent_MakeAvailable(SFML)
-message(STATUS "SFML fetched and built.")
+# fetch ImGUI-SFML from git
+
+#include(FetchContent)
+#message(STATUS "Fetching ImGui-SFML...")
+#FetchContent_Declare(ImGuiSFML
+#    GIT_REPOSITORY https://github.com/SFML/imgui-sfml.git
+#    GIT_TAG v3.0
+#    GIT_SHALLOW ON
+#    EXCLUDE_FROM_ALL
+#    SYSTEM
+#)
+#FetchContent_MakeAvailable(ImGuiSFML)
+#message(STATUS "ImGuiSFML fetched and built.")
+
+
 
 # Create a function to simplify linking libraries
 function(link_sfml_to_target target)
@@ -38,13 +53,17 @@ function(link_sfml_to_target target)
     )
 endfunction()
 
+#set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
+#set(CMAKE_INSTALL_RPATH "_deps/sfml-build/lib/")
+#set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+
 set(MAIN "src/Main.cpp")
 set(INCLUDE_FOLDER "src/include")
 #set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/CMake/;${CMAKE_MODULE_PATH}")
 
 #set(CMAKE_CXX_COMPILER "gcc")
 
-#find_package(SFML 3.0.0 COMPONENTS Audio Graphics Window System Network REQUIRED)
+find_package(SFML 3.0.0 COMPONENTS Audio Graphics Window System Network REQUIRED)
 find_package(box2d CONFIG REQUIRED)
 find_package(nlohmann_json 3.2.0 REQUIRED)
 find_package(OpenGL REQUIRED)
@@ -99,4 +118,7 @@ target_link_libraries(ryupt PUBLIC
 	nlohmann_json::nlohmann_json
 )# b2DebugDraw)
 
-#add_subdirectory("src/Tests")
+#TODO: investigate why adding tests lead to not compiling/linking when using shared libs
+# furthermore imgui-sfml seems to need sfml as a shared lib ... but ryu static libs
+# seems to need also a static sfml ... hmm
+# add_subdirectory("src/Tests/Animation/")
