@@ -15,6 +15,8 @@
 #include <SFML/System/Vector2.hpp>
 #include <fmt/core.h>
 #include <imgui-SFML.h>
+// TODO: integrate the files in the project
+#include <../build/_deps/tracy-src/public/tracy/Tracy.hpp>
 
 #include <SFML/Graphics.hpp>
 #include <imgui.h>
@@ -131,6 +133,8 @@ Game::addObservers()
 
 void Game::run()
 {
+	ZoneScoped;
+
 	sf::Clock clock;
 	// uses fixed tick steps (use same delta every time)
 	sf::Time timeSinceLastUpdate = sf::Time::Zero;

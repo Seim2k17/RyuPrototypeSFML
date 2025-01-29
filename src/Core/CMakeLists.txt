@@ -22,8 +22,17 @@ set(HEADER
 
 add_library(ryucorelib STATIC "${SRC}" "${HEADER}")
 
-target_link_libraries(ryucorelib PUBLIC ryuanimationlib ryucontrollib ryusuitelib  ryudebuglib box2d
-	ImGui-SFML::ImGui-SFML)
+target_link_libraries(ryucorelib PUBLIC
+  ryuanimationlib
+  ryucontrollib
+  ryusuitelib
+  ryudebuglib
+  box2d
+  ImGui-SFML::ImGui-SFML
+  pthread # needed by tracy
+  dl
+  TracyClient
+)
 
 target_include_directories(ryucorelib PUBLIC "${RyuPrototype_SOURCE_DIR}/include")
 link_sfml_to_target(ryucorelib)

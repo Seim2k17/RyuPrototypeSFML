@@ -7,7 +7,7 @@
 #include <iostream>
 
 // TODO: check how to solve this better, since SFML 3.0 the Sprite ctor needs a Texture
-sf::Texture dummyTexture;
+sf::Texture dummyTexture = sf::Texture();
 
 Crate::Crate()
 : Sprite(dummyTexture)

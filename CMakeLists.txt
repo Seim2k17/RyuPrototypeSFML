@@ -13,43 +13,54 @@ project(RyuPrototype VERSION 1.0
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 set(CMAKE_CXX_STANDARD 20)
 
+# fetch tracy from git
+include(FetchContent)
+message(STATUS "Fetching Tracy...")
+FetchContent_Declare(TRACY
+    GIT_REPOSITORY https://github.com/wolfpld/tracy.git
+    GIT_TAG v0.11.1 #master
+    GIT_SHALLOW ON
+    GIT_PROGRESS ON
+)
+FetchContent_MakeAvailable(TRACY)
+message(STATUS "Tracy fetched and built.")
+set_option(TRACY_ENABLE "" ON)
+
 # fetch SFML from git
-#include(FetchContent)
-#message(STATUS "Fetching SFML...")
-#FetchContent_Declare(SFML
-#    GIT_REPOSITORY https://github.com/SFML/SFML.git
-#    GIT_TAG 3.0.0
-#    GIT_SHALLOW ON
-#    EXCLUDE_FROM_ALL
-#    SYSTEM
-#)
-#FetchContent_MakeAvailable(SFML)
-#message(STATUS "SFML fetched and built.")
+include(FetchContent)
+message(STATUS "Fetching SFML...")
+FetchContent_Declare(SFML
+    GIT_REPOSITORY https://github.com/SFML/SFML.git
+    GIT_TAG 3.0.0
+    GIT_SHALLOW ON
+    EXCLUDE_FROM_ALL
+    SYSTEM
+)
+FetchContent_MakeAvailable(SFML)
+message(STATUS "SFML fetched and built.")
 
 # fetch ImGUI-SFML from git
 
-#include(FetchContent)
-#message(STATUS "Fetching ImGui-SFML...")
-#FetchContent_Declare(ImGuiSFML
-#    GIT_REPOSITORY https://github.com/SFML/imgui-sfml.git
-#    GIT_TAG v3.0
-#    GIT_SHALLOW ON
-#    EXCLUDE_FROM_ALL
-#    SYSTEM
-#)
-#FetchContent_MakeAvailable(ImGuiSFML)
-#message(STATUS "ImGuiSFML fetched and built.")
-
-
+include(FetchContent)
+message(STATUS "Fetching ImGui-SFML...")
+FetchContent_Declare(ImGuiSFML
+    GIT_REPOSITORY https://github.com/SFML/imgui-sfml.git
+    GIT_TAG v3.0
+    GIT_SHALLOW ON
+    EXCLUDE_FROM_ALL
+    SYSTEM
+)
+FetchContent_MakeAvailable(ImGuiSFML)
+message(STATUS "ImGuiSFML fetched and built.")
 
 # Create a function to simplify linking libraries
 function(link_sfml_to_target target)
     target_link_libraries(${target} PUBLIC
         SFML::Graphics
         SFML::Window
-        SFML::System
-        SFML::Audio
-        SFML::Network
+        #SFML::System
+        #SFML::Audio
+        #SFML::Network
     )
 endfunction()
 
@@ -63,11 +74,11 @@ set(INCLUDE_FOLDER "src/include")
 
 #set(CMAKE_CXX_COMPILER "gcc")
 
-find_package(SFML 3.0.0 COMPONENTS Audio Graphics Window System Network REQUIRED)
+#find_package(SFML 3.0.0 COMPONENTS Audio Graphics Window System Network REQUIRED)
 find_package(box2d CONFIG REQUIRED)
 find_package(nlohmann_json 3.2.0 REQUIRED)
 find_package(OpenGL REQUIRED)
-find_package(ImGui-SFML REQUIRED)
+#find_package(ImGui-SFML REQUIRED)
 find_package(fmt)
 	
 if(ImGui-SFML_FOUND)
@@ -90,8 +101,9 @@ endif()
 #set(SFML_DEPENDENCIES "libxi-dev")
 
 # first add global find packages !!! -> then add sub CMakeLists -> the sub CMakes have all the find packages
+set(TRACYCLIENT "src/Thirdparty/tracy/TracyClient.cpp")
 add_subdirectory("src") 
-add_executable(ryupt "${MAIN}")
+add_executable(ryupt "${MAIN}" "${TRACYCLIENT}")
 target_compile_features(ryupt PRIVATE cxx_std_20)
 
 target_include_directories(ryupt PUBLIC "${INCLUDE_FOLDER}") #HOW >TO ADD SUBFOLDErS ?
@@ -116,6 +128,9 @@ target_link_libraries(ryupt PUBLIC
 	#${SFML_LIBRARIES}
 	#${SFML_DEPENDENCIES}
 	nlohmann_json::nlohmann_json
+    pthread # needed by tracy
+    dl
+    TracyClient
 )# b2DebugDraw)
 
 #TODO: investigate why adding tests lead to not compiling/linking when using shared libs

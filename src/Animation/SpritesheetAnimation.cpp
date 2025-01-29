@@ -20,7 +20,7 @@
 
 // TODO: check to do better
 // since SFML v3 we need a texture for a sprite
-sf::Texture dummyTexture;
+sf::Texture dummyTexture = sf::Texture();
 
 SpritesheetAnimation::SpritesheetAnimation()
     : mSprite(dummyTexture), mFrameSize(), mNumFrames(0), mCurrentFrame(0),
