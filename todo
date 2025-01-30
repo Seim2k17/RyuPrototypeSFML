@@ -1,0 +1,3 @@
+- decouple classes
+- get rid of cyclic references
+- initialize everything !
