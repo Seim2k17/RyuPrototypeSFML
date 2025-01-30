@@ -22,10 +22,13 @@
 #include <box2d/b2_body.h>
 #include <box2d/b2_draw.h>
 #include <box2d/b2_world.h>
+// TODO: integrate the files in the project
+#include <../build/_deps/tracy-src/public/tracy/Tracy.hpp>
 
 #include <array>
 #include <iostream>
 #include <memory>
+#include <tracy/Tracy.hpp>
 #include <utility>
 
 constexpr float GRAVITY = 9.81f;
@@ -55,6 +58,7 @@ World::World(sf::RenderWindow &window)
     // build pyhsics
     setPhysics();
 
+    // TODO: here the scene and the character is created
     buildScene();
 
     mWorldView.setCenter(mSpawnPosition);
@@ -106,6 +110,8 @@ void World::onNotify(const SceneNode &entity, Ryu::EEvent event) {
 
 // TODO: parametrize this for more level!
 void World::buildScene() {
+    ZoneScopedS(60); // max_stacktracedepth = 60
+    ZoneName("buildScene_World", 16);
     // set Layer
     for (std::size_t i = 0; i < size_t(Layer::LayerCount); ++i) {
         SceneNode::Ptr layer(new SceneNode());
@@ -304,6 +310,8 @@ sf::Shape *World::getShapeFromPhysicsBody(b2Body *physicsBody) {
 }
 
 void World::draw() {
+
+    ZoneScopedN("Draw_World");
     mWindow.setView(mWorldView);
     // delegate work to the scenegraph
     mWindow.draw(mSceneGraph);
@@ -355,7 +363,11 @@ void World::draw() {
     */
 }
 
-CommandQueue &World::getActiveCommands() { return mActiveCommands; }
+CommandQueue &World::getActiveCommands() {
+    ZoneScopedN("getActCmd_World");
+
+    return mActiveCommands;
+}
 
 void World::createText(const sf::String text, sf::Text &textToShow) {
     sf::Font font;
@@ -375,6 +387,9 @@ void World::createText(const sf::String text, sf::Text &textToShow) {
 }
 
 void World::update(sf::Time dt) {
+
+	ZoneScopedN("Update_World");
+
     while (!mActiveCommands.isEmpty()) {
         mSceneGraph.onCommand(mActiveCommands.pop(), dt);
     }

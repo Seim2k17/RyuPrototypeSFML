@@ -51,6 +51,17 @@ See [License.txt]. in 02_SFML_GD_BOOK.
     - mkdir build, cd build && cmake -DBUILD_SHARED_LIBS=on ..
     - sudo make install
 9. (imgui-filebrowser: https://github.com/AirGuanZ/imgui-filebrowser.git) IN EVALUATION
+
+10. with 7041bf6aaefa62e17ecc7894f8ac792ca182a940 SMFL 3 & ImGui-SFML & Tracy is directly downloaded and builded. If there are configuring issues please check the following:
+      - in /_deps/imguisfml-src/CMakeLists.txt: set(IMGUI_DIR "[folder-to-local-imgui-rep]")
+      - if you want to use the profiler and building the server does not work 
+      (in build/_deps/tracy-src/ do: 
+         - cmake -B profiler/build -S profiler -DCMAKE_BUILD_TYPE=Release
+         - cmake --build profiler/build --configure Release)
+         -> set option(LEGACY ".." ON) & option(NO_PARALLEL_STL ".." ON) in  
+         profiler/CMakeLists.txt
+         - for meaningful profiling data use a Release build and one need to link tracy against  
+         all the libraries in which classes you want to profile data
 # after all prerequisities are installed to build Ryu
 - in Ryu project folder:
     - (mkdir build && cd build)

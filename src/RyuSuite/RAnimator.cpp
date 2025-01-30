@@ -20,6 +20,8 @@
 #include <fmt/core.h>
 #include <fmt/format.h>
 
+// TODO: integrate the files in the project
+#include <../build/_deps/tracy-src/public/tracy/Tracy.hpp>
 
 #include <iostream>
 #include <fstream>
@@ -625,6 +627,8 @@ Editor::parseJsonFile()
 void
 Editor::createEditorWidgets(bool* p_open)
 {
+    ZoneScopedN("createEdWidgets_RA");
+
     ImGuiWindowFlags window_flags = ImGuiWindowFlags_MenuBar;
     
     if(showAnimationEditor)

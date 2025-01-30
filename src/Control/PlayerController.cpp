@@ -15,6 +15,7 @@
 #include <iostream>
 #include <map>
 #include <memory>
+#include <tracy/Tracy.hpp>
 
 
 class CharacterIchi;
@@ -290,6 +291,8 @@ PlayerController::handleEvent(const sf::Event& event, CommandQueue& commands)
 void
 PlayerController::handleRealtimeInput(CommandQueue& commands)
 {
+    ZoneScopedN("handleInput_PlCtrl");
+
     for(auto const& binding : mKeyBindingPress)
     {
         if(sf::Keyboard::isKeyPressed(binding.first) && isRealtimeAction(binding.second))

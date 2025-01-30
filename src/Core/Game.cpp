@@ -12,6 +12,7 @@
 #include <RyuSuite/RAnimator.h>
 
 // #include <imgui.h>
+#include <SFML/System/Time.hpp>
 #include <SFML/System/Vector2.hpp>
 #include <fmt/core.h>
 #include <imgui-SFML.h>
@@ -25,7 +26,7 @@
 
 
 //namespace ryu{
-const sf::Time TimePerFrame = sf::seconds(1.f / 60.f);
+const sf::Time TimePerFrame = sf::milliseconds(17); // seconds(1.f / 60.f);
 
 Game::Game()
 :Observer("Game")
@@ -133,23 +134,28 @@ Game::addObservers()
 
 void Game::run()
 {
-	ZoneScoped;
-
 	sf::Clock clock;
 	// uses fixed tick steps (use same delta every time)
 	sf::Time timeSinceLastUpdate = sf::Time::Zero;
 	bool mWindowState = ImGui::SFML::Init(mWindow);
-	
+	// TODO: st very weird is going on here:
+	// when adjusting the TimePerFrame to a higher fps: the box2d stuff increases but not the
+	// drawing fps of the assets
+	// this means: refactor hard: DAMNIT !
 	while (mWindow.isOpen() && mWindowState)
 	{
+		ZoneScopedN("run_Game_while_WindowState");
+
 		timeSinceLastUpdate += clock.restart();
 		while (timeSinceLastUpdate > TimePerFrame)
 		{
+			ZoneScopedN("run_Game_while_timetest");
 			timeSinceLastUpdate -= TimePerFrame;
 			CommandQueue& commands = mWorld.getActiveCommands();
 
 			while (const std::optional<sf::Event> event = mWindow.pollEvent())
 			{
+				ZoneScopedN("run_Game_while_poll");
 				ImGui::SFML::ProcessEvent(mWindow, event.value());
 				processEvents(event.value(), commands);
 			}
@@ -163,6 +169,7 @@ void Game::run()
 				mDebugWidgets.CreateDebugGui();
 			}//!mAnimator.showAnimationEditor
 			mAnimator.createEditorWidgets(&mAnimator.showAnimationEditor);
+
 		  render();
 		}	
 	}
@@ -171,6 +178,7 @@ void Game::run()
 
 void Game::processEvents(std::optional<sf::Event> event, CommandQueue& commands)
 {
+	ZoneScoped;
 		// Player-related one-time events
 		mPlayerController->handleEvent(event.value(), commands);
 		//auto evt = event->getIf<T>()
@@ -206,6 +214,8 @@ Game::setDebugValues()
 
 void Game::update(sf::Time deltaTime)
 {
+	ZoneScoped;
+
 	mWorld.update(deltaTime);
 
 	if(mAnimator.fileBrowserState != RyuAnimator::EFileBrowserState::None || (mAnimator.parsedSpritesheet && mAnimator.textureSet))
@@ -217,6 +227,9 @@ void Game::update(sf::Time deltaTime)
 
 void Game::render()
 {
+    ZoneScopedN("Render_Game");
+
+	FrameMark; /// macro to instrumentalize frames for tracy
 	mWindow.clear();
 	mWorld.draw();
 
