@@ -3,12 +3,13 @@
 #include <Ryu/Core/AssetIdentifiers.h>
 #include <Ryu/Scene/EntityStatic.h>
 //#include <Ryu/Scene/LevelObject.h>
-#include <Ryu/Physics/PhysicsObject.h>
+//#include <Ryu/Physics/PhysicsObject.h>
 
 #include <box2d/b2_body.h>
 #include <map>
 #include <vector>
 #include <string>
+
 
 struct LevelObject
 {
@@ -37,7 +38,8 @@ struct LevelObject
 };
 
 static std::map<std::string, std::vector<LevelObject>> physicsObjects = {
-    {"Level1",
+//TODO: get physicsType with Name of the Object from Physics-Class (mScenePhysics)
+{"Level1",
      {{600, 780, 1200, 20, "floor", b2_staticBody},
       {8, 580, 16, 800, "left_side", b2_staticBody},
       {1190, 580, 16, 1100, "right_side", b2_staticBody}

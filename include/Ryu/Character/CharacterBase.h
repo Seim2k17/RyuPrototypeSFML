@@ -102,6 +102,7 @@ struct CharacterPhysicsValues {
 
     float rayCastLength = 40.0f;
 
+    // TODO: not directly physics but physicsrelated. so keep it in CharacterBaseClass
     std::pair<int, int> getFrameSize(bool characterDuck) {
         std::pair<int, int> size;
         if (characterDuck) {
@@ -171,14 +172,14 @@ class CharacterBase : public SceneNode, public Subject, public Observer {
   public:
     // TODO: implement rule of 5 !
     // (morph one character into another ^^)
-    CharacterBase(std::unique_ptr<b2World> &phWorld,
+    CharacterBase(const sf::Vector2f &position);
+    CharacterBase(ECharacterState startState,
                   const sf::Vector2f &position);
-    CharacterBase(ECharacterState startState, std::unique_ptr<b2World> &phWorld,
-                  const sf::Vector2f &positiono);
     ~CharacterBase();
 
     float getCharacterSpeed() { return mCharacterSpeed; }
     void setCharacterSpeed(float speed) { mCharacterSpeed = speed; };
+    void setPhysicWorldRef(std::unique_ptr<b2World> &phWorld);
 
     void setupAnimation(Textures::CharacterID aniId);
 
@@ -272,8 +273,10 @@ class CharacterBase : public SceneNode, public Subject, public Observer {
      *mass could be calculated
      *
      ***/
+    // TODO: move the physics section completetly to the physicsclass !
     void initPhysics(std::unique_ptr<b2World> &phWorld,
-                     const sf::Vector2f &position);
+                     const sf::Vector2f &position); // TODO: what for ?
+    // TODO: rename to 'drawPhysicsOutline'
     void drawCurrent(sf::RenderTarget &target,
                      sf::RenderStates states) const override;
 
@@ -306,8 +309,8 @@ class CharacterBase : public SceneNode, public Subject, public Observer {
     sf::Vector2f movement;
     bool mCharacterFalling;
 
-    // physics
-    std::unique_ptr<b2World> &phWorldRef;
+    // TODO: physics -> physics interface
+    //std::unique_ptr<b2World> &phWorldRef;
     b2Body *mBody;
     b2Fixture *mFixture;
     Textures::LevelID mCurrentLevel;

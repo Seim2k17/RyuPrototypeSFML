@@ -59,6 +59,7 @@ World::World(sf::RenderWindow &window)
     setPhysics();
 
     // TODO: here the scene and the character is created
+    // TODO: Race incoming !!!, see Game Ctor (create Ichi)
     buildScene();
 
     mWorldView.setCenter(mSpawnPosition);

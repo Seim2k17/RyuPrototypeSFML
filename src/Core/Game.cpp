@@ -23,19 +23,21 @@
 #include <imgui.h>
 #include <iostream>
 #include <memory>
+#include <string_view>
 
+constexpr std::string_view PROJECT_NAME{"Ryu prototype 0.1"};
 
 //namespace ryu{
 const sf::Time TimePerFrame = sf::milliseconds(17); // seconds(1.f / 60.f);
 
 Game::Game()
 :Observer("Game")
-,mWindow(sf::VideoMode({1200, 800}), "SFML Application")
+,mWindow(sf::VideoMode({1200, 800}), PROJECT_NAME.data())
+,mPlayerController(std::make_unique<PlayerController>())
 ,mWorld(mWindow)
-,mPlayerController(std::make_unique<PlayerController>(mWorld.getPlayer()))
+,mAnimator(RyuAnimator::Editor())
 ,mIsPaused(false)
-,mAnimator()
-,mDebugWidgets(mWorld.getPlayer())
+,mDebugWidgets(mWorld.getPlayer()) // TODO: player from 1691421player controller
 ,mDebugWidgetsActive(false)
 {
 	// todo: how to load ichis tzextures at  startup ?

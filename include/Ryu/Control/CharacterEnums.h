@@ -16,6 +16,11 @@ enum class EInput
     ActionInput
 };
 
+BETTER_ENUM(ECharacters, char
+    , None=0
+    , Ichi=1
+);
+
 BETTER_ENUM(ECharacterState, char
     ,None=0
     ,Idle

@@ -39,13 +39,11 @@ IsInBounds(const T &value, const T &low, const T &high)
     return !(value < low) && !(high < value);
 }
 
-CharacterBase::CharacterBase(std::unique_ptr<b2World> &phWorld,
-                             const sf::Vector2f &position)
+CharacterBase::CharacterBase(const sf::Vector2f &position)
     : Observer("CharacterBase"),
       mCharacterState(std::make_unique<CharacterStateIdle>()),
       movement(0.f, 0.f),
       mMoveDirection(EMoveDirection::Right),
-      phWorldRef(phWorld),
       mCharacterFalling(false),
       baseTextureManager(),
       mCharSettings(),
@@ -61,18 +59,24 @@ CharacterBase::CharacterBase(std::unique_ptr<b2World> &phWorld,
     // std::make_shared<CharacterBase>(this); mCharacterAnimation =
     // SpritesheetAnimation(std::move(sPtr));
     loadTextures();
+}
+
+void
+CharacterBase::setPhysicWorldRef(std::unique_ptr<b2World> &phWorld)
+{
+    // TODO: check if this makes sense this way ? -> the owner of the physicsworld should be World
+    phWorldRef = std::move(phWorld);
     phWorldRef->SetContactListener(&contactListener);
+
 }
 
 CharacterBase::CharacterBase(ECharacterState startState,
-                             std::unique_ptr<b2World> &phWorld,
                              const sf::Vector2f &position)
     : Observer("CharacterBase"),
       mECharacterState(startState),
       mCharacterState(std::make_unique<CharacterStateIdle>()),
       mCharacterSpeed(55.0f), // startvalue playerspeed
       mMoveDirection(EMoveDirection::Right),
-      phWorldRef(phWorld),
       mCharacterFalling(false),
       baseTextureManager(),
       mCharSettings(),
@@ -88,7 +92,6 @@ CharacterBase::CharacterBase(ECharacterState startState,
     // TODO: check if its needable&possible to start character from a certain
     // state
     loadTextures();
-    phWorldRef->SetContactListener(&contactListener);
 }
 
 void
@@ -280,7 +283,9 @@ CharacterBase::initPhysics(std::unique_ptr<b2World> &phWorld,
     mBody = phWorld->CreateBody(&bodyDef);
     mFixture = mBody->CreateFixture(&fixtureDef);
 
+    // TODO: with SFML 3 there are probably smartPointer more elegant ? otherwise do RAII !
     sf::Shape *shape = new sf::RectangleShape(sf::Vector2f(size_x, size_y));
+
     // std::unique_ptr<sf::Shape> shape =
     // std::make_unique<sf::RectangleShape>(sf::Vector2f(size_x, size_y));
 

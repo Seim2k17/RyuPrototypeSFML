@@ -23,7 +23,7 @@ class PlayerController : public Observer, public Subject /// notifier and observ
     public:
 
         //PlayerController(std::unique_ptr<CharacterIchi> const &character);
-        PlayerController(CharacterIchi* character);
+        PlayerController();
 
         void assignKey(EInput action, sf::Keyboard::Key key);
         sf::Keyboard::Key getAssignedKey(EInput action) const;
@@ -45,6 +45,6 @@ class PlayerController : public Observer, public Subject /// notifier and observ
         std::map<sf::Keyboard::Key, EInput> mKeyBindingRelease;
         std::map<EInput, Command> mActionBindingRelease;
 
-        CharacterIchi* playerCharacter;
+        std::unique_ptr<CharacterIchi> playerCharacter;
 
 };

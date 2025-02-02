@@ -24,9 +24,8 @@
 class CharacterStateRun;
 
 CharacterIchi::CharacterIchi(ECharacterState startState,
-                             std::unique_ptr<b2World> &phWorld,
                              const sf::Vector2f &position)
-    : CharacterBase(startState, phWorld, position), ichiTextureManager()
+    : CharacterBase(startState, position), ichiTextureManager()
 {
     loadTextures();
     // mCharacterAnimation.setPosition({100.f,50.f});

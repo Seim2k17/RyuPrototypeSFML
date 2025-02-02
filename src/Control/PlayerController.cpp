@@ -9,6 +9,7 @@
 #include <Ryu/Core/CommandQueue.h>
 #include <Ryu/Character/CharacterIchi.h>
 
+#include <SFML/System/Vector2.hpp>
 #include <SFML/Window/Event.hpp>
 #include <SFML/Window/Keyboard.hpp>
 #include <fmt/core.h>
@@ -51,6 +52,14 @@ std::function<void(SceneNode&, sf::Time)> derivedEInput(Function fn)
         // downcast node and invoke function on it
         fn(static_cast<GameObject&>(node),dt);
     };
+}
+
+PlayerController::PlayerController()
+: Observer("Playercontroller")
+  // TODO: initialize other member
+, playerCharacter(std::make_unique<CharacterIchi>(ECharacterState::Idle, sf::Vector2f{0,0}))
+{
+    initializeBindings();
 }
 
 void
@@ -124,13 +133,6 @@ PlayerController::initializeBindings()
     {
         actionBinding.second.category = static_cast<unsigned>(Category::Type::Player); 
     }
-}
-
-PlayerController::PlayerController(CharacterIchi* character)
-: Observer("Playercontroller")
-, playerCharacter(character)
-{    
-    initializeBindings();
 }
 
 void

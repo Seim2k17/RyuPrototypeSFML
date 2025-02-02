@@ -13,7 +13,7 @@ using IchiTextureManager = AssetManager<sf::Texture, Textures::SpritesheetID>;
 
 class CharacterIchi : public CharacterBase {
   public:
-    CharacterIchi(ECharacterState startState, std::unique_ptr<b2World> &phWorld,
+    CharacterIchi(ECharacterState startState,
                   const sf::Vector2f &position);
     void setTextureOnCharacter(Textures::SpritesheetID textureId) override;
 
