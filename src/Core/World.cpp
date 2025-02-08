@@ -47,10 +47,8 @@ World::World(sf::RenderWindow &window)
       mSpawnPosition({mWorldView.getSize().x / 2.f,
               (mWorldBounds.size.y - mWorldView.getSize().y)}),
       mPushBox(nullptr), mPlayer(nullptr),
-      phWorld(std::make_unique<b2World>(
-          b2Vec2{0.0f, GRAVITY})) /// set gravity to 10 & create physics world
-      ,
-      phGroundBodies(), phDebugPhysics(false), phTimeStep(PHYSICS_TIME_STEP), clock(),
+      mPhysics(),
+      phDebugPhysics(false), phTimeStep(PHYSICS_TIME_STEP), clock(),
       levelManager(std::make_unique<LevelManager>())
       , mStaticEntities() {
     loadTextures();
@@ -60,6 +58,8 @@ World::World(sf::RenderWindow &window)
 
     // TODO: here the scene and the character is created
     // TODO: Race incoming !!!, see Game Ctor (create Ichi)
+    // the scene should only be shown when everything is initalized and loaded !!!!
+    // st. like: waiting on Event: PhysicsFinished, CharacterFinished, SceneFinished ...
     buildScene();
 
     mWorldView.setCenter(mSpawnPosition);
@@ -138,9 +138,12 @@ void World::buildScene() {
     mPushBox = box.get();
     mPushBox->setPosition(sf::Vector2f(760.f,80.f));
 
+
+    // TODO: move to playercontroller (owner)
     std::unique_ptr<CharacterIchi> ichi = std::make_unique<CharacterIchi>(
         ECharacterState::Idle, phWorld, sf::Vector2f(150, 200));
-    mPlayer = ichi.get();
+
+    mPlayer = ichi.get(); /// TODO: get from PC
     mSceneLayers[static_cast<unsigned>(Layer::Foreground)]->attachChild(
         std::move(box));
     mSceneLayers[static_cast<unsigned>(Layer::Foreground)]->attachChild(
@@ -151,7 +154,8 @@ void World::buildScene() {
 }
 
 
-// TODO: overthink how to story the physic body ! (in the Entityclass ?)
+// TODO: overthink how to store the physic body ! (in the Entityclass ?)
+// --> there is now a PhysicsClass with map mScenePhysics
 // whats with multiple levels .... we need at least a map
 b2Body *
 World::createPhysicalBox(int pos_x, int pos_y, int size_x, int size_y,
@@ -244,8 +248,10 @@ World::createPhysicalBox(LevelObject obj)
     return createPhysicalBox(obj.posX, obj.posY, obj.sizeX, obj.sizeY, obj.name, obj.type, obj.texture, obj.entityType);
 }
 
+// TODO split in "createGroundbodies / setScenePhysics in Physics class"
 void World::setPhysics() {
 
+    // TODO: move to physicsclass !
     for(const auto& obj : physicsObjects.at("Level2"))
     {
         phGroundBodies.emplace_back(PhysicsObject("", createPhysicalBox(obj)));
@@ -269,7 +275,7 @@ void World::setDebugDrawer(sf::RenderTarget &target) {
     debugDrawer.SetScale(Converter::PIXELS_PER_METERS);
 
     // Set our drawer as world's drawer
-    phWorld->SetDebugDraw(&debugDrawer);
+    mPhysics.setDebugDrawer();
 
     // Set flags for things that should be drawn
     // ALWAYS remember to set at least one flag,

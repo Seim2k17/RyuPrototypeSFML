@@ -65,6 +65,7 @@ void
 CharacterBase::setPhysicWorldRef(std::unique_ptr<b2World> &phWorld)
 {
     // TODO: check if this makes sense this way ? -> the owner of the physicsworld should be World
+    // move contactlistener to Physicsclas ?s
     phWorldRef = std::move(phWorld);
     phWorldRef->SetContactListener(&contactListener);
 
@@ -97,6 +98,8 @@ CharacterBase::CharacterBase(ECharacterState startState,
 void
 CharacterBase::setCharacterSettings(CharacterSetting settings)
 {
+    // TODO: GUI related (DEBUG)
+
     fmt::print("useDebugValues: JF: {}/{}, JU: {}/{}\n",
                settings.jumpForwardImpulse.x, settings.jumpForwardImpulse.y,
                settings.jumpUpImpulse.x, settings.jumpUpImpulse.y);
@@ -126,6 +129,7 @@ CharacterBase::setPositionOffset(sf::Vector2f offset)
 void
 CharacterBase::resetCharacterSettings()
 {
+    // TODO: find better way for resetting stuff for DEBUG UI
     fmt::print("reset Values");
     mCharSettings.MoveMultiplierX = mFinalCharSettings.MoveMultiplierX;
     mCharSettings.MoveMultiplierY = mFinalCharSettings.MoveMultiplierY;
@@ -157,7 +161,10 @@ CharacterBase::updatePhysics(const sf::Vector2f &position)
 void
 CharacterBase::initPhysics()
 {
-    initPhysics(phWorldRef, mCharacterAnimation.getPosition());
+    // TODO: init Physics from world, delegating to Physics::initCharacterPhysics
+    // initPhysics(phWorldRef, mCharacterAnimation.getPosition());
+
+    // TODO: this flag should be set when we get a message back from the physics class
     physicsInitialized = true;
 }
 
@@ -166,12 +173,6 @@ CharacterBase::loadTextures()
 {
     baseTextureManager.load(Textures::PhysicAssetsID::Empty,
                             "assets/scenes/99_dummy/box_empty.png");
-}
-
-void
-CharacterBase::destroyPhysics()
-{
-    phWorldRef->DestroyBody(mBody);
 }
 
 float
@@ -183,6 +184,7 @@ CharacterBase::getDirectionMultiplier()
 void
 CharacterBase::jumpForward()
 {
+    // TODO: physicsrelated stuff now in the PhysicsClass
     fmt::print("JumpForward: x:{} y:{}\n", mCharSettings.jumpForwardImpulse.x,
                mCharSettings.jumpForwardImpulse.y);
 
@@ -234,72 +236,6 @@ CharacterBase::onNotify(const SceneNode &entity, Ryu::EEvent event)
     mCharacterState->onNotify(
         *this,
         event); // notify the state (we dont want the states to be an observer)
-}
-
-void
-CharacterBase::initPhysics(std::unique_ptr<b2World> &phWorld,
-                           const sf::Vector2f &position)
-{
-    // TODO: make it adjustable ? or remove and add new ? -> e.g. duck state ->
-    // halfPhysics box
-    // init physics after the charactersprite was created !
-    // Create the body of the falling Crate
-    b2BodyDef bodyDef;
-    bodyDef.type = b2_dynamicBody; /// TODO: or even kinematic body ?
-    bodyDef.position.Set(Converter::pixelsToMeters<double>(position.x),
-                         Converter::pixelsToMeters<double>(
-                             inDuckMode()
-                                 ? position.y + (DUCK_FRAME_SIZE.second / 2)
-                                 : position.y));
-    bodyDef.fixedRotation = true;
-    bodyDef.gravityScale = mCharacterPhysicsValues.gravityScale;
-
-    // Create a shape
-    b2PolygonShape polygonShape;
-    // TODO write convert functions Pixels<->meter (box2d) and reset
-    // polygonshape wenn aniation changes
-    // polygonShape.SetAsBox(mCharacterAnimation.getTexture()->getSize().x
-    // / 20.f, mCharacterAnimation.getTexture()->getSize().y / 20.f ); /*
-    // dimension.x/2.f,dimension.y/2.f */
-    // polygonShape.SetAsBox(0.5,0.9);
-
-    auto shapeSize = mCharacterPhysicsValues.getFrameSize(inDuckMode());
-
-    int size_x
-        = shapeSize
-              .first; // mCharacterAnimation.getSprite().getTextureRect().width;
-    int size_y = shapeSize.second;
-
-    polygonShape.SetAsBox(Converter::pixelsToMeters<double>(size_x * 0.5f),
-                          Converter::pixelsToMeters<double>(size_y * 0.5f));
-
-    // Create a fixture
-    b2FixtureDef fixtureDef;
-    fixtureDef.shape = &polygonShape;
-    fixtureDef.density = mCharacterPhysicsValues.fixtureDensity;
-    fixtureDef.friction = mCharacterPhysicsValues.fixtureFriction;
-    fixtureDef.restitution = mCharacterPhysicsValues.fixtureRestitution;
-
-    mBody = phWorld->CreateBody(&bodyDef);
-    mFixture = mBody->CreateFixture(&fixtureDef);
-
-    // TODO: with SFML 3 there are probably smartPointer more elegant ? otherwise do RAII !
-    sf::Shape *shape = new sf::RectangleShape(sf::Vector2f(size_x, size_y));
-
-    // std::unique_ptr<sf::Shape> shape =
-    // std::make_unique<sf::RectangleShape>(sf::Vector2f(size_x, size_y));
-
-    shape->setOrigin({size_x / 2.0f, size_y / 2.0f});
-    shape->setPosition(sf::Vector2f(position.x, position.y));
-    shape->setTexture(
-        &baseTextureManager.getResource(Textures::PhysicAssetsID::Empty));
-
-    mBody->GetUserData().pointer = (uintptr_t)shape; //.get();
-
-    std::cout << "Init character at position "
-              << Converter::metersToPixels(bodyDef.position.x) << ","
-              << Converter::metersToPixels(bodyDef.position.y) << "\n";
-    // mBody->SetLinearVelocity(b2Vec2(0.0f, -50.0f));
 }
 
 sf::Shape *

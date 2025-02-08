@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Ryu/Physics/Physics.h"
 #include <Ryu/Core/AssetManager.h>
 #include <Ryu/Core/CommandQueue.h>
 #include <Ryu/Debug/b2DrawSFML.hpp>
@@ -37,8 +38,7 @@ class World : /*private sf::NonCopyable*/ public Observer {
     CommandQueue &getActiveCommands();
     CharacterIchi *getPlayer();
     const sf::Drawable &getPlayerSprite();
-    // TODO: make this static ? -> access from everywhere
-    std::unique_ptr<b2World> &getPhysicsWorld() { return phWorld; };
+    // TODO: move to physics
     sf::Shape *getShapeFromPhysicsBody(b2Body *physicsBody);
     void debugDrawSegment(b2Vec2 const &p1, b2Vec2 const &p2,
                           b2Color const &color) {
@@ -56,6 +56,7 @@ class World : /*private sf::NonCopyable*/ public Observer {
     void createText(const sf::String text, sf::Text &textToShow);
     void loadTextures();
     void buildScene();
+    // TODO: move to physics
     void setPhysics();
     b2Body* createPhysicalBox(int pos_x, int pos_y, int size_x, int size_y,
                               std::string name, b2BodyType type,
@@ -69,6 +70,7 @@ class World : /*private sf::NonCopyable*/ public Observer {
     SceneNode mSceneGraph;
     std::array<SceneNode *, std::size_t(Layer::LayerCount)> mSceneLayers;
     // Shapes and MetaInfos to static physicalBodies
+    std::vector<PhysicsObject> phGroundBodies; // TODO see in Physics -> static sceneObjects
     std::map<uintptr_t, std::unique_ptr<EntityStatic> > mStaticEntities;
 
 
@@ -79,10 +81,10 @@ class World : /*private sf::NonCopyable*/ public Observer {
 
     CommandQueue mActiveCommands;
 
-    // box2d physics
-    std::unique_ptr<b2World> phWorld;
-    std::vector<PhysicsObject> phGroundBodies;
+    Physics mPhysics;
+
     std::vector<sf::Text> texts;
+    // TODO: move to physics
     b2Body* pBoxTest;
     bool phDebugPhysics;
     float phTimeStep;
