@@ -8,7 +8,6 @@
 #pragma once
 
 #include "Ryu/Character/CharacterBase.h"
-#include "Ryu/Core/World.h"
 #include "Ryu/Events/Subject.h"
 #include "Ryu/Scene/EntityStatic.h"
 #include "Ryu/Scene/SceneEnums.h"
@@ -104,14 +103,18 @@ class Physics : public Subject {
     ~Physics();
 
     void createPhysicsSceneObjects(ELevel level);
+    void update();
     void initCharacterPhysics(ICharacter& character, bool inDuckMode);
     void setDebugDrawer();
 
    private:
-    void addSceneObjectsToPhysicWorld(ELevel, std::vector<std::string> objects);
+    void createPhysicsBody(SceneObjectPhysicsParameters sceneObject);
     // box2d physics
     std::map<ECharacters, CharacterPhysicsParameters> mCharacterPhysics;
     std::unique_ptr<b2World> mPhysicsWorld;
-    std::map<ELevel, std::vector<SceneObjectPhysicsParameters> > mScenePhysics; // see also physicsObject @LevelManager.h
-                                                                       // key is a combination of LevelName (ELevel.string) and ObjectName
+    // std::map<ELevel, std::vector<SceneObjectPhysicsParameters> > mSceneObjects; // see sceneObjects
+
+    // TODO: check if we keep it here or not ? Do we even need this at all ?                                                                   // key is a combination of LevelName (ELevel.string) and ObjectName ? WHY ?
+    std::map<uintptr_t, std::unique_ptr<EntityStatic> > mStaticEntities;
+    float phTimeStep;
 };

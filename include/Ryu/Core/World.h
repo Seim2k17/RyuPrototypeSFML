@@ -58,10 +58,13 @@ class World : /*private sf::NonCopyable*/ public Observer {
     void buildScene();
     // TODO: move to physics
     void setPhysics();
+
+    [[deprecated("moved to physics")]]
     b2Body* createPhysicalBox(int pos_x, int pos_y, int size_x, int size_y,
                               std::string name, b2BodyType type,
                               Textures::SceneID texture, EntityType entityType = EntityType::None);
-    b2Body* createPhysicalBox(LevelObject obj);
+    [[deprecated("moved to physics")]]
+    b2Body* createPhysicalBox(/*LevelObject obj*/);
 
   private:
     sf::RenderWindow &mWindow;
@@ -70,7 +73,7 @@ class World : /*private sf::NonCopyable*/ public Observer {
     SceneNode mSceneGraph;
     std::array<SceneNode *, std::size_t(Layer::LayerCount)> mSceneLayers;
     // Shapes and MetaInfos to static physicalBodies
-    std::vector<PhysicsObject> phGroundBodies; // TODO see in Physics -> static sceneObjects
+    // std::vector<PhysicsObject> phGroundBodies; // TODO see in Physics -> static sceneObjects
     std::map<uintptr_t, std::unique_ptr<EntityStatic> > mStaticEntities;
 
 

@@ -31,9 +31,6 @@
 #include <tracy/Tracy.hpp>
 #include <utility>
 
-constexpr float GRAVITY = 9.81f;
-constexpr float PHYSICS_TIME_STEP = 1.f / 60.f;
-
 // namespace ryu{
 World::World(sf::RenderWindow &window)
     : Observer("World"), mWindow(window), mWorldView(window.getDefaultView()),
@@ -48,13 +45,21 @@ World::World(sf::RenderWindow &window)
               (mWorldBounds.size.y - mWorldView.getSize().y)}),
       mPushBox(nullptr), mPlayer(nullptr),
       mPhysics(),
-      phDebugPhysics(false), phTimeStep(PHYSICS_TIME_STEP), clock(),
+      phDebugPhysics(false), clock(),
       levelManager(std::make_unique<LevelManager>())
       , mStaticEntities() {
+
+    // TODO: in ctor we only should do 1 thing and if the following depends on this
+    // only do this when the former is finished -> or/and PRO: use multithreading
+    // BUT see flow diagram blabla (WIP) SceneWorkflow: after loading textures,set physics
+    // use events for this ... we have a nice observer pattern ^^
     loadTextures();
 
     // build pyhsics
-    setPhysics();
+    //OLD:
+    // setPhysics();
+    //NEW:
+    mPhysics.createPhysicsSceneObjects(ELevel::Level2);
 
     // TODO: here the scene and the character is created
     // TODO: Race incoming !!!, see Game Ctor (create Ichi)
@@ -68,9 +73,6 @@ World::World(sf::RenderWindow &window)
 World::~World() {
     mPlayer = nullptr;
     mPushBox = nullptr;
-    for (const auto &body : phGroundBodies) {
-        phWorld->DestroyBody(body.pBody);
-    }
 }
 
 CharacterIchi *World::getPlayer() { return mPlayer; }
@@ -242,20 +244,18 @@ World::createPhysicalBox(int pos_x, int pos_y, int size_x, int size_y,
     return res;
 }
 
+
 b2Body *
-World::createPhysicalBox(LevelObject obj)
+World::createPhysicalBox(/*LevelObject obj*/)
 {
     return createPhysicalBox(obj.posX, obj.posY, obj.sizeX, obj.sizeY, obj.name, obj.type, obj.texture, obj.entityType);
 }
+
 
 // TODO split in "createGroundbodies / setScenePhysics in Physics class"
 void World::setPhysics() {
 
     // TODO: move to physicsclass !
-    for(const auto& obj : physicsObjects.at("Level2"))
-    {
-        phGroundBodies.emplace_back(PhysicsObject("", createPhysicalBox(obj)));
-    }
 
 /*
     pBoxTest =
@@ -330,9 +330,10 @@ void World::draw() {
     }
 
     // TODO: add the ground and stuff to the scenegraph !
+
     if (phGroundBodies.size() > 0) {
-        for (const auto &body : phGroundBodies) {
-            auto shape = getShapeFromPhysicsBody(body.pBody);
+        for (const auto &obj : phGroundBodies) {
+            auto shape = getShapeFromPhysicsBody(obj.pBody);
             if (shape == nullptr) {
                 fmt::print("shape ptr seems to be null\n");
                 return;

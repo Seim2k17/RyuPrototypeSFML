@@ -1,4 +1,6 @@
 #include <Ryu/Scene/EntityStatic.h>
+#include <SFML/Graphics/Shape.hpp>
+#include <memory>
 
 //namespace ryu {
 
@@ -10,9 +12,10 @@ EntityStatic::EntityStatic(EntityType type) :
 EntityStatic::~EntityStatic() {}
 
 void
-EntityStatic::setShape(sf::Shape* shape)
+//EntityStatic::setShape(sf::Shape* shape)
+EntityStatic::setShape(std::unique_ptr<sf::Shape> shape)
 {
-  if(shape != nullptr) mShape = shape;
+  if(shape != nullptr) mShape = std::move(shape);
 }
 
 void

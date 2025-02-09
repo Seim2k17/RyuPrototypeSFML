@@ -21,9 +21,13 @@ class EntityStatic //: public SceneNode
         virtual ~EntityStatic();
         unsigned int getCategory() const { return static_cast<unsigned>(Category::Type::None);}
         EntityType getEntityType() {return mEntityType;};
+
+        [[deprecated]]
         void setShape(sf::Shape* shape);
+        void setShape(std::unique_ptr<sf::Shape> shape);
+
         sf::Shape* getShape(){
-                return mShape;
+                return mShape.get();
         };
         void setCornerPoints(std::vector<sf::Vector2f> points);
         std::vector<sf::Vector2f> getCornerPoints();
@@ -36,7 +40,7 @@ class EntityStatic //: public SceneNode
 private:
         uint16_t mContactPoints;
         virtual void updateCurrent(sf::Time dt);
-        sf::Shape* mShape;
+        std::unique_ptr<sf::Shape> mShape;
         EntityType mEntityType;
         std::vector<sf::Vector2f> mBorderPoints;
         std::string mName;

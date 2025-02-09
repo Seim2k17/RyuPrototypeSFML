@@ -6,10 +6,17 @@
 #include <Ryu/Core/Utilities.h>
 
 #include <Ryu/Character/ICharacter.h>
+#include <SFML/Graphics/RectangleShape.hpp>
+#include <SFML/Graphics/Shape.hpp>
+#include <SFML/System/Vector2.hpp>
 #include <box2d/b2_body.h>
 #include <box2d/b2_world.h>
 #include <fmt/core.h>
 #include <memory>
+
+
+constexpr float GRAVITY = 9.81f;
+constexpr float PHYSICS_TIME_STEP = 1.f / 60.f;
 
 CharacterPhysicsParameters::CharacterPhysicsParameters() :
     mBody(nullptr),
@@ -49,6 +56,30 @@ SceneObjectPhysicsParameters::SceneObjectPhysicsParameters(
     mEntityType(entityType),
     mPhysicsBody(nullptr)
 {}
+
+
+Physics::Physics() :
+    mCharacterPhysics({}),
+    mPhysicsWorld(nullptr),
+    mStaticEntities({}),
+    phTimeStep(PHYSICS_TIME_STEP) {}
+
+Physics::~Physics()
+{
+   for(auto& level : sceneObjects)
+   {
+       for(auto& sceneObj : level.second)
+       {
+           mPhysicsWorld->DestroyBody(sceneObj.mPhysicsBody);
+       }
+   }
+}
+
+void
+Physics::update()
+{
+
+}
 
 void
 Physics::initCharacterPhysics(ICharacter& character, bool inDuckMode)
@@ -126,6 +157,86 @@ Physics::initCharacterPhysics(ICharacter& character, bool inDuckMode)
 void
 Physics::createPhysicsSceneObjects(ELevel level)
 {
+    for(auto& obj : sceneObjects.at(level))
+    {
+        createPhysicsBody(obj);
+        // phGroundBodies.emplace_back(PhysicsObject("", createPhysicalBox(obj)));
+    }
+}
+
+void
+Physics::createPhysicsBody(SceneObjectPhysicsParameters sceneObject)
+{
+    sf::Vector2i objPosition = sceneObject.mPosition;
+    sf::Vector2i objSize = sceneObject.mSize;
+
+    b2BodyDef bodyDef;
+    bodyDef.position.Set(Converter::pixelsToMeters<double>(objPosition.x),
+                         Converter::pixelsToMeters<double>(objPosition.y));
+    bodyDef.type = sceneObject.mType;
+    b2PolygonShape b2Shape;
+
+    b2Shape.SetAsBox(Converter::pixelsToMeters<double>(objSize.x / 2.0),
+                     Converter::pixelsToMeters<double>(objSize.y / 2.0));
+
+    b2FixtureDef fixtureDef;
+    fixtureDef.density = 2.0;
+    fixtureDef.friction = 0.98;
+    fixtureDef.restitution = 0.1;
+    fixtureDef.shape = &b2Shape;
+
+    b2Body *res = mPhysicsWorld->CreateBody(&bodyDef);
+    // std::unique_ptr<b2Body> res =
+    // std::make_unique<b2Body>(phWorld->CreateBody(&bodyDef));
+    res->CreateFixture(&fixtureDef);
+
+    // std::unique_ptr<sf::RectangleShape> shape =
+    // std::make_unique<sf::RectangleShape>(sf::Vector2f(size_x,size_y));
+    // sf::RectangleShape shape{sf::Vector2f(size_x,size_y)};
+    // TODO howto smartptr ?
+    // sf::Shape *shape = new sf::RectangleShape(objSize);
+    std::unique_ptr<sf::Shape> shape =
+        std::make_unique<sf::RectangleShape>(sf::Vector2f(objSize));
+
+    shape->setOrigin({(float)(objSize.x / 2.0), (float)(objSize.y / 2.0)});
+    shape->setPosition(sf::Vector2f(objPosition.x, objPosition.y));
+
+    // TODO: check what for
+    auto staticEntity = std::make_unique<EntityStatic>(sceneObject.mEntityType);
+    // std::shared_ptr<EntityStatic> staticEntity =
+    // std::make_shared<EntityStatic>());
+    staticEntity->setShape(std::move(shape));
+    staticEntity->setName(sceneObject.mName);
+
+    auto shapePosition = shape->getGlobalBounds().position;
+    auto shapeSize = shape->getGlobalBounds().size;
+    std::vector<sf::Vector2f> cornerPoints{
+        {shapePosition.x, shapePosition.y},
+        {shapePosition.x + shapeSize.x, shapePosition.y},
+        {shapePosition.x, shapePosition.y + shapeSize.y},
+        {shapePosition.x + shapeSize.x,
+         shapePosition.y + shapeSize.y}};
+
+    staticEntity->setCornerPoints(cornerPoints);
+
+    if (sceneObject.mTextureId != Textures::SceneID::Unknown) {
+         shape->setFillColor(sf::Color::Red);
+         shape->setOutlineColor(sf::Color::Red);
+         shape->setOutlineThickness(2.0f);
+        // TODO: how to set texture without coupling to texturestuff
+        // this can be probably be part of the Levelmanager and to LM we need a link
+        // from World and from Physics ... ? MAYBE
+        // shape->setTexture(&mSceneTextures.getResource(texture));
+    }
+    else {
+        shape->setFillColor(sf::Color::Green);
+    }
+
+    res->GetUserData().pointer = reinterpret_cast<uintptr_t>(staticEntity.get());
+    mStaticEntities[reinterpret_cast<uintptr_t>(res)] = std::move(staticEntity);
+
+    // Dangling pointer for EntityStatic ?
+    sceneObject.mPhysicsBody = res;
 }
 
 void
