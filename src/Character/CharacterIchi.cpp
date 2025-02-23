@@ -24,7 +24,7 @@
 class CharacterStateRun;
 
 CharacterIchi::CharacterIchi(ECharacterState startState,
-                             const sf::Vector2f &position)
+                             const sf::Vector2i &position)
     : CharacterBase(startState, position), ichiTextureManager()
 {
     loadTextures();

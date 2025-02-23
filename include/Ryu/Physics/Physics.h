@@ -23,6 +23,8 @@
 class CharacterBase;
 class ICharacter;
 
+static b2DrawSFML debugDrawer;
+
 struct CharacterPhysicsParameters{
     CharacterPhysicsParameters();
 
@@ -103,9 +105,13 @@ class Physics : public Subject {
     ~Physics();
 
     void createPhysicsSceneObjects(ELevel level);
-    void update();
+    void debugDrawSegment(b2Vec2 const &p1, b2Vec2 const &p2,
+                          b2Color const &color)const;
+    void debugDraw() const;
     void initCharacterPhysics(ICharacter& character, bool inDuckMode);
     void setDebugDrawer();
+    void setDebugPhysics(bool debugPhysics);
+    void update();
 
    private:
     void createPhysicsBody(SceneObjectPhysicsParameters sceneObject);
@@ -115,6 +121,9 @@ class Physics : public Subject {
     // std::map<ELevel, std::vector<SceneObjectPhysicsParameters> > mSceneObjects; // see sceneObjects
 
     // TODO: check if we keep it here or not ? Do we even need this at all ?                                                                   // key is a combination of LevelName (ELevel.string) and ObjectName ? WHY ?
-    std::map<uintptr_t, std::unique_ptr<EntityStatic> > mStaticEntities;
-    float phTimeStep;
+    // it was: why?
+    std::map<const uintptr_t, std::unique_ptr<EntityStatic> > mStaticEntities;
+    // std::map<uintptr_t, EntityStatic > mStaticEntities;
+    float mPhTimeStep;
+    bool mDebugPhysicsActive;
 };

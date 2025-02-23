@@ -17,6 +17,8 @@
 
 constexpr float GRAVITY = 9.81f;
 constexpr float PHYSICS_TIME_STEP = 1.f / 60.f;
+constexpr int32 VELOCITY_ITERATIONS = 8;
+constexpr int32 POSITION_ITERATIONS = 3;
 
 CharacterPhysicsParameters::CharacterPhysicsParameters() :
     mBody(nullptr),
@@ -57,12 +59,13 @@ SceneObjectPhysicsParameters::SceneObjectPhysicsParameters(
     mPhysicsBody(nullptr)
 {}
 
-
+// TODO: set contactlistener (see characterbase)
 Physics::Physics() :
     mCharacterPhysics({}),
     mPhysicsWorld(nullptr),
-    mStaticEntities({}),
-    phTimeStep(PHYSICS_TIME_STEP) {}
+    mStaticEntities(),
+    mPhTimeStep(PHYSICS_TIME_STEP),
+    mDebugPhysicsActive(false){}
 
 Physics::~Physics()
 {
@@ -78,7 +81,32 @@ Physics::~Physics()
 void
 Physics::update()
 {
+    mPhysicsWorld->Step(PHYSICS_TIME_STEP, VELOCITY_ITERATIONS, POSITION_ITERATIONS);
+}
 
+void
+Physics::setDebugPhysics(bool debugPhysics)
+{
+    mDebugPhysicsActive = debugPhysics;
+}
+
+void
+Physics::debugDrawSegment(b2Vec2 const &p1, b2Vec2 const &p2,
+                          b2Color const &color) const
+{
+    if (mDebugPhysicsActive)
+    {
+        debugDrawer.DrawSegment(p1, p2, color);
+    }
+}
+
+void
+Physics::debugDraw() const
+{
+    if(mDebugPhysicsActive)
+    {
+        mPhysicsWorld->DebugDraw();
+    }
 }
 
 void
@@ -242,5 +270,5 @@ Physics::createPhysicsBody(SceneObjectPhysicsParameters sceneObject)
 void
 Physics::setDebugDrawer()
 {
-    mPhysicsWorld->SetDebugDraw(&debugDrawer);// located as static in World
+    mPhysicsWorld->SetDebugDraw(&debugDrawer);// was located as static in World
 }

@@ -18,6 +18,7 @@ class EntityStatic //: public SceneNode
     public:
         // t.b.c
         EntityStatic(EntityType type);
+        EntityStatic(){};
         virtual ~EntityStatic();
         unsigned int getCategory() const { return static_cast<unsigned>(Category::Type::None);}
         EntityType getEntityType() {return mEntityType;};

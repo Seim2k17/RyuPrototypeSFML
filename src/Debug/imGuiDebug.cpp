@@ -6,10 +6,11 @@
 #include <fmt/core.h>
 #include <imgui.h>
 #include <iostream>
+#include <memory>
 
 namespace RyuDebug {
 
-DebugWidgets::DebugWidgets(CharacterIchi *character)
+DebugWidgets::DebugWidgets(std::weak_ptr<CharacterIchi> character)
     : playerCharacter(character) {}
 
 void DebugWidgets::ShowWidgets() {

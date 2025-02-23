@@ -34,21 +34,25 @@ Game::Game()
 :Observer("Game")
 ,mWindow(sf::VideoMode({1200, 800}), PROJECT_NAME.data())
 ,mPlayerController(std::make_unique<PlayerController>())
-,mWorld(mWindow)
+,mEventManager()
+,mWorld(mWindow, mEventManager)
 ,mAnimator(RyuAnimator::Editor())
 ,mIsPaused(false)
-,mDebugWidgets(mWorld.getPlayer()) // TODO: player from 1691421player controller
+,mDebugWidgets(mPlayerController->getPlayableCharacter()) // TODO: player from 1691421player controller
 ,mDebugWidgetsActive(false)
 {
 	// todo: how to load ichis tzextures at  startup ?
 	//mPlayer->loadTextures();
 	addObservers();
+	mEventManager.registerPlayer(mPlayerController->getPlayableCharacter());
 }
 
 void
 Game::useCharacterDebugSettings()
 {
 			auto player = mWorld.getPlayer();
+			// TODO: now in physics set somehow else
+/*
 			player->setCharacterSettings({
 				.MoveMultiplierX = 1.05f,
 				.MoveMultiplierY = 1.47f,
@@ -57,7 +61,7 @@ Game::useCharacterDebugSettings()
 				.massCenter={0,0},
 				.bodyMass={18}
 			});
-
+*/
 			player->setPositionOffset(sf::Vector2f(mDebugWidgets.debugData.positionCross[0],
 												   mDebugWidgets.debugData.positionCross[1]));
 			player->setOffset(true);

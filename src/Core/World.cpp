@@ -1,8 +1,11 @@
+#include "Ryu/Core/EventManager.h"
+#include "Ryu/Physics/Physics.h"
 #include "Ryu/Scene/Entity.h"
 #include "Ryu/Scene/LevelManager.h"
 #include <Ryu/Character/CharacterIchi.h>
 #include <Ryu/Control/CharacterEnums.h>
 #include <Ryu/Core/SpriteNode.h>
+#include <Ryu/Core/EventManager.h>
 #include <Ryu/Core/Utilities.h>
 #include <Ryu/Core/World.h>
 #include <Ryu/Physics/DebugDraw.h>
@@ -18,7 +21,6 @@
 #include <SFML/Graphics/Shape.hpp>
 #include <SFML/System/Angle.hpp>
 #include <SFML/System/Vector2.hpp>
-#include <X11/Xcursor/Xcursor.h>
 #include <box2d/b2_body.h>
 #include <box2d/b2_draw.h>
 #include <box2d/b2_world.h>
@@ -32,7 +34,7 @@
 #include <utility>
 
 // namespace ryu{
-World::World(sf::RenderWindow &window)
+World::World(sf::RenderWindow &window, EventManager& eventManager)
     : Observer("World"), mWindow(window), mWorldView(window.getDefaultView()),
       mSceneTextures(), mSceneGraph(), mSceneLayers(),
       mWorldBounds(               // TODO: check what it is about bounds
@@ -43,10 +45,11 @@ World::World(sf::RenderWindow &window)
       ,
       mSpawnPosition({mWorldView.getSize().x / 2.f,
               (mWorldBounds.size.y - mWorldView.getSize().y)}),
-      mPushBox(nullptr), mPlayer(nullptr),
+      mPushBox(nullptr),
       mPhysics(),
       phDebugPhysics(false), clock(),
-      levelManager(std::make_unique<LevelManager>())
+      levelManager(std::make_unique<LevelManager>()),
+      mEventManager(eventManager)
       , mStaticEntities() {
 
     // TODO: in ctor we only should do 1 thing and if the following depends on this
@@ -71,14 +74,12 @@ World::World(sf::RenderWindow &window)
 }
 
 World::~World() {
-    mPlayer = nullptr;
     mPushBox = nullptr;
 }
 
-CharacterIchi *World::getPlayer() { return mPlayer; }
-
 const sf::Drawable &World::getPlayerSprite() {
-    return mPlayer->getSpriteAnimation();
+    auto player = mEventManager.requestPlayer();
+    return player->getSpriteAnimation();
 }
 
 void World::loadTextures() {
@@ -112,6 +113,7 @@ void World::onNotify(const SceneNode &entity, Ryu::EEvent event) {
 }
 
 // TODO: parametrize this for more level!
+// also: what can & should be moved to physics
 void World::buildScene() {
     ZoneScopedS(60); // max_stacktracedepth = 60
     ZoneName("buildScene_World", 16);
@@ -141,15 +143,12 @@ void World::buildScene() {
     mPushBox->setPosition(sf::Vector2f(760.f,80.f));
 
 
-    // TODO: move to playercontroller (owner)
-    std::unique_ptr<CharacterIchi> ichi = std::make_unique<CharacterIchi>(
-        ECharacterState::Idle, phWorld, sf::Vector2f(150, 200));
-
-    mPlayer = ichi.get(); /// TODO: get from PC
+    auto player = mEventManager.requestPlayer(); /// TODO: get from PC
     mSceneLayers[static_cast<unsigned>(Layer::Foreground)]->attachChild(
         std::move(box));
-    mSceneLayers[static_cast<unsigned>(Layer::Foreground)]->attachChild(
-        std::move(ichi));
+    // TODO: is player really needable to attach to the layers ?
+    //mSceneLayers[static_cast<unsigned>(Layer::Foreground)]->attachChild(
+    //    player);
 
     // texts.emplace_back(createText("TEST"));
     setDebugDrawer(mWindow);
@@ -182,10 +181,10 @@ World::createPhysicalBox(int pos_x, int pos_y, int size_x, int size_y,
     fixtureDef.restitution = 0.1;
     fixtureDef.shape = &b2Shape;
 
-    b2Body *res = phWorld->CreateBody(&bodyDef);
+    //b2Body *res = phWorld->CreateBody(&bodyDef);
     // std::unique_ptr<b2Body> res =
     // std::make_unique<b2Body>(phWorld->CreateBody(&bodyDef));
-    res->CreateFixture(&fixtureDef);
+    //res->CreateFixture(&fixtureDef);
 
     // std::unique_ptr<sf::RectangleShape> shape =
     // std::make_unique<sf::RectangleShape>(sf::Vector2f(size_x,size_y));
@@ -236,19 +235,19 @@ World::createPhysicalBox(int pos_x, int pos_y, int size_x, int size_y,
     // res->SetUserData(shape); res->GetUserData().pointer = (uintptr_t)shape;
     // ///OLD stalye: res->SetUserData(shape);
 
-    res->GetUserData().pointer = reinterpret_cast<uintptr_t>(
-        staticEntity.get()); /// OLD stalye: res->SetUserData(shape);
-    mStaticEntities[reinterpret_cast<uintptr_t>(res)] = std::move(staticEntity);
+    // res->GetUserData().pointer = reinterpret_cast<uintptr_t>(
+    //    staticEntity.get()); /// OLD stalye: res->SetUserData(shape);
+    //mStaticEntities[reinterpret_cast<uintptr_t>(res)] = std::move(staticEntity);
 
     // Dangling pointer for EntityStatic ?
-    return res;
+    return nullptr;//res;
 }
 
 
 b2Body *
 World::createPhysicalBox(/*LevelObject obj*/)
 {
-    return createPhysicalBox(obj.posX, obj.posY, obj.sizeX, obj.sizeY, obj.name, obj.type, obj.texture, obj.entityType);
+    return nullptr; //createPhysicalBox(obj.posX, obj.posY, obj.sizeX, obj.sizeY, obj.name, obj.type, obj.texture, obj.entityType);
 }
 
 
@@ -283,6 +282,7 @@ void World::setDebugDrawer(sf::RenderTarget &target) {
     debugDrawer.SetFlags(b2Draw::e_shapeBit | b2Draw::e_pairBit);
 }
 
+// TODO: to Physics
 sf::Shape *World::getShapeFromPhysicsBody(b2Body *physicsBody) {
     if (physicsBody == nullptr)
         return nullptr;
@@ -323,17 +323,19 @@ void World::draw() {
     // delegate work to the scenegraph
     mWindow.draw(mSceneGraph);
     // draw physics
+    // TODO: phDebugPhysics && Physics::mDebugPhysicsActive ???
     if (phDebugPhysics) {
         // draw raycasts
-        phWorld->DebugDraw();
-        mPlayer->drawRaycasts(debugDrawer);
+        mPhysics.debugDraw();
+        auto player = mEventManager.requestPlayer();
+        player->drawRaycasts(debugDrawer); // TODO: to clarify where to move
     }
 
     // TODO: add the ground and stuff to the scenegraph !
-
-    if (phGroundBodies.size() > 0) {
-        for (const auto &obj : phGroundBodies) {
-            auto shape = getShapeFromPhysicsBody(obj.pBody);
+    // make this also level dependent ! sceneObjects ios static in Physics !
+    if (sceneObjects.size() > 0) {
+        for (const auto &obj : sceneObjects) {
+            auto shape = getShapeFromPhysicsBody(obj.second.data()->mPhysicsBody);
             if (shape == nullptr) {
                 fmt::print("shape ptr seems to be null\n");
                 return;
@@ -401,11 +403,13 @@ void World::update(sf::Time dt) {
     while (!mActiveCommands.isEmpty()) {
         mSceneGraph.onCommand(mActiveCommands.pop(), dt);
     }
-    phWorld->Step(phTimeStep, 8, 3);
+    mPhysics.update();
     // Draw debug shapes of all physics objects
 
     // needable or already in scenegraph ?
-    mPlayer->update(dt); //slowmo
+    // TODO: is this efficient ?
+    // we basically use a sharedptr of plyer in update, question is if we need this here
+    // maybe here is also the discrepance btw. physics and characterassetmovement ! please investigate    mEventManager.requestPlayer()->update(dt); //slowmo
     mSceneGraph.update(dt);
 
     /*

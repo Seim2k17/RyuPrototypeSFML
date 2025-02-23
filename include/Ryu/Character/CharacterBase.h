@@ -152,9 +152,9 @@ class CharacterBase : public SceneNode, public Subject, public Observer, public 
   public:
     // TODO: implement rule of 5 !
     // (morph one character into another ^^)
-    CharacterBase(const sf::Vector2f &position);
+    CharacterBase(const sf::Vector2i &position);
     CharacterBase(ECharacterState startState,
-                  const sf::Vector2f &position);
+                  const sf::Vector2i &position);
     ~CharacterBase();
 
     float getCharacterSpeed() { return mCharacterSpeed; }
@@ -232,8 +232,8 @@ class CharacterBase : public SceneNode, public Subject, public Observer, public 
     void jumpUp();
     void jumpForward();
     float getDirectionMultiplier();
-    void setCharacterSettings(CharacterSetting settings);
-    void resetCharacterSettings();
+    [[deprecated]] void setCharacterSettings(CharacterSetting settings);
+    [[deprecated]] void resetCharacterSettings();
     bool duckStateActive() { return mDuckStateActive; };
     void setDuckState(bool duckstate) { mDuckStateActive = duckstate; };
     virtual void onNotify(const SceneNode &entity, Ryu::EEvent event) override;

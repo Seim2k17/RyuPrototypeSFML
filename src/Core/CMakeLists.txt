@@ -1,6 +1,7 @@
 set (SRC
     "Command.cpp"
     "CommandQueue.cpp"
+    "EventManager.cpp"
     "Game.cpp"
     "SpriteNode.cpp"
     "Utilities.cpp"
@@ -14,6 +15,7 @@ set(HEADER
      "${RyuPrototype_SOURCE_DIR}/include/Ryu/Core/Category.h"
      "${RyuPrototype_SOURCE_DIR}/include/Ryu/Core/Command.h"
      "${RyuPrototype_SOURCE_DIR}/include/Ryu/Core/CommandQueue.h"
+     "${RyuPrototype_SOURCE_DIR}/include/Ryu/Core/EventManager.h"
      "${RyuPrototype_SOURCE_DIR}/include/Ryu/Core/Game.h"
      "${RyuPrototype_SOURCE_DIR}/include/Ryu/Core/SpriteNode.h"
      "${RyuPrototype_SOURCE_DIR}/include/Ryu/Core/Utilities.h"

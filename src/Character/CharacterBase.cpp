@@ -39,7 +39,7 @@ IsInBounds(const T &value, const T &low, const T &high)
     return !(value < low) && !(high < value);
 }
 
-CharacterBase::CharacterBase(const sf::Vector2f &position)
+CharacterBase::CharacterBase(const sf::Vector2i &position)
     : Observer("CharacterBase"),
       mCharacterState(std::make_unique<CharacterStateIdle>()),
       movement(0.f, 0.f),
@@ -66,13 +66,13 @@ CharacterBase::setPhysicWorldRef(std::unique_ptr<b2World> &phWorld)
 {
     // TODO: check if this makes sense this way ? -> the owner of the physicsworld should be World
     // move contactlistener to Physicsclas ?s
-    phWorldRef = std::move(phWorld);
-    phWorldRef->SetContactListener(&contactListener);
+    // phWorldRef = std::move(phWorld);
+    // phWorldRef->SetContactListener(&contactListener);
 
 }
 
 CharacterBase::CharacterBase(ECharacterState startState,
-                             const sf::Vector2f &position)
+                             const sf::Vector2i &position)
     : Observer("CharacterBase"),
       mECharacterState(startState),
       mCharacterState(std::make_unique<CharacterStateIdle>()),
@@ -95,11 +95,12 @@ CharacterBase::CharacterBase(ECharacterState startState,
     loadTextures();
 }
 
+// TODO: moved to CharacterPhysicsParameter
 void
 CharacterBase::setCharacterSettings(CharacterSetting settings)
 {
     // TODO: GUI related (DEBUG)
-
+/*
     fmt::print("useDebugValues: JF: {}/{}, JU: {}/{}\n",
                settings.jumpForwardImpulse.x, settings.jumpForwardImpulse.y,
                settings.jumpUpImpulse.x, settings.jumpUpImpulse.y);
@@ -107,6 +108,7 @@ CharacterBase::setCharacterSettings(CharacterSetting settings)
     mCharSettings.jumpForwardImpulse = settings.jumpForwardImpulse;
     mCharSettings.jumpUpImpulse
         = settings.jumpUpImpulse; // TODO: probably we need to convert st here;
+*/
 }
 
 void
@@ -130,7 +132,9 @@ void
 CharacterBase::resetCharacterSettings()
 {
     // TODO: find better way for resetting stuff for DEBUG UI
+    // see also Physics class
     fmt::print("reset Values");
+    /*
     mCharSettings.MoveMultiplierX = mFinalCharSettings.MoveMultiplierX;
     mCharSettings.MoveMultiplierY = mFinalCharSettings.MoveMultiplierY;
     mCharSettings.jumpUpImpulse = mFinalCharSettings.jumpUpImpulse;
@@ -140,6 +144,7 @@ CharacterBase::resetCharacterSettings()
 
     positionCrossOffset.x = 0.f;
     positionCrossOffset.y = 0.f;
+    */
 }
 
 void
@@ -184,7 +189,8 @@ CharacterBase::getDirectionMultiplier()
 void
 CharacterBase::jumpForward()
 {
-    // TODO: physicsrelated stuff now in the PhysicsClass
+    // TODO: physicsrelated stuff now in the PhysicsClass please move this also
+    /*
     fmt::print("JumpForward: x:{} y:{}\n", mCharSettings.jumpForwardImpulse.x,
                mCharSettings.jumpForwardImpulse.y);
 
@@ -198,11 +204,14 @@ CharacterBase::jumpForward()
         b2Vec2(mCharSettings.jumpForwardImpulse.x * getDirectionMultiplier(),
                mCharSettings.jumpForwardImpulse.y),
         true);
+    */
 }
 
 void
 CharacterBase::jumpUp()
 {
+    // TODO: physicsrelated stuff now in the PhysicsClass please move this also
+    /*
     fmt::print("JumpUp x:{} y: {}\n", mCharSettings.jumpUpImpulse.x,
                mCharSettings.jumpUpImpulse.y);
 
@@ -214,6 +223,7 @@ CharacterBase::jumpUp()
 
     mBody->ApplyLinearImpulseToCenter(mCharSettings.jumpUpImpulse, true);
     // mBody->ApplyLinearImpulseToCenter(mCharSettings.JumpUpForce,true);
+     */
 }
 
 void
@@ -319,6 +329,9 @@ CharacterBase::checkContactObjects()
 void
 CharacterBase::createRaycasts()
 {
+
+    // TODO: physicsrelated stuff now in the PhysicsClass please move this also
+    /*
     auto const &charPos = mCharacterAnimation.getPosition();
     mRaycastComponent.createCharacterRaycast(
         RaycastPosition::Up, charPos.x, charPos.y - Ryu::Physics::raycastOffset,
@@ -342,6 +355,7 @@ CharacterBase::createRaycasts()
     {
         mRaycastComponent.eraseBelow();
     }
+    */
 }
 
 void
@@ -506,6 +520,7 @@ CharacterBase::setupAnimation(Textures::CharacterID aniId)
 void
 CharacterBase::updateCharacterPosition(sf::Time deltaTime)
 {
+    //TODO: please check how to update the position acc to physics !!!
     mCharacterAnimation.update(deltaTime);
 
     //
@@ -522,12 +537,15 @@ CharacterBase::updateCharacterPosition(sf::Time deltaTime)
             mCharacterAnimation.move(movement * deltaTime.asSeconds());
         }
 
+    // TODO: physicsrelated stuff now in the PhysicsClass please move this also
+    /*
         mBody->SetLinearVelocity(
             {mCharSettings.MoveMultiplierX
                  * Converter::pixelsToMeters<float>(movement.x),
              mCharSettings.MoveMultiplierY
                  * Converter::pixelsToMeters<float>(movement.y)});
         mLastBodyPosition = mBody->GetPosition();
+    */
     }
 
     if (mECharacterState._value == ECharacterState::JumpUp

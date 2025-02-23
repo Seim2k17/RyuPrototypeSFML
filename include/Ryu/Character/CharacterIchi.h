@@ -14,7 +14,7 @@ using IchiTextureManager = AssetManager<sf::Texture, Textures::SpritesheetID>;
 class CharacterIchi : public CharacterBase {
   public:
     CharacterIchi(ECharacterState startState,
-                  const sf::Vector2f &position);
+                  const sf::Vector2i &position);
     void setTextureOnCharacter(Textures::SpritesheetID textureId) override;
 
     // TODO: make it private and load otherwise ? / atm. public for Game when

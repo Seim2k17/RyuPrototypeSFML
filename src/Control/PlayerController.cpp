@@ -18,8 +18,7 @@
 #include <memory>
 #include <tracy/Tracy.hpp>
 
-
-class CharacterIchi;
+constexpr sf::Vector2i CHAR_START_POSITION{150,200};
 
 // command-actions
 struct CharacterMover
@@ -57,9 +56,15 @@ std::function<void(SceneNode&, sf::Time)> derivedEInput(Function fn)
 PlayerController::PlayerController()
 : Observer("Playercontroller")
   // TODO: initialize other member
-, playerCharacter(std::make_unique<CharacterIchi>(ECharacterState::Idle, sf::Vector2f{0,0}))
+, playerCharacter(std::make_shared<CharacterIchi>(ECharacterState::Idle, CHAR_START_POSITION))
 {
     initializeBindings();
+}
+
+const std::shared_ptr<CharacterIchi>
+PlayerController::getPlayableCharacter()
+{
+    return playerCharacter;
 }
 
 void
@@ -79,6 +84,11 @@ PlayerController::onNotify(const SceneNode& entity, RyuEvent event)
         }
 }
 
+void
+PlayerController::update(sf::Time deltaTime)
+{
+    playerCharacter->update(deltaTime);
+}
 
 void
 PlayerController::setActionBindingCharacterSpeed()
