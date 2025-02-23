@@ -8,6 +8,7 @@
 #pragma once
 
 #include "Ryu/Character/CharacterBase.h"
+#include "Ryu/Debug/b2DrawSFML.hpp"
 #include "Ryu/Events/Subject.h"
 #include "Ryu/Scene/EntityStatic.h"
 #include "Ryu/Scene/SceneEnums.h"
@@ -109,7 +110,7 @@ class Physics : public Subject {
                           b2Color const &color)const;
     void debugDraw() const;
     void initCharacterPhysics(ICharacter& character, bool inDuckMode);
-    void setDebugDrawer();
+    void setDebugDrawer(b2DrawSFML dbgDrawer);
     void setDebugPhysics(bool debugPhysics);
     void update();
 
@@ -118,6 +119,7 @@ class Physics : public Subject {
     // box2d physics
     std::map<ECharacters, CharacterPhysicsParameters> mCharacterPhysics;
     std::unique_ptr<b2World> mPhysicsWorld;
+    //b2World* mPhysicsWorld;
     // std::map<ELevel, std::vector<SceneObjectPhysicsParameters> > mSceneObjects; // see sceneObjects
 
     // TODO: check if we keep it here or not ? Do we even need this at all ?                                                                   // key is a combination of LevelName (ELevel.string) and ObjectName ? WHY ?

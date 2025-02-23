@@ -270,16 +270,18 @@ void World::setDebugDrawer(sf::RenderTarget &target) {
     // DebugDrawing
     // Create debug drawer for window with 10x scale
     // You can set any sf::RenderTarget as drawing target
-    debugDrawer.SetTarget(target);
-    debugDrawer.SetScale(Converter::PIXELS_PER_METERS);
-
-    // Set our drawer as world's drawer
-    mPhysics.setDebugDrawer();
+    b2DrawSFML dbgDrawer;
+    dbgDrawer.SetTarget(target);
+    dbgDrawer.SetScale(Converter::PIXELS_PER_METERS);
 
     // Set flags for things that should be drawn
     // ALWAYS remember to set at least one flag,
     // otherwise nothing will be drawn
     debugDrawer.SetFlags(b2Draw::e_shapeBit | b2Draw::e_pairBit);
+    // Set our drawer as world's drawer
+    // TODO: crashes here ?
+    // mPhysics.setDebugDrawer(dbgDrawer);
+
 }
 
 // TODO: to Physics

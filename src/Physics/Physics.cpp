@@ -1,4 +1,5 @@
 #include "Ryu/Core/AssetIdentifiers.h"
+#include "Ryu/Debug/b2DrawSFML.hpp"
 #include "Ryu/Scene/EntityStatic.h"
 #include "Ryu/Scene/SceneEnums.h"
 #include <Ryu/Physics/Physics.h>
@@ -10,12 +11,14 @@
 #include <SFML/Graphics/Shape.hpp>
 #include <SFML/System/Vector2.hpp>
 #include <box2d/b2_body.h>
+#include <box2d/b2_math.h>
 #include <box2d/b2_world.h>
+#include <exception>
 #include <fmt/core.h>
 #include <memory>
 
 
-constexpr float GRAVITY = 9.81f;
+const b2Vec2 GRAVITY(0,9.81f);
 constexpr float PHYSICS_TIME_STEP = 1.f / 60.f;
 constexpr int32 VELOCITY_ITERATIONS = 8;
 constexpr int32 POSITION_ITERATIONS = 3;
@@ -62,7 +65,7 @@ SceneObjectPhysicsParameters::SceneObjectPhysicsParameters(
 // TODO: set contactlistener (see characterbase)
 Physics::Physics() :
     mCharacterPhysics({}),
-    mPhysicsWorld(nullptr),
+    mPhysicsWorld(std::make_unique<b2World>(GRAVITY)),
     mStaticEntities(),
     mPhTimeStep(PHYSICS_TIME_STEP),
     mDebugPhysicsActive(false){}
@@ -213,6 +216,11 @@ Physics::createPhysicsBody(SceneObjectPhysicsParameters sceneObject)
     fixtureDef.restitution = 0.1;
     fixtureDef.shape = &b2Shape;
 
+    if(not mPhysicsWorld){
+        fmt::print("no physics world created\n");
+        return;
+    }
+
     b2Body *res = mPhysicsWorld->CreateBody(&bodyDef);
     // std::unique_ptr<b2Body> res =
     // std::make_unique<b2Body>(phWorld->CreateBody(&bodyDef));
@@ -233,7 +241,6 @@ Physics::createPhysicsBody(SceneObjectPhysicsParameters sceneObject)
     auto staticEntity = std::make_unique<EntityStatic>(sceneObject.mEntityType);
     // std::shared_ptr<EntityStatic> staticEntity =
     // std::make_shared<EntityStatic>());
-    staticEntity->setShape(std::move(shape));
     staticEntity->setName(sceneObject.mName);
 
     auto shapePosition = shape->getGlobalBounds().position;
@@ -260,15 +267,20 @@ Physics::createPhysicsBody(SceneObjectPhysicsParameters sceneObject)
         shape->setFillColor(sf::Color::Green);
     }
 
+    staticEntity->setShape(std::move(shape));
     res->GetUserData().pointer = reinterpret_cast<uintptr_t>(staticEntity.get());
     mStaticEntities[reinterpret_cast<uintptr_t>(res)] = std::move(staticEntity);
 
     // Dangling pointer for EntityStatic ?
     sceneObject.mPhysicsBody = res;
+
 }
 
 void
-Physics::setDebugDrawer()
+Physics::setDebugDrawer(b2DrawSFML dbgDrawer)
 {
+    debugDrawer.SetTarget(dbgDrawer.GetRenderTarget());
+    debugDrawer.SetScale(dbgDrawer.GetScale());
+    debugDrawer.SetFlags(dbgDrawer.GetFlags());
     mPhysicsWorld->SetDebugDraw(&debugDrawer);// was located as static in World
 }
