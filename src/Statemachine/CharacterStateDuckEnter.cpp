@@ -48,8 +48,10 @@ CharacterStateDuckEnter::enter(CharacterBase& character)
     character.setupAnimation(Textures::CharacterID::IchiDuckEnter);
     character.setCharacterStateEnum(ECharacterState::DuckEnter);
     character.setDuckState(true);
+    /*
     character.destroyPhysics();
     character.initPhysics();
+    */
 }
 
 void

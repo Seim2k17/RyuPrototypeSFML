@@ -50,7 +50,7 @@ Game::Game()
 void
 Game::useCharacterDebugSettings()
 {
-			auto player = mWorld.getPlayer();
+			auto player = mPlayerController->getPlayableCharacter();
 			// TODO: now in physics set somehow else
 /*
 			player->setCharacterSettings({
@@ -70,7 +70,7 @@ Game::useCharacterDebugSettings()
 void
 Game::teleportMainCharacter(float x, float y)
 {
-	auto player = mWorld.getPlayer();
+	auto player = mPlayerController->getPlayableCharacter();
 	player->teleportCharacter(x, y);
 }
 
@@ -84,7 +84,7 @@ Game::onNotify(const SceneNode& entity, RyuEvent event)
 		{
 				mDebugWidgets.debugData.activateRyuDebug == false ? mDebugWidgets.debugData.activateRyuDebug = true : mDebugWidgets.debugData.activateRyuDebug = false;
 				mDebugWidgetsActive = mDebugWidgets.debugData.activateRyuDebug;
-				mDebugWidgetsActive ? useCharacterDebugSettings() : mWorld.getPlayer()->resetCharacterSettings();
+				mDebugWidgetsActive ? useCharacterDebugSettings() : mPlayerController->getPlayableCharacter()->resetCharacterSettings();
 				break;
 		}
 		case RyuEvent::ImGuiDemoToggle:
@@ -119,7 +119,7 @@ Game::onNotify(const SceneNode& entity, RyuEvent event)
 		case RyuEvent::TemporaryOutput:
 		{
 			fmt::print("TempOutput\n");
-			mWorld.getPlayer()->ouputAnimations();
+			mPlayerController->getPlayableCharacter()->ouputAnimations();
 			break;
 		}
 		default: break;
@@ -130,9 +130,9 @@ Game::onNotify(const SceneNode& entity, RyuEvent event)
 void
 Game::addObservers()
 {
-	auto player = mWorld.getPlayer();
+	auto player = mPlayerController->getPlayableCharacter();
 	player->addObserver(mPlayerController.get());
-	player->addObserver(player);
+	player->addObserver(player.get());
 	mPlayerController->addObserver(&mWorld);
 	mPlayerController->addObserver(this);
 	mDebugWidgets.addObserver(/*mWorld.getPlayer()*/this);
@@ -211,10 +211,11 @@ void Game::processEvents(std::optional<sf::Event> event, CommandQueue& commands)
 void
 Game::setDebugValues()
 {
-	mDebugWidgets.debugData.characterState = (mWorld.getPlayer()->getCharacterStateEnum())._to_string();
-	mDebugWidgets.debugData.characterIsFalling = mWorld.getPlayer()->isFalling();
-	mDebugWidgets.debugData.numFrames = mWorld.getPlayer()->getSpriteAnimation().getNumFrames();
-	mDebugWidgets.debugData.numFramesVector = mWorld.getPlayer()->getSpriteAnimation().getFramesCount();
+	auto player = mPlayerController->getPlayableCharacter();
+	mDebugWidgets.debugData.characterState = (player->getCharacterStateEnum())._to_string();
+	mDebugWidgets.debugData.characterIsFalling = player->isFalling();
+	mDebugWidgets.debugData.numFrames = player->getSpriteAnimation().getNumFrames();
+	mDebugWidgets.debugData.numFramesVector = player->getSpriteAnimation().getFramesCount();
 
 }
 

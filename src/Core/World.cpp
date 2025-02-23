@@ -190,14 +190,14 @@ World::createPhysicalBox(int pos_x, int pos_y, int size_x, int size_y,
     // std::make_unique<sf::RectangleShape>(sf::Vector2f(size_x,size_y));
     // sf::RectangleShape shape{sf::Vector2f(size_x,size_y)};
     // TODO howto smartptr ?
-    sf::Shape *shape = new sf::RectangleShape(sf::Vector2f(size_x, size_y));
+    std::unique_ptr<sf::Shape> shape = std::make_unique<sf::RectangleShape>(sf::Vector2f(size_x, size_y));
     shape->setOrigin({(float)(size_x / 2.0), (float)(size_y / 2.0)});
     shape->setPosition(sf::Vector2f(pos_x, pos_y));
 
     auto staticEntity = std::make_unique<EntityStatic>(entityType);
     // std::shared_ptr<EntityStatic> staticEntity =
     // std::make_shared<EntityStatic>());
-    staticEntity->setShape(shape);
+    staticEntity->setShape(std::move(shape));
     staticEntity->setName(name);
 
     auto shapePosition = shape->getGlobalBounds().position;

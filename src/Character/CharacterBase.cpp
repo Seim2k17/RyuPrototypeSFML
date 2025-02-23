@@ -146,7 +146,7 @@ CharacterBase::resetCharacterSettings()
     positionCrossOffset.y = 0.f;
     */
 }
-
+/*
 void
 CharacterBase::updatePhysics()
 {
@@ -160,9 +160,10 @@ CharacterBase::updatePhysics(const sf::Vector2f &position)
 {
     // initPhysics(phWorldRef,position);
 }
-
+*/
 // inits the physics at the current character position, used afte the initial
 // state is set
+/*
 void
 CharacterBase::initPhysics()
 {
@@ -172,7 +173,7 @@ CharacterBase::initPhysics()
     // TODO: this flag should be set when we get a message back from the physics class
     physicsInitialized = true;
 }
-
+*/
 void
 CharacterBase::loadTextures()
 {
@@ -510,7 +511,7 @@ CharacterBase::setupAnimation(Textures::CharacterID aniId)
     // the first time we need to init physics-body etc
     if (not physicsInitialized)
     {
-        initPhysics();
+        // initPhysics();
     }
 }
 

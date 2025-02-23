@@ -23,8 +23,6 @@ class EntityStatic //: public SceneNode
         unsigned int getCategory() const { return static_cast<unsigned>(Category::Type::None);}
         EntityType getEntityType() {return mEntityType;};
 
-        [[deprecated]]
-        void setShape(sf::Shape* shape);
         void setShape(std::unique_ptr<sf::Shape> shape);
 
         sf::Shape* getShape(){

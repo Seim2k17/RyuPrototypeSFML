@@ -174,10 +174,14 @@ class CharacterBase : public SceneNode, public Subject, public Observer, public 
     void setMovement(sf::Vector2f _movement);
     void setMoveDirection(EMoveDirection _movementDir);
     EMoveDirection getMoveDirection() { return mMoveDirection; }
+
+    // TODO: check how to move to Physics-class
+/*
     void initPhysics();
     void destroyPhysics();
     void updatePhysics();
     void updatePhysics(const sf::Vector2f &position);
+*/
     void checkClimbingState();
     std::string checkContactObjects();
 

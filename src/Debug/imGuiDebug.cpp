@@ -21,7 +21,7 @@ void DebugWidgets::ShowWidgets() {
 
         if (io.MouseClicked[0]) {
             debugData.readMousePos = false;
-            notify(*playerCharacter, Ryu::EEvent::TeleportDo);
+            notify(*playerCharacter.lock(), Ryu::EEvent::TeleportDo);
         }
     }
 
@@ -61,21 +61,21 @@ void DebugWidgets::ShowWidgets() {
             fmt::print("Set jumpForceForward {}/{}\n",
                        debugData.jumpImpulseForward.x,
                        debugData.jumpImpulseForward.y);
-            notify(*playerCharacter, Ryu::EEvent::DebugValuesChanged);
+            notify(*playerCharacter.lock(), Ryu::EEvent::DebugValuesChanged);
         }
         if (ImGui::InputFloat2("JumpForceUp", debugData.jumpImpulseUpVec)) {
             debugData.jumpImpulseUp.x = debugData.jumpImpulseUpVec[0];
             debugData.jumpImpulseUp.y = debugData.jumpImpulseUpVec[1];
             fmt::print("Set jumpForceUp\n");
-            notify(*playerCharacter, Ryu::EEvent::DebugValuesChanged);
+            notify(*playerCharacter.lock(), Ryu::EEvent::DebugValuesChanged);
         }
         if (ImGui::InputFloat2("Masscenter", debugData.massCenterVec)) {
             fmt::print("Set center of mass\n");
-            notify(*playerCharacter, Ryu::EEvent::DebugValuesChanged);
+            notify(*playerCharacter.lock(), Ryu::EEvent::DebugValuesChanged);
         }
         if (ImGui::Button("Teleport")) {
             debugData.readMousePos = true;
-            notify(*playerCharacter, Ryu::EEvent::TeleportWait);
+            notify(*playerCharacter.lock(), Ryu::EEvent::TeleportWait);
         }
         if (ImGui::Button("Reset Values")) {
             debugData.jumpImpulseForwardVec[0] = 150;
@@ -84,11 +84,11 @@ void DebugWidgets::ShowWidgets() {
             debugData.jumpImpulseUpVec[0] = 0;
             debugData.jumpImpulseUpVec[1] = -200;
             debugData.jumpImpulseUp = {0, -200};
-            notify(*playerCharacter, Ryu::EEvent::DebugValuesChanged);
+            notify(*playerCharacter.lock(), Ryu::EEvent::DebugValuesChanged);
         }
 
         if (ImGui::InputInt2("PositionCross-Offset", debugData.positionCross)) {
-            notify(*playerCharacter, Ryu::EEvent::DebugValuesChanged);
+            notify(*playerCharacter.lock(), Ryu::EEvent::DebugValuesChanged);
         }
         DebugSpritesheetInfo();
     }
@@ -99,24 +99,24 @@ void DebugWidgets::ShowWidgets() {
 void DebugWidgets::DebugSpritesheetInfo() {
     ImGui::Separator();
     ImGui::Text("PivotAbs (%d/%d)",
-                playerCharacter->getSpriteAnimation().getPivotAbs().x,
-                playerCharacter->getSpriteAnimation().getPivotAbs().y);
+                playerCharacter.lock()->getSpriteAnimation().getPivotAbs().x,
+                playerCharacter.lock()->getSpriteAnimation().getPivotAbs().y);
     ImGui::Separator();
     ImGui::Text("Origin (%f/%f)",
-                playerCharacter->getSpriteAnimation().getOrigin().x,
-                playerCharacter->getSpriteAnimation().getOrigin().y);
+                playerCharacter.lock()->getSpriteAnimation().getOrigin().x,
+                playerCharacter.lock()->getSpriteAnimation().getOrigin().y);
     ImGui::Separator();
     ImGui::Text("FrameSize: (%d/%d)",
-                playerCharacter->getSpriteAnimation().getFrameSize().x,
-                playerCharacter->getSpriteAnimation().getFrameSize().y);
+                playerCharacter.lock()->getSpriteAnimation().getFrameSize().x,
+                playerCharacter.lock()->getSpriteAnimation().getFrameSize().y);
     ImGui::Separator();
     ImGui::Text("LocalBounds: (%f/%f)",
-                playerCharacter->getSpriteAnimation().getLocalBounds().size.y,
-                playerCharacter->getSpriteAnimation().getLocalBounds().size.x);
+                playerCharacter.lock()->getSpriteAnimation().getLocalBounds().size.y,
+                playerCharacter.lock()->getSpriteAnimation().getLocalBounds().size.x);
     ImGui::Separator();
     ImGui::Text("GlobalBounds: (%f/%f)",
-                playerCharacter->getSpriteAnimation().getGlobalBounds().size.y,
-                playerCharacter->getSpriteAnimation().getGlobalBounds().size.x);
+                playerCharacter.lock()->getSpriteAnimation().getGlobalBounds().size.y,
+                playerCharacter.lock()->getSpriteAnimation().getGlobalBounds().size.x);
     // ImGui::Text("Spritesheetname: %s", playerCharacter->
     ImGui::Separator();
 }
