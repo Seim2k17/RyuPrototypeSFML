@@ -35,16 +35,16 @@ Game::Game()
 ,mWindow(sf::VideoMode({1200, 800}), PROJECT_NAME.data())
 ,mPlayerController(std::make_unique<PlayerController>())
 ,mEventManager()
-,mWorld(mWindow, mEventManager)
 ,mAnimator(RyuAnimator::Editor())
 ,mIsPaused(false)
 ,mDebugWidgets(mPlayerController->getPlayableCharacter()) // TODO: player from 1691421player controller
+,mWorld(mWindow, mEventManager)
 ,mDebugWidgetsActive(false)
 {
-	// todo: how to load ichis tzextures at  startup ?
-	//mPlayer->loadTextures();
 	addObservers();
 	mEventManager.registerPlayer(mPlayerController->getPlayableCharacter());
+	// 1. when everthing is loaded and initialized
+	// 2. in main.cpp: call run() the game
 }
 
 void

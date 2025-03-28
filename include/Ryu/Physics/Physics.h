@@ -23,6 +23,8 @@
 
 class CharacterBase;
 class ICharacter;
+class RenderWindow;
+class Shape;
 
 static b2DrawSFML debugDrawer;
 
@@ -64,41 +66,6 @@ struct SceneObjectPhysicsParameters
     b2Body* mPhysicsBody;
 };
 
-static std::map<ELevel , std::vector<SceneObjectPhysicsParameters>> sceneObjects = {
-{ELevel::Level1,
- {{{600, 780}, {1200, 20}, "floor"},
-  {{8, 580}, {16, 800}, "left_side"},
-  {{1190, 580}, {16, 1100}, "right_side"}
-      ,// 1rst platform
-  {{70, 150}, {150, 32}, "platform_1"},
-  {{240, 280}, {140, 32}, "platform_2", b2_staticBody, Textures::SceneID::Grass, EntityType::Climbable},
-  {{380, 380}, {150, 32}, "platform_3", b2_staticBody, Textures::SceneID::Grass, EntityType::Climbable},
-  {{500, 500}, {320, 32}, "platform_4"},
-  {{720, 420}, {120, 32}, "platform_5"},
-  {{780, 300}, {120, 32}, "platform_6"},
-  {{720, 600}, {120, 32}, "platform_7"},
-  {{780, 700}, {120, 32}, "platform_8"},
-  {{300, 100}, {50, 50}, "box_pushable_1", b2_dynamicBody, Textures::SceneID::BoxPushable}
-}},
-{ELevel::Level2,
- {{{600, 800}, {1200, 20}, "floor"},
-  {{8, 580}, {16, 820}, "left_side"},
-  {{1190, 580}, {16, 1100}, "right_side"}, // 1rst platform
-  {{110, 150}, {220, 32}, "platform_1"},
-  {{450, 150}, {250, 32}, "platform_2"},
-  {{390, 100}, {32, 100}, "grate_1", b2_staticBody, Textures::SceneID::Grate},
-  {{380, 370}, {200, 32}, "platform_3"},
-  {{400, 364}, {60, 20}, "button_1", b2_staticBody, Textures::SceneID::Button},
-  {{1100, 800}, {60, 20}, "button_2", b2_staticBody, Textures::SceneID::Button},
-  {{496, 345}, {32, 85}, "platform_3_wall"},
-  {{591, 435}, {32, 595}, "middle_wall"},
-  {{750, 100}, {50, 50}, "box_pushable_1", b2_dynamicBody, Textures::SceneID::BoxPushable},
-  {{900, 280}, {50, 50}, "box_pushable_2", b2_dynamicBody, Textures::SceneID::BoxPushable},
-  {{60, 800}, {60, 20}, "teleport_1", b2_staticBody, Textures::SceneID::Teleport},
-  {{870, 800}, {60, 20}, "teleport_2", b2_staticBody, Textures::SceneID::Teleport},
-  {{950, 385}, {250, 32}, "platform_4", b2_staticBody, Textures::SceneID::Grass},
-}}
-};
 
 class Physics : public Subject {
    public:
@@ -106,16 +73,18 @@ class Physics : public Subject {
     ~Physics();
 
     void createPhysicsSceneObjects(ELevel level);
-    void debugDrawSegment(b2Vec2 const &p1, b2Vec2 const &p2,
-                          b2Color const &color)const;
+    void debugDrawSegment(const b2Vec2& p1, const b2Vec2& p2,
+                          const  b2Color& color) const;
     void debugDraw() const;
+    void draw(sf::RenderWindow& window);
+    sf::Shape* getShapeFromPhysicsBody(b2Body* physicsBody);
     void initCharacterPhysics(ICharacter& character, bool inDuckMode);
     void setDebugDrawer(b2DrawSFML dbgDrawer);
     void setDebugPhysics(bool debugPhysics);
     void update();
 
    private:
-    void createPhysicsBody(SceneObjectPhysicsParameters sceneObject);
+    void createPhysicsBody(SceneObjectPhysicsParameters& sceneObject);
     // box2d physics
     std::map<ECharacters, CharacterPhysicsParameters> mCharacterPhysics;
     std::unique_ptr<b2World> mPhysicsWorld;
@@ -128,4 +97,41 @@ class Physics : public Subject {
     // std::map<uintptr_t, EntityStatic > mStaticEntities;
     float mPhTimeStep;
     bool mDebugPhysicsActive;
+
+   public: // TODO: tmp storage !!!! -> make static again outside of class
+    std::map<ELevel , std::vector<SceneObjectPhysicsParameters>> sceneObjects = {
+    {ELevel::Level1,
+     {{{600, 780}, {1200, 20}, "floor"},
+      {{8, 580}, {16, 800}, "left_side"},
+      {{1190, 580}, {16, 1100}, "right_side"}
+      ,// 1rst platform
+      {{70, 150}, {150, 32}, "platform_1"},
+      {{240, 280}, {140, 32}, "platform_2", b2_staticBody, Textures::SceneID::Grass, EntityType::Climbable},
+      {{380, 380}, {150, 32}, "platform_3", b2_staticBody, Textures::SceneID::Grass, EntityType::Climbable},
+      {{500, 500}, {320, 32}, "platform_4"},
+      {{720, 420}, {120, 32}, "platform_5"},
+      {{780, 300}, {120, 32}, "platform_6"},
+      {{720, 600}, {120, 32}, "platform_7"},
+      {{780, 700}, {120, 32}, "platform_8"},
+      {{300, 100}, {50, 50}, "box_pushable_1", b2_dynamicBody, Textures::SceneID::BoxPushable}
+   }},
+    {ELevel::Level2,
+     {{{600, 800}, {1200, 20}, "floor"},
+      {{8, 580}, {16, 820}, "left_side"},
+      {{1190, 580}, {16, 1100}, "right_side"}, // 1rst platform
+      {{110, 150}, {220, 32}, "platform_1"},
+      {{450, 150}, {250, 32}, "platform_2"},
+      {{390, 100}, {32, 100}, "grate_1", b2_staticBody, Textures::SceneID::Grate},
+      {{380, 370}, {200, 32}, "platform_3"},
+      {{400, 364}, {60, 20}, "button_1", b2_staticBody, Textures::SceneID::Button},
+      {{1100, 800}, {60, 20}, "button_2", b2_staticBody, Textures::SceneID::Button},
+      {{496, 345}, {32, 85}, "platform_3_wall"},
+      {{591, 435}, {32, 595}, "middle_wall"},
+      {{750, 100}, {50, 50}, "box_pushable_1", b2_dynamicBody, Textures::SceneID::BoxPushable},
+      {{900, 280}, {50, 50}, "box_pushable_2", b2_dynamicBody, Textures::SceneID::BoxPushable},
+      {{60, 800}, {60, 20}, "teleport_1", b2_staticBody, Textures::SceneID::Teleport},
+      {{870, 800}, {60, 20}, "teleport_2", b2_staticBody, Textures::SceneID::Teleport},
+      {{950, 385}, {250, 32}, "platform_4", b2_staticBody, Textures::SceneID::Grass},
+   }}
+  };
 };

@@ -19,7 +19,7 @@ class CharacterIchi : public CharacterBase {
 
     // TODO: make it private and load otherwise ? / atm. public for Game when
     // creating the mPlayer in Cdor
-    void loadTextures();
+    void loadTextures() override;
     void moveCharacter(sf::Vector2f velocity);
     unsigned int getCategory() const override;
     void update(sf::Time deltaTime) override;

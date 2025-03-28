@@ -2,6 +2,8 @@
 #include "Ryu/Physics/Physics.h"
 #include "Ryu/Scene/Entity.h"
 #include "Ryu/Scene/LevelManager.h"
+#include "Ryu/Scene/SceneEnums.h"
+#include "Ryu/Scene/SceneNode.h"
 #include <Ryu/Character/CharacterIchi.h>
 #include <Ryu/Control/CharacterEnums.h>
 #include <Ryu/Core/SpriteNode.h>
@@ -147,9 +149,10 @@ void World::buildScene() {
     mSceneLayers[static_cast<unsigned>(Layer::Foreground)]->attachChild(
         std::move(box));
     // TODO: is player really needable to attach to the layers ?
-    //mSceneLayers[static_cast<unsigned>(Layer::Foreground)]->attachChild(
-    //    player);
-
+//    mSceneLayers[static_cast<unsigned>(Layer::Foreground)]->attachChild(
+//        static_cast<SceneNode::Ptr>(player.get()));
+// --> player is a shared ptr, attachChild will move the pointer (only uniqueptrs) to sceneNode
+//
     // texts.emplace_back(createText("TEST"));
     setDebugDrawer(mWindow);
 }
@@ -158,6 +161,7 @@ void World::buildScene() {
 // TODO: overthink how to store the physic body ! (in the Entityclass ?)
 // --> there is now a PhysicsClass with map mScenePhysics
 // whats with multiple levels .... we need at least a map
+// TODO: remove when physic objects are working, not used atm
 b2Body *
 World::createPhysicalBox(int pos_x, int pos_y, int size_x, int size_y,
                          std::string name = "EMPTY",
@@ -182,8 +186,8 @@ World::createPhysicalBox(int pos_x, int pos_y, int size_x, int size_y,
     fixtureDef.shape = &b2Shape;
 
     //b2Body *res = phWorld->CreateBody(&bodyDef);
-    // std::unique_ptr<b2Body> res =
-    // std::make_unique<b2Body>(phWorld->CreateBody(&bodyDef));
+    //std::unique_ptr<b2Body> res =
+    // std::make_unique<b2Body>(mPhysics.createPhysicsSceneObjects(ELevel level)srt->CreateBody(&bodyDef));
     //res->CreateFixture(&fixtureDef);
 
     // std::unique_ptr<sf::RectangleShape> shape =
@@ -241,6 +245,7 @@ World::createPhysicalBox(int pos_x, int pos_y, int size_x, int size_y,
 
     // Dangling pointer for EntityStatic ?
     return nullptr;//res;
+    //return res;
 }
 
 
@@ -284,39 +289,6 @@ void World::setDebugDrawer(sf::RenderTarget &target) {
 
 }
 
-// TODO: to Physics
-sf::Shape *World::getShapeFromPhysicsBody(b2Body *physicsBody) {
-    if (physicsBody == nullptr)
-        return nullptr;
-
-    b2BodyUserData &data = physicsBody->GetUserData();
-    auto entity = reinterpret_cast<EntityStatic *>(data.pointer);
-    /*
-    auto body = reinterpret_cast<uintptr_t>(physicsBody);
-    sf::Shape* shape =
-    reinterpret_cast<sf::RectangleShape*>(mStaticEntities.at(body)->getShape());
-    */
-
-    sf::Shape *shape =
-        reinterpret_cast<sf::RectangleShape *>(entity->getShape());
-
-    if (shape) {
-
-        try {
-            shape->setPosition({
-                Converter::metersToPixels(physicsBody->GetPosition().x),
-                Converter::metersToPixels(physicsBody->GetPosition().y)});
-            shape->setRotation(
-                sf::degrees(Converter::radToDeg<double>(physicsBody->GetAngle())));
-        } catch (std::exception) {
-            fmt::print("No shape.\n");
-        }
-    } else {
-        fmt::print("shape null.\n");
-        return nullptr;
-    }
-    return shape;
-}
 
 void World::draw() {
 
@@ -335,17 +307,8 @@ void World::draw() {
 
     // TODO: add the ground and stuff to the scenegraph !
     // make this also level dependent ! sceneObjects ios static in Physics !
-    if (sceneObjects.size() > 0) {
-        for (const auto &obj : sceneObjects) {
-            auto shape = getShapeFromPhysicsBody(obj.second.data()->mPhysicsBody);
-            if (shape == nullptr) {
-                fmt::print("shape ptr seems to be null\n");
-                return;
-            }
-
-            mWindow.draw(*(shape));
-        }
-    }
+    // TODO: move to Physics
+    mPhysics.draw(mWindow);
 
     if (pBoxTest) {
         // TODO: segfault

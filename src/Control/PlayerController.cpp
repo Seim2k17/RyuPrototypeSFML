@@ -55,7 +55,10 @@ std::function<void(SceneNode&, sf::Time)> derivedEInput(Function fn)
 
 PlayerController::PlayerController()
 : Observer("Playercontroller")
-  // TODO: initialize other member
+, mKeyBindingPress({})
+, mActionBindingPress({})
+, mKeyBindingRelease({})
+, mActionBindingRelease({})
 , playerCharacter(std::make_shared<CharacterIchi>(ECharacterState::Idle, CHAR_START_POSITION))
 {
     initializeBindings();

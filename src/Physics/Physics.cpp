@@ -8,6 +8,7 @@
 
 #include <Ryu/Character/ICharacter.h>
 #include <SFML/Graphics/RectangleShape.hpp>
+#include <SFML/Graphics/RenderWindow.hpp>
 #include <SFML/Graphics/Shape.hpp>
 #include <SFML/System/Vector2.hpp>
 #include <box2d/b2_body.h>
@@ -113,6 +114,58 @@ Physics::debugDraw() const
 }
 
 void
+Physics::draw(sf::RenderWindow& window)
+{
+
+    if (sceneObjects.size() > 0) {
+        for (const auto &obj : sceneObjects.at(ELevel::Level2)) {
+            auto shape = getShapeFromPhysicsBody(obj.mPhysicsBody);
+            if (shape == nullptr) {
+                fmt::print("shape ptr seems to be null\n");
+                fmt::print("damn\n");
+                return;
+            }
+
+            window.draw(*(shape));
+        }
+    }
+}
+
+sf::Shape*
+Physics::getShapeFromPhysicsBody(b2Body* physicsBody) {
+    if (physicsBody == nullptr)
+        return nullptr;
+
+    b2BodyUserData& data = physicsBody->GetUserData();
+    auto entity = reinterpret_cast<EntityStatic*>(data.pointer);
+    /*
+    auto body = reinterpret_cast<uintptr_t>(physicsBody);
+    sf::Shape* shape =
+    reinterpret_cast<sf::RectangleShape*>(mStaticEntities.at(body)->getShape());
+    */
+
+    sf::Shape* shape =
+        reinterpret_cast<sf::RectangleShape*>(entity->getShape());
+
+    if (shape) {
+
+        try {
+            shape->setPosition({
+                Converter::metersToPixels(physicsBody->GetPosition().x),
+                Converter::metersToPixels(physicsBody->GetPosition().y)});
+            shape->setRotation(
+                sf::degrees(Converter::radToDeg<double>(physicsBody->GetAngle())));
+        } catch (std::exception) {
+            fmt::print("No shape.\n");
+        }
+    } else {
+        fmt::print("shape null.\n");
+        return nullptr;
+    }
+    return shape;
+}
+
+void
 Physics::initCharacterPhysics(ICharacter& character, bool inDuckMode)
  {
 // TODO: CAUTION:: THERE is an thinking error and a cyclic dependency inside, TOO LATE !!!
@@ -188,15 +241,16 @@ Physics::initCharacterPhysics(ICharacter& character, bool inDuckMode)
 void
 Physics::createPhysicsSceneObjects(ELevel level)
 {
-    for(auto& obj : sceneObjects.at(level))
+    for(auto obj : sceneObjects.at(level))
     {
         createPhysicsBody(obj);
+        fmt::print("create: {} \n", obj.mName);
         // phGroundBodies.emplace_back(PhysicsObject("", createPhysicalBox(obj)));
     }
 }
 
 void
-Physics::createPhysicsBody(SceneObjectPhysicsParameters sceneObject)
+Physics::createPhysicsBody(SceneObjectPhysicsParameters& sceneObject)
 {
     sf::Vector2i objPosition = sceneObject.mPosition;
     sf::Vector2i objSize = sceneObject.mSize;

@@ -30,6 +30,7 @@ class Game : public Observer
 	  void processEvents(std::optional<sf::Event> event, CommandQueue& commands);
 	  void update(sf::Time deltaTime);
 	  void render();
+    // TODO: clarify where exactly to put these methods
 	  void handleUserInput(sf::Keyboard::Key key, bool keyPressed);
 	  void addObservers();
     void setDebugValues();
@@ -40,10 +41,10 @@ class Game : public Observer
 	  sf::RenderWindow mWindow;
 	  std::unique_ptr<PlayerController> mPlayerController;
     EventManager mEventManager;
-	  World mWorld;
     RyuAnimator::Editor mAnimator;
 	  bool mIsPaused;
     RyuDebug::DebugWidgets mDebugWidgets;
+	  World mWorld;
 	  bool mDebugWidgetsActive;
 	//ryu::AssetManager<sf::Font,std::string> fontManager;
 };
