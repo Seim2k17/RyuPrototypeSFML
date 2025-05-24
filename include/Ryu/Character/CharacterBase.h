@@ -9,6 +9,7 @@
 #include <Ryu/Control/CharacterEnums.h>
 #include <Ryu/Core/AssetIdentifiers.h>
 #include <Ryu/Core/AssetManager.h>
+#include <Ryu/Character/ICharacter.h>
 #include <Ryu/Events/EventEnums.h>
 #include <Ryu/Events/Observer.h>
 #include <Ryu/Events/Subject.h>
@@ -43,16 +44,6 @@ class b2Fixture;
 // namespace ryu{
 
 struct CharacterSetting {
-    // due increase of gravityscale (falling is then more gamey) the physicbody
-    // needs some adustments for movement so its not behind the movement of
-    // the characteranimation
-    float MoveMultiplierX = 1.05f;
-    float MoveMultiplierY = 1.47f;
-
-    b2Vec2 jumpForwardImpulse{150, -250};
-    b2Vec2 jumpUpImpulse{0, -200};
-    b2Vec2 massCenter{0, 0};
-    float bodyMass{25};
 };
 
 struct CharacterFinalSetting {
@@ -89,19 +80,9 @@ struct AnimationConfiguration {
     sf::Vector2i pivotAbsolute;
 };
 
-// this is the framesize for the boundary box of the physics body
-static constexpr std::pair<int, int> INIT_FRAME_SIZE(60, 86);
-static constexpr std::pair<int, int> DUCK_FRAME_SIZE(60, 45);
-
 struct CharacterPhysicsValues {
 
-    float gravityScale = 4.8f;  /// for dynamic objects density needs to be > 0
-    float fixtureDensity = 5.f; /// for dynamic objects density needs to be > 0
-    float fixtureFriction = 0.1f; /// recommended by  b2d docu
-    float fixtureRestitution = 0.1f;
-
-    float rayCastLength = 40.0f;
-
+    // TODO: not directly physics but physicsrelated. so keep it in CharacterBaseClass
     std::pair<int, int> getFrameSize(bool characterDuck) {
         std::pair<int, int> size;
         if (characterDuck) {
@@ -166,19 +147,19 @@ static std::map<Textures::CharacterID, Textures::SpritesheetID>
 
 class AnimationManager;
 
-class CharacterBase : public SceneNode, public Subject, public Observer {
+class CharacterBase : public SceneNode, public Subject, public Observer, public ICharacter {
 
   public:
     // TODO: implement rule of 5 !
     // (morph one character into another ^^)
-    CharacterBase(std::unique_ptr<b2World> &phWorld,
-                  const sf::Vector2f &position);
-    CharacterBase(ECharacterState startState, std::unique_ptr<b2World> &phWorld,
-                  const sf::Vector2f &positiono);
+    CharacterBase(const sf::Vector2i &position);
+    CharacterBase(ECharacterState startState,
+                  const sf::Vector2i &position);
     ~CharacterBase();
 
     float getCharacterSpeed() { return mCharacterSpeed; }
     void setCharacterSpeed(float speed) { mCharacterSpeed = speed; };
+    void setPhysicWorldRef(std::unique_ptr<b2World> &phWorld);
 
     void setupAnimation(Textures::CharacterID aniId);
 
@@ -193,10 +174,14 @@ class CharacterBase : public SceneNode, public Subject, public Observer {
     void setMovement(sf::Vector2f _movement);
     void setMoveDirection(EMoveDirection _movementDir);
     EMoveDirection getMoveDirection() { return mMoveDirection; }
+
+    // TODO: check how to move to Physics-class
+/*
     void initPhysics();
     void destroyPhysics();
     void updatePhysics();
     void updatePhysics(const sf::Vector2f &position);
+*/
     void checkClimbingState();
     std::string checkContactObjects();
 
@@ -207,7 +192,6 @@ class CharacterBase : public SceneNode, public Subject, public Observer {
     void changeState(std::unique_ptr<CharacterState> toState);
     // void setupAnimation(AnimationConfiguration config);
 
-    std::unique_ptr<b2World> &getPhysicsWorldRef() { return phWorldRef; }
     void changeColor(sf::Color color);
 
     void notifyObservers(Ryu::EEvent event);
@@ -252,8 +236,8 @@ class CharacterBase : public SceneNode, public Subject, public Observer {
     void jumpUp();
     void jumpForward();
     float getDirectionMultiplier();
-    void setCharacterSettings(CharacterSetting settings);
-    void resetCharacterSettings();
+    [[deprecated]] void setCharacterSettings(CharacterSetting settings);
+    [[deprecated]] void resetCharacterSettings();
     bool duckStateActive() { return mDuckStateActive; };
     void setDuckState(bool duckstate) { mDuckStateActive = duckstate; };
     virtual void onNotify(const SceneNode &entity, Ryu::EEvent event) override;
@@ -263,6 +247,8 @@ class CharacterBase : public SceneNode, public Subject, public Observer {
     void setOffset(bool state) { mSetOffset = state; };
     bool getOffsetState() { return mSetOffset; };
     sf::Vector2f getPositionCross() { return positionCrossOffset; }
+    sf::Vector2f getPosition() override { return mCharacterAnimation.getPosition(); }
+        ECharacters getCharacterName() override { return ECharacters::Ichi;}
 
   protected:
     /***
@@ -272,8 +258,10 @@ class CharacterBase : public SceneNode, public Subject, public Observer {
      *mass could be calculated
      *
      ***/
+    // TODO: move the physics section completetly to the physicsclass !
     void initPhysics(std::unique_ptr<b2World> &phWorld,
-                     const sf::Vector2f &position);
+                     const sf::Vector2f &position); // TODO: what for ?
+    // TODO: rename to 'drawPhysicsOutline'
     void drawCurrent(sf::RenderTarget &target,
                      sf::RenderStates states) const override;
 
@@ -306,8 +294,8 @@ class CharacterBase : public SceneNode, public Subject, public Observer {
     sf::Vector2f movement;
     bool mCharacterFalling;
 
-    // physics
-    std::unique_ptr<b2World> &phWorldRef;
+    // TODO: physics -> physics interface
+    //std::unique_ptr<b2World> &phWorldRef;
     b2Body *mBody;
     b2Fixture *mFixture;
     Textures::LevelID mCurrentLevel;

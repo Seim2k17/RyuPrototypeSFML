@@ -1,5 +1,7 @@
 #pragma once
 
+#include "Ryu/Core/EventManager.h"
+#include "Ryu/Physics/Physics.h"
 #include <Ryu/Core/AssetManager.h>
 #include <Ryu/Core/CommandQueue.h>
 #include <Ryu/Debug/b2DrawSFML.hpp>
@@ -22,30 +24,22 @@ typedef AssetManager<sf::Texture, Textures::SceneID> SceneTextureHolder;
 class CharacterIchi;
 class b2World;
 class b2Body;
+class EventManager;
 
-static b2DrawSFML debugDrawer;
 
 
 // namespace ryu {
 class World : /*private sf::NonCopyable*/ public Observer {
 
   public:
-    explicit World(sf::RenderWindow &window);
+    explicit World(sf::RenderWindow &window, EventManager& eventManager);
     ~World();
     void update(sf::Time dt);
     void draw();
     CommandQueue &getActiveCommands();
-    CharacterIchi *getPlayer();
     const sf::Drawable &getPlayerSprite();
-    // TODO: make this static ? -> access from everywhere
-    std::unique_ptr<b2World> &getPhysicsWorld() { return phWorld; };
+    // TODO: move to physics
     sf::Shape *getShapeFromPhysicsBody(b2Body *physicsBody);
-    void debugDrawSegment(b2Vec2 const &p1, b2Vec2 const &p2,
-                          b2Color const &color) {
-        if (phDebugPhysics) {
-            debugDrawer.DrawSegment(p1, p2, color);
-        }
-    };
     void toggleDrawDebug() { phDebugPhysics = not phDebugPhysics; }
     void setDebugDrawer(sf::RenderTarget &target);
     void onNotify(const SceneNode &entity, Ryu::EEvent event) override;
@@ -56,11 +50,15 @@ class World : /*private sf::NonCopyable*/ public Observer {
     void createText(const sf::String text, sf::Text &textToShow);
     void loadTextures();
     void buildScene();
+    // TODO: move to physics
     void setPhysics();
+
+    [[deprecated("moved to physics")]]
     b2Body* createPhysicalBox(int pos_x, int pos_y, int size_x, int size_y,
                               std::string name, b2BodyType type,
                               Textures::SceneID texture, EntityType entityType = EntityType::None);
-    b2Body* createPhysicalBox(LevelObject obj);
+    [[deprecated("moved to physics")]]
+    b2Body* createPhysicalBox(/*LevelObject obj*/);
 
   private:
     sf::RenderWindow &mWindow;
@@ -69,20 +67,20 @@ class World : /*private sf::NonCopyable*/ public Observer {
     SceneNode mSceneGraph;
     std::array<SceneNode *, std::size_t(Layer::LayerCount)> mSceneLayers;
     // Shapes and MetaInfos to static physicalBodies
+    // std::vector<PhysicsObject> phGroundBodies; // TODO see in Physics -> static sceneObjects
     std::map<uintptr_t, std::unique_ptr<EntityStatic> > mStaticEntities;
 
 
     sf::FloatRect mWorldBounds;
     sf::Vector2f mSpawnPosition;
     Box *mPushBox;
-    CharacterIchi *mPlayer;
 
     CommandQueue mActiveCommands;
 
-    // box2d physics
-    std::unique_ptr<b2World> phWorld;
-    std::vector<PhysicsObject> phGroundBodies;
+    Physics mPhysics;
+
     std::vector<sf::Text> texts;
+    // TODO: move to physics
     b2Body* pBoxTest;
     bool phDebugPhysics;
     float phTimeStep;
@@ -95,5 +93,6 @@ class World : /*private sf::NonCopyable*/ public Observer {
 
     // TODO: does this belongs here ?
     std::unique_ptr<LevelManager> levelManager;
+    EventManager& mEventManager;
 };
 //} /// namespace ryu

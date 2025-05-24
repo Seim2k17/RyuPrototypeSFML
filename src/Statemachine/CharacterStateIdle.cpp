@@ -68,8 +68,10 @@ CharacterStateIdle::enter(CharacterBase& character)
 
     if(character.duckStateActive())
     {
+        /*
         character.destroyPhysics();
         character.initPhysics();
+        */
         character.setDuckState(false);
     }
 }

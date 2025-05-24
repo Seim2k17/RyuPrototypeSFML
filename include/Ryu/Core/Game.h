@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Ryu/Core/EventManager.h"
 #include <SFML/Graphics.hpp>
 #include <Ryu/Character/CharacterIchi.h>
 #include <Ryu/Control/PlayerController.h>
@@ -12,6 +13,7 @@
 #include <optional>
 
 class CharacterIchi;
+class EventManager;
 class PlayerController;
 class CommandQueue;
 
@@ -36,10 +38,11 @@ class Game : public Observer
 
   private:
 	  sf::RenderWindow mWindow;
+	  std::unique_ptr<PlayerController> mPlayerController;
+    EventManager mEventManager;
 	  World mWorld;
     RyuAnimator::Editor mAnimator;
 	  bool mIsPaused;
-	  std::unique_ptr<PlayerController> mPlayerController;
     RyuDebug::DebugWidgets mDebugWidgets;
 	  bool mDebugWidgetsActive;
 	//ryu::AssetManager<sf::Font,std::string> fontManager;

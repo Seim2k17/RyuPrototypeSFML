@@ -23,30 +23,36 @@
 #include <imgui.h>
 #include <iostream>
 #include <memory>
+#include <string_view>
 
+constexpr std::string_view PROJECT_NAME{"Ryu prototype 0.1"};
 
 //namespace ryu{
 const sf::Time TimePerFrame = sf::milliseconds(17); // seconds(1.f / 60.f);
 
 Game::Game()
 :Observer("Game")
-,mWindow(sf::VideoMode({1200, 800}), "SFML Application")
-,mWorld(mWindow)
-,mPlayerController(std::make_unique<PlayerController>(mWorld.getPlayer()))
+,mWindow(sf::VideoMode({1200, 800}), PROJECT_NAME.data())
+,mPlayerController(std::make_unique<PlayerController>())
+,mEventManager()
+,mWorld(mWindow, mEventManager)
+,mAnimator(RyuAnimator::Editor())
 ,mIsPaused(false)
-,mAnimator()
-,mDebugWidgets(mWorld.getPlayer())
+,mDebugWidgets(mPlayerController->getPlayableCharacter()) // TODO: player from 1691421player controller
 ,mDebugWidgetsActive(false)
 {
 	// todo: how to load ichis tzextures at  startup ?
 	//mPlayer->loadTextures();
 	addObservers();
+	mEventManager.registerPlayer(mPlayerController->getPlayableCharacter());
 }
 
 void
 Game::useCharacterDebugSettings()
 {
-			auto player = mWorld.getPlayer();
+			auto player = mPlayerController->getPlayableCharacter();
+			// TODO: now in physics set somehow else
+/*
 			player->setCharacterSettings({
 				.MoveMultiplierX = 1.05f,
 				.MoveMultiplierY = 1.47f,
@@ -55,7 +61,7 @@ Game::useCharacterDebugSettings()
 				.massCenter={0,0},
 				.bodyMass={18}
 			});
-
+*/
 			player->setPositionOffset(sf::Vector2f(mDebugWidgets.debugData.positionCross[0],
 												   mDebugWidgets.debugData.positionCross[1]));
 			player->setOffset(true);
@@ -64,7 +70,7 @@ Game::useCharacterDebugSettings()
 void
 Game::teleportMainCharacter(float x, float y)
 {
-	auto player = mWorld.getPlayer();
+	auto player = mPlayerController->getPlayableCharacter();
 	player->teleportCharacter(x, y);
 }
 
@@ -78,7 +84,7 @@ Game::onNotify(const SceneNode& entity, RyuEvent event)
 		{
 				mDebugWidgets.debugData.activateRyuDebug == false ? mDebugWidgets.debugData.activateRyuDebug = true : mDebugWidgets.debugData.activateRyuDebug = false;
 				mDebugWidgetsActive = mDebugWidgets.debugData.activateRyuDebug;
-				mDebugWidgetsActive ? useCharacterDebugSettings() : mWorld.getPlayer()->resetCharacterSettings();
+				mDebugWidgetsActive ? useCharacterDebugSettings() : mPlayerController->getPlayableCharacter()->resetCharacterSettings();
 				break;
 		}
 		case RyuEvent::ImGuiDemoToggle:
@@ -113,7 +119,7 @@ Game::onNotify(const SceneNode& entity, RyuEvent event)
 		case RyuEvent::TemporaryOutput:
 		{
 			fmt::print("TempOutput\n");
-			mWorld.getPlayer()->ouputAnimations();
+			mPlayerController->getPlayableCharacter()->ouputAnimations();
 			break;
 		}
 		default: break;
@@ -124,9 +130,9 @@ Game::onNotify(const SceneNode& entity, RyuEvent event)
 void
 Game::addObservers()
 {
-	auto player = mWorld.getPlayer();
+	auto player = mPlayerController->getPlayableCharacter();
 	player->addObserver(mPlayerController.get());
-	player->addObserver(player);
+	player->addObserver(player.get());
 	mPlayerController->addObserver(&mWorld);
 	mPlayerController->addObserver(this);
 	mDebugWidgets.addObserver(/*mWorld.getPlayer()*/this);
@@ -205,10 +211,11 @@ void Game::processEvents(std::optional<sf::Event> event, CommandQueue& commands)
 void
 Game::setDebugValues()
 {
-	mDebugWidgets.debugData.characterState = (mWorld.getPlayer()->getCharacterStateEnum())._to_string();
-	mDebugWidgets.debugData.characterIsFalling = mWorld.getPlayer()->isFalling();
-	mDebugWidgets.debugData.numFrames = mWorld.getPlayer()->getSpriteAnimation().getNumFrames();
-	mDebugWidgets.debugData.numFramesVector = mWorld.getPlayer()->getSpriteAnimation().getFramesCount();
+	auto player = mPlayerController->getPlayableCharacter();
+	mDebugWidgets.debugData.characterState = (player->getCharacterStateEnum())._to_string();
+	mDebugWidgets.debugData.characterIsFalling = player->isFalling();
+	mDebugWidgets.debugData.numFrames = player->getSpriteAnimation().getNumFrames();
+	mDebugWidgets.debugData.numFramesVector = player->getSpriteAnimation().getFramesCount();
 
 }
 

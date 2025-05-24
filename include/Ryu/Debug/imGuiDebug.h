@@ -6,6 +6,7 @@
 #include <fmt/core.h>
 #include <imgui.h>
 #include <iostream>
+#include <memory>
 
 class CharacterIchi;
 
@@ -52,7 +53,7 @@ struct DebugData{
 class DebugWidgets : public Subject {
 
     public:
-        DebugWidgets(CharacterIchi* character);
+        DebugWidgets(std::weak_ptr<CharacterIchi> character);
 
         void ShowWidgets();
         void CreateDebugGui();
@@ -61,7 +62,7 @@ class DebugWidgets : public Subject {
         DebugData debugData{};
 
     private:
-        CharacterIchi* playerCharacter;
+        std::weak_ptr<CharacterIchi> playerCharacter;
 };
 
 

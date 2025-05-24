@@ -9,6 +9,7 @@
 #include <Ryu/Core/CommandQueue.h>
 #include <Ryu/Character/CharacterIchi.h>
 
+#include <SFML/System/Vector2.hpp>
 #include <SFML/Window/Event.hpp>
 #include <SFML/Window/Keyboard.hpp>
 #include <fmt/core.h>
@@ -17,8 +18,7 @@
 #include <memory>
 #include <tracy/Tracy.hpp>
 
-
-class CharacterIchi;
+constexpr sf::Vector2i CHAR_START_POSITION{150,200};
 
 // command-actions
 struct CharacterMover
@@ -53,6 +53,20 @@ std::function<void(SceneNode&, sf::Time)> derivedEInput(Function fn)
     };
 }
 
+PlayerController::PlayerController()
+: Observer("Playercontroller")
+  // TODO: initialize other member
+, playerCharacter(std::make_shared<CharacterIchi>(ECharacterState::Idle, CHAR_START_POSITION))
+{
+    initializeBindings();
+}
+
+const std::shared_ptr<CharacterIchi>
+PlayerController::getPlayableCharacter()
+{
+    return playerCharacter;
+}
+
 void
 PlayerController::onNotify(const SceneNode& entity, RyuEvent event)
 {
@@ -70,6 +84,11 @@ PlayerController::onNotify(const SceneNode& entity, RyuEvent event)
         }
 }
 
+void
+PlayerController::update(sf::Time deltaTime)
+{
+    playerCharacter->update(deltaTime);
+}
 
 void
 PlayerController::setActionBindingCharacterSpeed()
@@ -124,13 +143,6 @@ PlayerController::initializeBindings()
     {
         actionBinding.second.category = static_cast<unsigned>(Category::Type::Player); 
     }
-}
-
-PlayerController::PlayerController(CharacterIchi* character)
-: Observer("Playercontroller")
-, playerCharacter(character)
-{    
-    initializeBindings();
 }
 
 void
