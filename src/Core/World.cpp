@@ -162,6 +162,7 @@ void World::buildScene() {
 // --> there is now a PhysicsClass with map mScenePhysics
 // whats with multiple levels .... we need at least a map
 // TODO: remove when physic objects are working, not used atm
+/*
 b2Body *
 World::createPhysicalBox(int pos_x, int pos_y, int size_x, int size_y,
                          std::string name = "EMPTY",
@@ -247,14 +248,14 @@ World::createPhysicalBox(int pos_x, int pos_y, int size_x, int size_y,
     return nullptr;//res;
     //return res;
 }
-
-
+*/
+/*
 b2Body *
-World::createPhysicalBox(/*LevelObject obj*/)
+World::createPhysicalBox(LevelObject obj)
 {
     return nullptr; //createPhysicalBox(obj.posX, obj.posY, obj.sizeX, obj.sizeY, obj.name, obj.type, obj.texture, obj.entityType);
 }
-
+*/
 
 // TODO split in "createGroundbodies / setScenePhysics in Physics class"
 void World::setPhysics() {

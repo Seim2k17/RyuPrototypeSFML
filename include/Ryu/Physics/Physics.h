@@ -64,6 +64,7 @@ struct SceneObjectPhysicsParameters
     Textures::SceneID mTextureId;
     EntityType mEntityType;
     b2Body* mPhysicsBody;
+    //std::unique_ptr<b2Body> mPhysicsBody;
 };
 
 
@@ -84,7 +85,8 @@ class Physics : public Subject {
     void update();
 
    private:
-    void createPhysicsBody(SceneObjectPhysicsParameters& sceneObject);
+    //void createPhysicsBody(SceneObjectPhysicsParameters sceneObject);
+    b2Body* createPhysicsBody(SceneObjectPhysicsParameters& sceneObject, int& i);
     // box2d physics
     std::map<ECharacters, CharacterPhysicsParameters> mCharacterPhysics;
     std::unique_ptr<b2World> mPhysicsWorld;
@@ -94,6 +96,7 @@ class Physics : public Subject {
     // TODO: check if we keep it here or not ? Do we even need this at all ?                                                                   // key is a combination of LevelName (ELevel.string) and ObjectName ? WHY ?
     // it was: why?
     std::map<const uintptr_t, std::unique_ptr<EntityStatic> > mStaticEntities;
+    //std::map<const uintptr_t, std::shared_ptr<EntityStatic> > mStaticEntities;
     // std::map<uintptr_t, EntityStatic > mStaticEntities;
     float mPhTimeStep;
     bool mDebugPhysicsActive;

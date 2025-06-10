@@ -117,8 +117,13 @@ void
 Physics::draw(sf::RenderWindow& window)
 {
 
+    // TODO: mPhysicsBody is nullptr but is set in CreatePhysicsBody!
+    // thats why thy bodies cant be displayed
+    // so probably not set correctly or destroyed when going out of scope
+    // before the refactoring the physicsbodies were emplaced in an physicsbodyarray
+    // and created there directly
     if (sceneObjects.size() > 0) {
-        for (const auto &obj : sceneObjects.at(ELevel::Level2)) {
+        for (auto& obj : sceneObjects.at(ELevel::Level2)) {
             auto shape = getShapeFromPhysicsBody(obj.mPhysicsBody);
             if (shape == nullptr) {
                 fmt::print("shape ptr seems to be null\n");
@@ -241,16 +246,21 @@ Physics::initCharacterPhysics(ICharacter& character, bool inDuckMode)
 void
 Physics::createPhysicsSceneObjects(ELevel level)
 {
+    int i = 0;
     for(auto obj : sceneObjects.at(level))
     {
-        createPhysicsBody(obj);
         fmt::print("create: {} \n", obj.mName);
+        auto physObj = createPhysicsBody(obj, i);
+        obj.mPhysicsBody = physObj;
         // phGroundBodies.emplace_back(PhysicsObject("", createPhysicalBox(obj)));
+        i++;
     }
 }
 
-void
-Physics::createPhysicsBody(SceneObjectPhysicsParameters& sceneObject)
+//void
+b2Body*
+Physics::createPhysicsBody(SceneObjectPhysicsParameters& sceneObject, int& i)
+//Physics::createPhysicsBody(SceneObjectPhysicsParameters sceneObject)
 {
     sf::Vector2i objPosition = sceneObject.mPosition;
     sf::Vector2i objSize = sceneObject.mSize;
@@ -272,7 +282,7 @@ Physics::createPhysicsBody(SceneObjectPhysicsParameters& sceneObject)
 
     if(not mPhysicsWorld){
         fmt::print("no physics world created\n");
-        return;
+        return nullptr;
     }
 
     b2Body *res = mPhysicsWorld->CreateBody(&bodyDef);
@@ -324,9 +334,17 @@ Physics::createPhysicsBody(SceneObjectPhysicsParameters& sceneObject)
     staticEntity->setShape(std::move(shape));
     res->GetUserData().pointer = reinterpret_cast<uintptr_t>(staticEntity.get());
     mStaticEntities[reinterpret_cast<uintptr_t>(res)] = std::move(staticEntity);
+    //mStaticEntities[reinterpret_cast<uintptr_t>(res)] = staticEntity;
 
     // Dangling pointer for EntityStatic ?
-    sceneObject.mPhysicsBody = res;
+    //sceneObject.mPhysicsBody = res;
+    // TODO: find out why the physbody is not copied to sceneObjects ! sie print debug, its in obj but not in the map
+    // investigate further with state from before (see MR)
+    // is it maybe bc of the definition of the objects (many values are predefined in SceneObjectPhysicsParameters::SceneObjectPhysicsParameters() :
+    // tryo so set them by hand at creation in the map ....
+    fmt::print("Physicsbody for {} set ,{} \n",sceneObject.mName, sceneObject.mPhysicsBody == nullptr ? "nullptr" : "physBody exists");
+    fmt::print("{} sceneObjects.at({}): , {} \n",i,sceneObjects.at(ELevel::Level1)[i].mName, sceneObjects.at(ELevel::Level2)[i].mPhysicsBody == nullptr ? "physbody==nullptr" : "physBody exists");
+    return res;
 
 }
 
