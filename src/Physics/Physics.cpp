@@ -122,8 +122,10 @@ Physics::draw(sf::RenderWindow& window)
     // so probably not set correctly or destroyed when going out of scope
     // before the refactoring the physicsbodies were emplaced in an physicsbodyarray
     // and created there directly
+    // TODO: next step ask with help on ChatGTP what could be wrong in this situation
     if (sceneObjects.size() > 0) {
         for (auto& obj : sceneObjects.at(ELevel::Level2)) {
+            fmt::print("draw: get PhysicsBody: {} \n",obj.mPhysicsBody == nullptr ? "nullptr" : "is there");
             auto shape = getShapeFromPhysicsBody(obj.mPhysicsBody);
             if (shape == nullptr) {
                 fmt::print("shape ptr seems to be null\n");
@@ -253,7 +255,6 @@ Physics::createPhysicsSceneObjects(ELevel level)
         auto physObj = createPhysicsBody(obj, i);
         obj.mPhysicsBody = physObj;
         // phGroundBodies.emplace_back(PhysicsObject("", createPhysicalBox(obj)));
-        i++;
     }
 }
 
@@ -342,8 +343,11 @@ Physics::createPhysicsBody(SceneObjectPhysicsParameters& sceneObject, int& i)
     // investigate further with state from before (see MR)
     // is it maybe bc of the definition of the objects (many values are predefined in SceneObjectPhysicsParameters::SceneObjectPhysicsParameters() :
     // tryo so set them by hand at creation in the map ....
-    fmt::print("Physicsbody for {} set ,{} \n",sceneObject.mName, sceneObject.mPhysicsBody == nullptr ? "nullptr" : "physBody exists");
-    fmt::print("{} sceneObjects.at({}): , {} \n",i,sceneObjects.at(ELevel::Level1)[i].mName, sceneObjects.at(ELevel::Level2)[i].mPhysicsBody == nullptr ? "physbody==nullptr" : "physBody exists");
+    fmt::print("Before set: Physicsbody for {} set ,{}, i={} \n",sceneObject.mName, sceneObject.mPhysicsBody == nullptr ? "nullptr" : "physBody exists", i);
+    fmt::print("{} sceneObjects.at({}): , {} \n",i,sceneObjects.at(ELevel::Level2)[i].mName, sceneObjects.at(ELevel::Level2)[i].mPhysicsBody == nullptr ? "physbody==nullptr" : "physBody exists");
+    sceneObject.mPhysicsBody = res;
+    fmt::print("After set: Physicsbody for {} set ,{} \n",sceneObject.mName, sceneObject.mPhysicsBody == nullptr ? "nullptr" : "physBody exists");
+    i++;
     return res;
 
 }

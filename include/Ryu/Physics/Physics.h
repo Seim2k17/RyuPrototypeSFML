@@ -54,8 +54,8 @@ struct SceneObjectPhysicsParameters
     SceneObjectPhysicsParameters();
     SceneObjectPhysicsParameters(
         sf::Vector2i position, sf::Vector2i size,
-        std::string name, b2BodyType type = b2_staticBody,
-        Textures::SceneID textureId = Textures::SceneID::Grass, EntityType entityType=EntityType::None);
+        std::string name, b2BodyType type, /* = b2_staticBody,*/
+        Textures::SceneID textureId, /* = Textures::SceneID::Grass,*/ EntityType entityType); /*=EntityType::None);*/
 
     sf::Vector2i mPosition;
     sf::Vector2i mSize;
@@ -104,37 +104,37 @@ class Physics : public Subject {
    public: // TODO: tmp storage !!!! -> make static again outside of class
     std::map<ELevel , std::vector<SceneObjectPhysicsParameters>> sceneObjects = {
     {ELevel::Level1,
-     {{{600, 780}, {1200, 20}, "floor"},
-      {{8, 580}, {16, 800}, "left_side"},
-      {{1190, 580}, {16, 1100}, "right_side"}
+     {{{600, 780}, {1200, 20}, "floor", b2_staticBody, Textures::SceneID::Grass, EntityType::None},
+      {{8, 580}, {16, 800}, "left_side", b2_staticBody, Textures::SceneID::Grass, EntityType::None},
+      {{1190, 580}, {16, 1100}, "right_side", b2_staticBody, Textures::SceneID::Grass, EntityType::None}
       ,// 1rst platform
-      {{70, 150}, {150, 32}, "platform_1"},
+      {{70, 150}, {150, 32}, "platform_1", b2_staticBody, Textures::SceneID::Grass, EntityType::None},
       {{240, 280}, {140, 32}, "platform_2", b2_staticBody, Textures::SceneID::Grass, EntityType::Climbable},
       {{380, 380}, {150, 32}, "platform_3", b2_staticBody, Textures::SceneID::Grass, EntityType::Climbable},
-      {{500, 500}, {320, 32}, "platform_4"},
-      {{720, 420}, {120, 32}, "platform_5"},
-      {{780, 300}, {120, 32}, "platform_6"},
-      {{720, 600}, {120, 32}, "platform_7"},
-      {{780, 700}, {120, 32}, "platform_8"},
-      {{300, 100}, {50, 50}, "box_pushable_1", b2_dynamicBody, Textures::SceneID::BoxPushable}
+      {{500, 500}, {320, 32}, "platform_4", b2_staticBody, Textures::SceneID::Grass, EntityType::None},
+      {{720, 420}, {120, 32}, "platform_5", b2_staticBody, Textures::SceneID::Grass, EntityType::None},
+      {{780, 300}, {120, 32}, "platform_6", b2_staticBody, Textures::SceneID::Grass, EntityType::None},
+      {{720, 600}, {120, 32}, "platform_7", b2_staticBody, Textures::SceneID::Grass, EntityType::None},
+      {{780, 700}, {120, 32}, "platform_8", b2_staticBody, Textures::SceneID::Grass, EntityType::None},
+      {{300, 100}, {50, 50}, "box_pushable_1", b2_dynamicBody, Textures::SceneID::BoxPushable, EntityType::None}
    }},
     {ELevel::Level2,
-     {{{600, 800}, {1200, 20}, "floor"},
-      {{8, 580}, {16, 820}, "left_side"},
-      {{1190, 580}, {16, 1100}, "right_side"}, // 1rst platform
-      {{110, 150}, {220, 32}, "platform_1"},
-      {{450, 150}, {250, 32}, "platform_2"},
-      {{390, 100}, {32, 100}, "grate_1", b2_staticBody, Textures::SceneID::Grate},
-      {{380, 370}, {200, 32}, "platform_3"},
-      {{400, 364}, {60, 20}, "button_1", b2_staticBody, Textures::SceneID::Button},
-      {{1100, 800}, {60, 20}, "button_2", b2_staticBody, Textures::SceneID::Button},
-      {{496, 345}, {32, 85}, "platform_3_wall"},
-      {{591, 435}, {32, 595}, "middle_wall"},
-      {{750, 100}, {50, 50}, "box_pushable_1", b2_dynamicBody, Textures::SceneID::BoxPushable},
-      {{900, 280}, {50, 50}, "box_pushable_2", b2_dynamicBody, Textures::SceneID::BoxPushable},
-      {{60, 800}, {60, 20}, "teleport_1", b2_staticBody, Textures::SceneID::Teleport},
-      {{870, 800}, {60, 20}, "teleport_2", b2_staticBody, Textures::SceneID::Teleport},
-      {{950, 385}, {250, 32}, "platform_4", b2_staticBody, Textures::SceneID::Grass},
+     {{{600, 800}, {1200, 20}, "floor", b2_staticBody, Textures::SceneID::Grass, EntityType::None},
+      {{8, 580}, {16, 820}, "left_side", b2_staticBody, Textures::SceneID::Grass, EntityType::None},
+      {{1190, 580}, {16, 1100}, "right_side", b2_staticBody, Textures::SceneID::Grass, EntityType::None}, // 1rst platform
+      {{110, 150}, {220, 32}, "platform_1", b2_staticBody, Textures::SceneID::Grass, EntityType::None},
+      {{450, 150}, {250, 32}, "platform_2", b2_staticBody, Textures::SceneID::Grass, EntityType::None},
+      {{390, 100}, {32, 100}, "grate_1", b2_staticBody, Textures::SceneID::Grate, EntityType::None},
+      {{380, 370}, {200, 32}, "platform_3", b2_staticBody, Textures::SceneID::Grass, EntityType::None},
+      {{400, 364}, {60, 20}, "button_1", b2_staticBody, Textures::SceneID::Button, EntityType::None},
+      {{1100, 800}, {60, 20}, "button_2", b2_staticBody, Textures::SceneID::Button, EntityType::None},
+      {{496, 345}, {32, 85}, "platform_3_wall", b2_staticBody, Textures::SceneID::Grass, EntityType::None},
+      {{591, 435}, {32, 595}, "middle_wall", b2_staticBody, Textures::SceneID::Grass, EntityType::None},
+      {{750, 100}, {50, 50}, "box_pushable_1", b2_dynamicBody, Textures::SceneID::BoxPushable, EntityType::None},
+      {{900, 280}, {50, 50}, "box_pushable_2", b2_dynamicBody, Textures::SceneID::BoxPushable, EntityType::None},
+      {{60, 800}, {60, 20}, "teleport_1", b2_staticBody, Textures::SceneID::Teleport, EntityType::None},
+      {{870, 800}, {60, 20}, "teleport_2", b2_staticBody, Textures::SceneID::Teleport, EntityType::None},
+      {{950, 385}, {250, 32}, "platform_4", b2_staticBody, Textures::SceneID::Grass, EntityType::None},
    }}
   };
 };
