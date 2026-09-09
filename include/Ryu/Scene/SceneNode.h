@@ -16,7 +16,8 @@ class SceneNode : public sf::Drawable,
                 //private sf::NonCopyable (removed in SFML 3)
 {
     public:
-        typedef std::unique_ptr<SceneNode> Ptr;
+        //typedef std::unique_ptr<SceneNode> Ptr;
+        typedef std::shared_ptr<SceneNode> Ptr;
 
     public:
         SceneNode(); // = default;
@@ -45,6 +46,7 @@ class SceneNode : public sf::Drawable,
 
     private:
         std::vector<Ptr> mChildren;
+        // TODO: check sfml book if ther could be more parents, use a sharedptr ?
         SceneNode* mParent;
 };
 

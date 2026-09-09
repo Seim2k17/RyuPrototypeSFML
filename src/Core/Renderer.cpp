@@ -47,8 +47,8 @@ void Renderer::loadTextures()
     
     mSceneAssetsManager.load(Textures::SceneID::BoxPushable,
                         "assets/scenes/99_dummy/box_wood.png");
-    //mSceneAssetsManager.load(Textures::SceneID::BGMountain,
-    //                    "assets/backgrounds/99_dummy/722756.png");
+    mSceneAssetsManager.load(Textures::SceneID::BGMountain,
+                        "assets/backgrounds/99_dummy/722756.png");
     mSceneAssetsManager.load(Textures::SceneID::Grass,
                         "assets/scenes/99_dummy/tile_grass_1.png");
     mSceneAssetsManager.load(Textures::SceneID::Button,

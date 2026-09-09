@@ -133,6 +133,15 @@ Physics::update()
     }
 
     // --- Emit updates for dynamic SCENE OBJECTS when they're transformed (e.g., falling boxes) ---
+    // TODO: here logic is ill:
+    // we differ btw. sceneObjects and physicalObjects
+    // but here its not given
+    // we should check and also set the layer (== SpriteNode and which layer): seee mSceneLayers in World.cpp
+    // 1. objects which are cosmetic or levelassets without collision & static
+    // 2. objects which are levelassets with collision & static
+    // 3. objects which are cosmetic or levelassets without collision & "dynamic" (moving sprites, animations)
+    // 4. objects which are levelassets with collision and moving (platforms)
+    // 5. characterassets with collision (mainly static)
     for (auto& [level, objects] : sceneObjects) {
         for (auto& obj : objects) {
             if (!b2Body_IsValid(obj.mPhysicsBodyId)) continue;

@@ -87,7 +87,7 @@ const sf::Drawable &World::getPlayerSprite() {
 void World::loadTextures() {
     // TODO: cant find in debug mode !
     // make them drawabla via the renderer !
-    /*
+    
     mSceneTextures.load(Textures::SceneID::BoxPushable,
                         "assets/scenes/99_dummy/box_wood.png");
     mSceneTextures.load(Textures::SceneID::BGMountain,
@@ -100,7 +100,7 @@ void World::loadTextures() {
                         "assets/scenes/99_dummy/tile_teleport_1.png");
     mSceneTextures.load(Textures::SceneID::Grate,
                         "assets/scenes/99_dummy/tile_grate_1.png");
-*/
+
     // mSceneTextures.load(Textures::SceneID::Ground,
     // "assets/scenes/99_dummy/box_wood.png");
 }
@@ -124,12 +124,14 @@ void World::buildScene() {
     ZoneName("buildScene_World", 16);
     // set Layer
     for (std::size_t i = 0; i < size_t(Layer::LayerCount); ++i) {
-        SceneNode::Ptr layer(new SceneNode());
-        mSceneLayers[i] = layer.get();
+        //SceneNode::Ptr layer = std::make_unique<SceneNode>(); //(new SceneNode());
+        std::shared_ptr<SceneNode> layer = std::make_shared<SceneNode>(); //(new SceneNode());
+    
+        mSceneLayers[i] = layer; //.get();
 
         mSceneGraph.attachChild(std::move(layer));
     }
-/*
+    
     sf::Texture &textureBg =
         mSceneTextures.getResource(Textures::SceneID::BGMountain);
     sf::IntRect textureRect(mWorldBounds);
@@ -138,7 +140,7 @@ void World::buildScene() {
     std::unique_ptr<SpriteNode> backgroundSprite =
         std::make_unique<SpriteNode>(textureBg, textureRect);
     backgroundSprite->setPosition({mWorldBounds.position.x, mWorldBounds.position.y}); // TODO before: left/top
-    mSceneLayers[static_cast<unsigned>(Layer::Ground1)]->attachChild(
+    mSceneLayers[static_cast<unsigned>(Layer::Background)]->attachChild(
         std::move(backgroundSprite));
 
     // pushable Box / moving platform test
@@ -149,7 +151,7 @@ void World::buildScene() {
     
     mSceneLayers[static_cast<unsigned>(Layer::Foreground)]->attachChild(
         std::move(box));
-*/
+
 
     auto player = mEventManager.requestPlayer(); /// TODO: get from PC
     // TODO: is player really needable to attach to the layers ?

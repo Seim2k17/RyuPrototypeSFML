@@ -66,7 +66,7 @@ class World : /*private sf::NonCopyable*/ public Observer {
     sf::View mWorldView;
     SceneTextureHolder mSceneTextures;
     SceneNode mSceneGraph;
-    std::array<SceneNode *, std::size_t(Layer::LayerCount)> mSceneLayers;
+    std::array<std::shared_ptr<SceneNode>/* * */, std::size_t(Layer::LayerCount)> mSceneLayers;
     // Shapes and MetaInfos to static physicalBodies
     // std::vector<PhysicsObject> phGroundBodies; // TODO see in Physics -> static sceneObjects
     std::map<uintptr_t, std::unique_ptr<EntityStatic> > mStaticEntities;

@@ -146,6 +146,7 @@ void Game::run()
 	bool mWindowState = ImGui::SFML::Init(mWindow);
 	// TODO: st very weird is going on here:
 	// when adjusting the TimePerFrame to a higher fps: the box2d stuff increases but not the
+	// EDIT: using a renderer which and only she is, responsibe for rendering should solve this
 	// drawing fps of the assets
 	// this means: refactor hard: DAMNIT !
 	while (mWindow.isOpen() && mWindowState)
