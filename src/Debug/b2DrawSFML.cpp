@@ -1,6 +1,7 @@
 #include <Ryu/Debug/b2DrawSFML.hpp>
 #include <SFML/Graphics/PrimitiveType.hpp>
 #include <SFML/Graphics/StencilMode.hpp>
+#include <fmt/core.h>
 #include <cstdint>
 #include <iostream>
 
@@ -17,7 +18,7 @@ void b2DrawSFML::DrawSolidPolygonFcn ( b2Transform transform, const b2Vec2* vert
 								void* context )
 {
     b2DrawSFML* contextObj = static_cast<b2DrawSFML*>(context);
-    contextObj->DrawSolidPolygon(transform, vertices, vertexCount, color);
+    contextObj->DrawSolidPolygon(transform, vertices, vertexCount, radius, color);
 }
 
 /// Draw a circle.
@@ -106,6 +107,10 @@ b2DrawSFML::~b2DrawSFML()
 {
 }
 
+const b2DebugDraw& b2DrawSFML::GetDebugDraw() const noexcept { return debugDraw; }
+        
+b2DebugDraw& b2DrawSFML::GetDebugDraw() noexcept { return debugDraw; }
+
 void b2DrawSFML::SetTarget(sf::RenderTarget& renderTarget)
 {
     m_renderTarget = &renderTarget;
@@ -113,9 +118,14 @@ void b2DrawSFML::SetTarget(sf::RenderTarget& renderTarget)
 
 void b2DrawSFML::SetAllFlags() noexcept
 {
-    debugDraw.drawShapes = true;
-    debugDraw.drawJoints = true;
-    debugDraw.drawMass = true;
+    fmt::print("SetFlags\n");
+    debugDraw.drawShapes = true;    // ✅ Bodies (including boxes)
+    debugDraw.drawJoints = true;    // ✅ Joints
+    debugDraw.drawBounds = true;     // ✅ Bounding boxes (add this!)
+    debugDraw.drawBodyNames = true;     // ✅ Bounding boxes (add this!)
+    debugDraw.drawMass = true;     // ✅ Center of mass
+    debugDraw.drawContacts = true;  // ✅ Contact points
+    // debugDraw.drawCOMs = true;      // ✅ Center of mass markers
    // TODO: map following bits to bool-member
    /*
     SetFlags(
@@ -173,7 +183,7 @@ void b2DrawSFML::DrawPolygon(const b2Vec2* vertices, int vertexCount, b2HexColor
     m_renderTarget->draw(m_convexShape);
 }
 
-void b2DrawSFML::DrawSolidPolygon(b2Transform transform, const b2Vec2* vertices, int vertexCount, b2HexColor color) noexcept
+void b2DrawSFML::DrawSolidPolygon(b2Transform transform, const b2Vec2* vertices, int vertexCount, float radius, b2HexColor color) noexcept
 {
     //std::cout << "DrawSolidPolygon" << "\n";
     auto const count = static_cast<size_t>(vertexCount);
@@ -270,22 +280,19 @@ sf::Vector2f b2DrawSFML::M_ToPixels(b2Vec2 const& p) const noexcept
 
 sf::Color b2DrawSFML::M_ConvertColor(b2HexColor const& color) const noexcept 
 {
-    // TODO: check how to get alpha from b2d
-    //return M_ConvertColor(color, color.a);
-    return M_ConvertColor(color, 50);
+    return M_ConvertColor(color, 255.0f); // Full opacity by default
 }
 
 sf::Color b2DrawSFML::M_ConvertColor(b2HexColor const& color, float newAlpha) const noexcept
 {
-    // TODO: check how to get rgb from the HEX values (get the bits ?)
+    // Extract RGB from the 32-bit hex value
+    uint32_t hex = static_cast<uint32_t>(color);
+
     return {
-        100,100,100, 50
-        /**
-        static_cast<std::uint8_t>(color.r  * 255.0f),
-        static_cast<std::uint8_t>(color.g  * 255.0f),
-        static_cast<std::uint8_t>(color.b  * 255.0f),
-        static_cast<std::uint8_t>(newAlpha * 255.0f)
-        **/
+        static_cast<std::uint8_t>((hex >> 16) & 0xFF), // Red (bits 16-23)
+        static_cast<std::uint8_t>((hex >> 8)  & 0xFF), // Green (bits 8-15)
+        static_cast<std::uint8_t>(hex & 0xFF),        // Blue (bits 0-7)
+        static_cast<std::uint8_t>(newAlpha)           // Alpha
     };
 }
 

@@ -198,6 +198,8 @@ class CharacterBase : public SceneNode, public Subject, public Observer, public 
     bool isFalling() { return mCharacterFalling; }
     void setFalling(bool falling) { mCharacterFalling = falling; }
 
+    // TODO: bodyids are in the physicsclass -> use a configclass / see also Physics:initCharacterPhysics()
+    void setBodyId(b2BodyId bodyId) override { mBodyId = bodyId; }
     b2BodyId getBody() { return mBodyId; }
     b2Fixture *getFixture() { return mFixture; }
     ECharacterState getCharacterStateEnum() { return mECharacterState; }

@@ -26,7 +26,7 @@ class ICharacter;
 class RenderWindow;
 class Shape;
 
-static b2DrawSFML debugDrawer;
+extern b2DrawSFML debugDrawer;
 
 struct CharacterPhysicsParameters{
     CharacterPhysicsParameters();
@@ -108,6 +108,7 @@ class Physics : public Subject {
     void debugDraw() const;
     void draw(sf::RenderWindow& window);
     sf::Shape* getShapeFromPhysicsBody(b2BodyId physicsBodyId);
+    b2WorldId& getPhysicsWorldId(){return mPhysicsWorldId;}
     void initCharacterPhysics(ICharacter& character, bool inDuckMode);
     void setDebugDrawer(b2DrawSFML dbgDrawer);
     void setDebugPhysics(bool debugPhysics);

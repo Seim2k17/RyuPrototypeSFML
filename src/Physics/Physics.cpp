@@ -27,6 +27,8 @@ constexpr int SUBSTEP_COUNT = 1;
 constexpr int32_t VELOCITY_ITERATIONS = 8;
 constexpr int32_t POSITION_ITERATIONS = 3;
 
+b2DrawSFML debugDrawer;
+
 CharacterPhysicsParameters::CharacterPhysicsParameters() :
     mBody(nullptr),
     mFixture(nullptr),
@@ -44,8 +46,8 @@ CharacterPhysicsParameters::CharacterPhysicsParameters() :
 
 CharacterPhysicsParameters::~CharacterPhysicsParameters()
 {
-    b2DestroyBody(mBodyId);
-    mBodyId = b2_nullBodyId;
+    //b2DestroyBody(mBodyId);
+    //mBodyId = b2_nullBodyId;
 }
 
 SceneObjectPhysicsParameters::SceneObjectPhysicsParameters() :
@@ -296,6 +298,8 @@ Physics::getShapeFromPhysicsBody(b2BodyId physicsBodyId) {
     return shape;
 }
 
+
+// TODO: create physic box for the character !
 void
 Physics::initCharacterPhysics(ICharacter& character, bool inDuckMode)
  {
@@ -316,7 +320,7 @@ Physics::initCharacterPhysics(ICharacter& character, bool inDuckMode)
               .first; // mCharacterAnimation.getSprite().getTextureRect().width;
     int size_y = shapeSize.second;
 
-    CharacterPhysicsParameters& charPhysics = mCharacterPhysics.at(character.getCharacterName());
+    CharacterPhysicsParameters charPhysics; // = mCharacterPhysics.at(character.getCharacterName());
 
     b2BodyDef bodyDef = b2DefaultBodyDef();
     bodyDef.type = b2_dynamicBody; /// TODO: or even kinematic body ?
@@ -326,14 +330,14 @@ Physics::initCharacterPhysics(ICharacter& character, bool inDuckMode)
                                  ? position.y + (DUCK_FRAME_SIZE.second / 2)
                                  : position.y);
     bodyDef.fixedRotation = true;
-    bodyDef.gravityScale = charPhysics.mGravityScale;
+    bodyDef.gravityScale = 9.8f; //charPhysics.mGravityScale;
 
     charPhysics.mBodyId = b2CreateBody(mPhysicsWorldId, &bodyDef);
     
     // Create a the shape
     b2Polygon polygonBoxShape = b2MakeBox(Converter::pixelsToMeters<double>(size_x * 0.5f), Converter::pixelsToMeters<double>(size_y * 0.5f));
     b2ShapeDef shapeDef = b2DefaultShapeDef(); // initialize shapedefinition
-    shapeDef.density = charPhysics.mDensity;
+    shapeDef.density = 4; //charPhysics.mDensity;
     //shapeDef.friction = charPhysics.mFriction; deprecated since Box2D 3.1, different concept
 
 
@@ -367,6 +371,8 @@ Physics::initCharacterPhysics(ICharacter& character, bool inDuckMode)
     mCharacterPhysics.insert(
         std::make_pair(character.getCharacterName(), charPhysics)
     );
+
+    character.setBodyId(charPhysics.mBodyId);
 
     // Emit event for new physics object
     PhysicsObjectCreatedEvent event;
@@ -533,6 +539,13 @@ Physics::createPhysicsBody(SceneObjectPhysicsParameters& sceneObject, int& i)
 void
 Physics::setDebugDrawer(b2DrawSFML dbgDrawer)
 {
+    debugDrawer.SetTarget(dbgDrawer.GetRenderTarget());
+    debugDrawer.SetScale(dbgDrawer.GetScale());
+    debugDrawer.SetAllFlags();
+
+    // Set debug draw for the Box2D world (v3.1 API)
+    b2World_Draw(mPhysicsWorldId, &debugDrawer.GetDebugDraw());
+    
     /* TODO: How to set the Tags in Box2d v3.1 ?
     debugDrawer.SetTarget(dbgDrawer.GetRenderTarget());
     debugDrawer.SetScale(dbgDrawer.GetScale());

@@ -34,7 +34,7 @@ class World : public Observer {
     void draw();
     CommandQueue &getActiveCommands();
     const sf::Drawable &getPlayerSprite();
-    void toggleDrawDebug() { phDebugPhysics = not phDebugPhysics; }
+    void toggleDrawDebug();
     void setDebugDrawer(sf::RenderTarget &target);
     void onNotify(const SceneNode &entity, Ryu::EEvent event) override;
 
@@ -59,6 +59,7 @@ class World : public Observer {
 
     std::vector<sf::Text> texts;
     bool phDebugPhysics;
+    bool physics_toggled;
     float phTimeStep;
 
     Physics mPhysics;

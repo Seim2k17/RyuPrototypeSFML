@@ -64,6 +64,9 @@ World::World(sf::RenderWindow &window, EventManager& eventManager)
     // setPhysics();
     //NEW:
     mPhysics.createPhysicsSceneObjects(ELevel::Level2);
+    auto player = mEventManager.requestPlayer();
+    mPhysics.initCharacterPhysics(*player, false);
+    setDebugDrawer(mWindow);
 
     // TODO: here the scene and the character is created
     // TODO: Race incoming !!!, see Game Ctor (create Ichi)
@@ -98,123 +101,27 @@ void World::onNotify(const SceneNode &entity, Ryu::EEvent event) {
     }
 }
 
-void World::setDebugDrawer(sf::RenderTarget &target) {
-    // DebugDrawing
-    // Create debug drawer for window with 10x scale
-    // You can set any sf::RenderTarget as drawing target
-    b2DrawSFML dbgDrawer;
-    dbgDrawer.SetTarget(target);
-    dbgDrawer.SetScale(Converter::PIXELS_PER_METERS);
-
-    // Set flags for things that should be drawn
-    // ALWAYS remember to set at least one flag,
-    // otherwise nothing will be drawn
-    debugDrawer.SetAllFlags();
-    // Set our drawer as world's drawer
-    // TODO: crashes here ?
-    // mPhysics.setDebugDrawer(dbgDrawer);
-
-}
-
-
-// TODO: overthink how to store the physic body ! (in the Entityclass ?)
-// --> there is now a PhysicsClass with map mScenePhysics
-// whats with multiple levels .... we need at least a map
-// TODO: remove when physic objects are working, not used atm
-/*
-b2Body *
-World::createPhysicalBox(int pos_x, int pos_y, int size_x, int size_y,
-                         std::string name = "EMPTY",
-                         b2BodyType type = b2_dynamicBody,
-                         Textures::SceneID texture = Textures::SceneID::Unknown,
-                         EntityType entityType) {
-    // TODO: save all in EntityMap / save adress of physicalBody in StaticEntity
-    // !
-    b2BodyDef bodyDef;
-    bodyDef.position.Set(Converter::pixelsToMeters<double>(pos_x),
-                         Converter::pixelsToMeters<double>(pos_y));
-    bodyDef.type = type;
-    b2PolygonShape b2Shape;
-
-    b2Shape.SetAsBox(Converter::pixelsToMeters<double>(size_x / 2.0),
-                     Converter::pixelsToMeters<double>(size_y / 2.0));
-
-    b2FixtureDef fixtureDef;
-    fixtureDef.density = 2.0;
-    fixtureDef.friction = 0.98;
-    fixtureDef.restitution = 0.1;
-    fixtureDef.shape = &b2Shape;
-
-    //b2Body *res = phWorld->CreateBody(&bodyDef);
-    //std::unique_ptr<b2Body> res =
-    // std::make_unique<b2Body>(mPhysics.createPhysicsSceneObjects(ELevel level)srt->CreateBody(&bodyDef));
-    //res->CreateFixture(&fixtureDef);
-
-    // std::unique_ptr<sf::RectangleShape> shape =
-    // std::make_unique<sf::RectangleShape>(sf::Vector2f(size_x,size_y));
-    // sf::RectangleShape shape{sf::Vector2f(size_x,size_y)};
-    // TODO howto smartptr ?
-    std::unique_ptr<sf::Shape> shape = std::make_unique<sf::RectangleShape>(sf::Vector2f(size_x, size_y));
-    shape->setOrigin({(float)(size_x / 2.0), (float)(size_y / 2.0)});
-    shape->setPosition(sf::Vector2f(pos_x, pos_y));
-
-    auto staticEntity = std::make_unique<EntityStatic>(entityType);
-    // std::shared_ptr<EntityStatic> staticEntity =
-    // std::make_shared<EntityStatic>());
-    staticEntity->setShape(std::move(shape));
-    staticEntity->setName(name);
-
-    auto shapePosition = shape->getGlobalBounds().position;
-    auto shapeSize = shape->getGlobalBounds().size;
-    std::vector<sf::Vector2f> cornerPoints{
-        {shapePosition.x, shapePosition.y},
-        {shapePosition.x + shapeSize.x, shapePosition.y},
-        {shapePosition.x, shapePosition.y + shapeSize.y},
-        {shapePosition.x + shapeSize.x,
-         shapePosition.y + shapeSize.y}};
-
-    staticEntity->setCornerPoints(cornerPoints);
-
-    if (texture != Textures::SceneID::Unknown) {
-        // shape->setFillColor(sf::Color::Red);
-        // shape->setOutlineColor(sf::Color::Red);
-        // shape->setOutlineThickness(2.0f);
-        // shape->setTexture(&mSceneTextures.getResource(texture));
-
-    } else {
-        shape->setFillColor(sf::Color::Green);
-    }
-
-    // if(mStaticEntities.find(name) == mStaticEntities.end())
-    //{
-    // mStaticEntities.emplace(std::make_pair(name, staticEntity));
-    //}
-    // else
-    //{
-    //    fmt::print("Name {} for entity exists already.\n",name);
-
-    //}
-
-    // res->GetUserData().pointer = (uintptr_t)shape; ///OLD stalye:
-    // res->SetUserData(shape); res->GetUserData().pointer = (uintptr_t)shape;
-    // ///OLD stalye: res->SetUserData(shape);
-
-    // res->GetUserData().pointer = reinterpret_cast<uintptr_t>(
-    //    staticEntity.get()); /// OLD stalye: res->SetUserData(shape);
-    //mStaticEntities[reinterpret_cast<uintptr_t>(res)] = std::move(staticEntity);
-
-    // Dangling pointer for EntityStatic ?
-    return nullptr;//res;
-    //return res;
-}
-*/
-/*
-b2Body *
-World::createPhysicalBox(LevelObject obj)
+void World::toggleDrawDebug()
 {
-    return nullptr; //createPhysicalBox(obj.posX, obj.posY, obj.sizeX, obj.sizeY, obj.name, obj.type, obj.texture, obj.entityType);
+    phDebugPhysics = not phDebugPhysics;
+
+    if(not phDebugPhysics)
+    {
+        // mRenderer.reset();
+    }
 }
-*/
+
+void World::setDebugDrawer(sf::RenderTarget &target)
+{
+    // Initialize the global debug drawer
+    debugDrawer.SetTarget(target);
+    debugDrawer.SetScale(Converter::PIXELS_PER_METERS);
+    debugDrawer.SetAllFlags();
+
+    // Set debug draw for the physics world
+    //mPhysics.setDebugDrawer(debugDrawer);
+}
+
 
 // TODO split in "createGroundbodies / setScenePhysics in Physics class"
 void World::setPhysics() {
@@ -237,22 +144,22 @@ void World::draw() {
     ZoneScopedN("Draw_World");
     mWindow.setView(mWorldView);
     // draw physics
-    // TODO: phDebugPhysics && Physics::mDebugPhysicsActive ???
-    if (phDebugPhysics) {
-        // draw raycasts
-        mPhysics.debugDraw();
-        auto player = mEventManager.requestPlayer();
-        player->drawRaycasts(debugDrawer); // TODO: to clarify where to move
-    }
-
-    if (phDebugPhysics) {
-        mPhysics.debugDraw();
-        auto player = mEventManager.requestPlayer();
-        player->drawRaycasts(debugDrawer);
-    }
     
     mRenderer->draw();
+    
+    // TODO: phDebugPhysics && Physics::mDebugPhysicsActive ???
+    if (phDebugPhysics)
+    {
+        // Draw raycasts
+        auto player = mEventManager.requestPlayer();
+        player->drawRaycasts(debugDrawer);
 
+        b2World_Draw(mPhysics.getPhysicsWorldId(), &debugDrawer.GetDebugDraw());
+
+        // force sfml to restore its texture state
+        sf::Texture tempTexture;
+        mWindow.draw(sf::Sprite(tempTexture));
+    }
     // pBoxTest is deprecated, removed from header
 
     // Clear window

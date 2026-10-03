@@ -10,6 +10,7 @@ static constexpr std::pair<int, int> DUCK_FRAME_SIZE(60, 45);
 class ICharacter {
 public:
     virtual sf::Vector2f getPosition() = 0;
+    virtual void setBodyId(b2BodyId bodyId) = 0;
     virtual ECharacters getCharacterName() = 0;
     virtual ~ICharacter() = default;
 

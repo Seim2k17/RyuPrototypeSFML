@@ -44,7 +44,7 @@ void
 CharacterIchi::teleportCharacter(float x, float y)
 {
     b2Vec2 newBodyPos{Converter::pixelsToMeters<float>(x), Converter::pixelsToMeters<float>(y)};
-    b2Body_SetTransform(getBody(), newBodyPos, b2Rot{0, 0});
+    b2Body_SetTransform(getBody(), newBodyPos, b2Rot_identity); //b2Rot{1, 0});
     
     changeState(std::make_unique<CharacterStateRun>());
 

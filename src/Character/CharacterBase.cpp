@@ -364,7 +364,7 @@ CharacterBase::createRaycasts()
 void
 CharacterBase::updateCurrent(sf::Time deltaTime)
 {
-    fmt::print("Updatecurrent\n");
+    //fmt::print("Updatecurrent\n");
     //update(deltaTime);
 }
 
@@ -372,7 +372,7 @@ CharacterBase::updateCurrent(sf::Time deltaTime)
 void
 CharacterBase::update(sf::Time deltaTime)
 {
-    fmt::print("UpdateCharacterBase\n");
+    // fmt::print("UpdateCharacterBase\n");
     // std::cout //<< " x(pBody): " <<
     // Converter::metersToPixels(mBody->GetPosition().x)
     //<< " y(pBody): " << Converter::metersToPixels(mBody->GetPosition().y) <<

@@ -29,6 +29,10 @@ public:
     ///
     void SetRenderTarget(sf::RenderTarget& renderTarget) noexcept;
 
+    const b2DebugDraw& GetDebugDraw() const noexcept;
+        
+    b2DebugDraw& GetDebugDraw() noexcept;
+
     ///
     sf::RenderTarget& GetRenderTarget() noexcept;
 
@@ -42,7 +46,7 @@ public:
     void DrawPolygon(const b2Vec2* vertices, int vertexCount, b2HexColor color) noexcept;
 
     ///
-    void DrawSolidPolygon(b2Transform transform, const b2Vec2* vertices, int vertexCount, b2HexColor color) noexcept;
+    void DrawSolidPolygon(b2Transform transform, const b2Vec2* vertices, int vertexCount, float radius, b2HexColor color) noexcept;
 
     ///
     void DrawCircle(b2Vec2 center, float radius, b2HexColor color) noexcept;

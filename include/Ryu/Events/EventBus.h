@@ -29,7 +29,7 @@ public:
     static void emit(const Ryu::EPhysicsEvent& eventName, std::any data) {
         // TODO: when multithreading is activated
         // std::lock_guard<std::mutex> lock(sMutex);
-        fmt::print("Emit event {}. \n", eventName._to_string());
+        //fmt::print("Emit event {}. \n", eventName._to_string());
         for (auto& callback : sCallbacks[eventName]) {
             callback(data);
         }

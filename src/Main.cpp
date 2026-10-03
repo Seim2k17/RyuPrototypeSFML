@@ -13,7 +13,7 @@ int main()
 	}
 	catch(const std::exception& e)
 	{
-		fmt::print("Exception thrown: {}", (e.what()));
+		fmt::print("Exception thrown: {}\n", (e.what()));
 	}
 	
 	
