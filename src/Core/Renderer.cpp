@@ -18,9 +18,9 @@ Renderer::Renderer(sf::RenderWindow& window, EventManager& eventManager, const s
      , mSceneGraph()
      , mWorldBounds(
           {0.f, 0.f},
-          {window.getDefaultView().getSize().x, 1200})
-     , mSpawnPosition({window.getDefaultView().getSize().x / 2.f,
-              (mWorldBounds.size.y - window.getDefaultView().getSize().y)})
+          {640.f, 360.f})  // Use fixed canvas resolution for world bounds
+     , mSpawnPosition(mWorldBounds.size.x / 2.f,
+              mWorldBounds.size.y - 50)  // Spawn near bottom (50 units from bottom)
      , mPushBox(nullptr)
      , mActiveCommands()
      , mSceneObjects(sceneObjects)

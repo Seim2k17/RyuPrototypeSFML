@@ -46,6 +46,10 @@ CharacterIchi::teleportCharacter(float x, float y)
     b2Vec2 newBodyPos{Converter::pixelsToMeters<float>(x), Converter::pixelsToMeters<float>(y)};
     b2Body_SetTransform(getBody(), newBodyPos, b2Rot_identity); //b2Rot{1, 0});
     
+    b2Body_SetLinearVelocity(getBody(), b2Vec2{0.0f, 0.0f});
+    b2Body_SetAngularVelocity(getBody(), 0.0f);
+    b2Body_SetAwake(getBody(), true);
+    
     changeState(std::make_unique<CharacterStateRun>());
 
     auto pPosi = b2Body_GetPosition(getBody());

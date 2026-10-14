@@ -27,18 +27,21 @@
 
 constexpr std::string_view PROJECT_NAME{"Ryu prototype 0.1"};
 
+// Canvas resolution (640x360)
+const sf::Vector2f CANVAS_RESOLUTION{640.f, 360.f};
+
 //namespace ryu{
 const sf::Time TimePerFrame = sf::milliseconds(17); // seconds(1.f / 60.f);
 
 Game::Game()
 :Observer("Game")
-,mWindow(sf::VideoMode({1200, 800}), PROJECT_NAME.data())
+,mWindow(sf::VideoMode({640, 360}), PROJECT_NAME.data()) // 16:9 aspect ratio canvas size
 ,mEventManager()
 ,mPlayerController(std::make_unique<PlayerController>(mEventManager))
 ,mAnimator(RyuAnimator::Editor())
 ,mIsPaused(false)
-,mDebugWidgets(mPlayerController->getPlayableCharacter()) // TODO: player from 1691421player controller
 ,mWorld(mWindow, mEventManager)
+,mDebugWidgets(mPlayerController->getPlayableCharacter()) // TODO: player from 1691421player controller
 ,mDebugWidgetsActive(false)
 {
 	addObservers();
@@ -168,7 +171,6 @@ void Game::run()
 			}
 			if (!mIsPaused )
 			{
-
 				ImGui::SFML::Update(mWindow, timeSinceLastUpdate);
 				mPlayerController->handleRealtimeInput(commands);
 
@@ -206,6 +208,8 @@ void Game::processEvents(std::optional<sf::Event> event, CommandQueue& commands)
 			mWindow.close();
 		}
 
+
+
 }
 
 
@@ -241,7 +245,6 @@ void Game::render()
 	mWindow.clear();
 	mWorld.draw();
 
-	mWindow.setView(mWindow.getDefaultView());
 	//TODO: statistics fps text ....
  	ImGui::SFML::Render(mWindow); /// needs to be called BEFORE display()
 	mWindow.display();

@@ -38,9 +38,9 @@ World::World(sf::RenderWindow &window, EventManager& eventManager)
     : Observer("World"), mWindow(window), mWorldView(window.getDefaultView()),
       mWorldBounds(
           {0.f, 0.f},
-          {mWorldView.getSize().x, 1200}),
-      mSpawnPosition({mWorldView.getSize().x / 2.f,
-              (mWorldBounds.size.y - mWorldView.getSize().y)}),
+          {640.f, 360.f}),  // Use fixed canvas resolution for world bounds
+      mSpawnPosition({mWorldBounds.size.x / 2.f,
+              mWorldBounds.size.y / 2.f}),  // Spawn in center of world
       mPhysics(),
       phDebugPhysics(false), clock(),
       levelManager(std::make_unique<LevelManager>()),
@@ -73,9 +73,10 @@ World::World(sf::RenderWindow &window, EventManager& eventManager)
     // the scene should only be shown when everything is initalized and loaded !!!!
     // st. like: waiting on Event: PhysicsFinished, CharacterFinished, SceneFinished ...
 
-    mWorldView.setCenter(mSpawnPosition);
+    mWorldView.setCenter(sf::Vector2f{mWorldBounds.size.x / 2.f, mWorldBounds.size.y / 2.f});
 
 }
+
 
 World::~World() {
 }
@@ -142,7 +143,12 @@ void World::setPhysics() {
 void World::draw() {
 
     ZoneScopedN("Draw_World");
-    mWindow.setView(mWorldView);
+    // Use the current window view (which should be the scaled main view)
+    // but maintain our camera position
+    sf::View currentView = mWindow.getView();
+    currentView.setCenter(mWorldView.getCenter());
+    mWindow.setView(currentView);
+    
     // draw physics
     
     mRenderer->draw();
