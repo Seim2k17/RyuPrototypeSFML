@@ -26,7 +26,6 @@ CharacterIchi::CharacterIchi(ECharacterState startState,
     : CharacterBase(startState, position), ichiTextureManager()
 {
     loadTextures();
-    //mCharacterAnimation.setPosition({100.f,50.f});
     mCharacterState->enter(*this);
 
     // TMP set
@@ -111,6 +110,9 @@ CharacterIchi::getCategory() const
 void
 CharacterIchi::allowedMovement(bool &xMove, bool &yMove)
 {
+    // Initialise movement flags
+    xMove = true;
+    yMove = true;
 
     if ((mECharacterState._value == ECharacterState::DuckIdle
          || mECharacterState._value == ECharacterState::DuckEnter

@@ -220,9 +220,11 @@ Renderer::onPhysicsObjectUpdated(const PhysicsObjectUpdatedEvent& event)
 void
 Renderer::onPhysicsObjectDestroyed(const PhysicsObjectDestroyedEvent& event)
 {
+    // Remove the destroyed physics object from the mapping
+    mPhysicsBodyToNode.erase(event.bodyId);
+    
     // Note: With the scenegraph approach, we don't need to manually remove objects
     // as they should be managed by the scenegraph.
-    // This is a placeholder for any cleanup logic if needed.
 }
 
 void Renderer::createSceneFromConfiguration(ELevel level)

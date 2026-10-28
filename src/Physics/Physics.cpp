@@ -96,14 +96,30 @@ Physics::~Physics()
    {
        for(auto& sceneObj : level.second)
        {
-           // TODO: save every bodyId in a map
-           // destzroy every stored physical sceneobject
-           // b2DestroyBody(sceneObj.mBodyId);
-           // mPhysicsWorld->DestroyBody(sceneObj.mPhysicsBody);
+           // Destroy physics bodies for scene objects
+           if (b2Body_IsValid(sceneObj.mPhysicsBodyId) && !B2_IS_NULL(sceneObj.mPhysicsBodyId)) {
+               // Free the sf::Shape* stored in user data
+               void* userData = b2Body_GetUserData(sceneObj.mPhysicsBodyId);
+               if (userData) {
+                   delete static_cast<sf::Shape*>(userData);
+               }
+               b2DestroyBody(sceneObj.mPhysicsBodyId);
+               sceneObj.mPhysicsBodyId = b2_nullBodyId;
+           }
        }
    }
 
     for (auto& [name, charPhysics] : mCharacterPhysics) {
+        if (b2Body_IsValid(charPhysics.mBodyId) && !B2_IS_NULL(charPhysics.mBodyId)) {
+            // Free the sf::Shape* stored in user data
+            void* userData = b2Body_GetUserData(charPhysics.mBodyId);
+            if (userData) {
+                delete static_cast<sf::Shape*>(userData);
+            }
+            b2DestroyBody(charPhysics.mBodyId);
+            charPhysics.mBodyId = b2_nullBodyId;
+        }
+        
         PhysicsObjectDestroyedEvent event;
         event.bodyId = charPhysics.mBodyId;
         event.name = name;
@@ -112,6 +128,21 @@ Physics::~Physics()
 
     b2DestroyWorld(mPhysicsWorldId);
     mPhysicsWorldId = b2_nullWorldId;
+}
+
+void Physics::clearCharacterPhysics() {
+    for (auto& [name, charPhysics] : mCharacterPhysics) {
+        if (b2Body_IsValid(charPhysics.mBodyId) && !B2_IS_NULL(charPhysics.mBodyId)) {
+            // Free the sf::Shape* stored in user data
+            void* userData = b2Body_GetUserData(charPhysics.mBodyId);
+            if (userData) {
+                delete static_cast<sf::Shape*>(userData);
+            }
+            b2DestroyBody(charPhysics.mBodyId);
+            charPhysics.mBodyId = b2_nullBodyId;
+        }
+    }
+    mCharacterPhysics.clear();
 }
 
 void
@@ -391,12 +422,29 @@ Physics::initCharacterPhysics(ICharacter& character, bool inDuckMode)
 void
 Physics::createPhysicsSceneObjects(ELevel level)
 {
+    // Destroy old physics bodies before creating new ones
+    for(auto& obj : sceneObjects.at(level)) {
+        if (b2Body_IsValid(obj.mPhysicsBodyId) && !B2_IS_NULL(obj.mPhysicsBodyId)) {
+            // Free the sf::Shape* stored in user data
+            void* userData = b2Body_GetUserData(obj.mPhysicsBodyId);
+            if (userData) {
+                delete static_cast<sf::Shape*>(userData);
+            }
+            b2DestroyBody(obj.mPhysicsBodyId);
+            obj.mPhysicsBodyId = b2_nullBodyId;
+        }
+    }
+    
+    // Clear mStaticEntities and mCharacterPhysics to avoid leaks
+    mStaticEntities.clear();
+    clearCharacterPhysics();
+    
+    // Create new physics bodies
     int i = 0;
-    for(auto& obj : sceneObjects.at(level))
-    {
+    for(auto& obj : sceneObjects.at(level)) {
         fmt::print("create: {} \n", obj.mName);
         obj.mPhysicsBodyId = createPhysicsBody(obj, i);
-        fmt::print("After set: Physicsbody for {} set ,{} with ID: {}. \n",obj.mName
+        fmt::print("After set: Physicsbody for {} set ,{} with ID: {}. \n", obj.mName
                    , B2_IS_NULL(obj.mPhysicsBodyId) ? "null_BodyId" : "physBody exists"
                    , obj.mPhysicsBodyId.index1);
         // TODO: still relevant ?

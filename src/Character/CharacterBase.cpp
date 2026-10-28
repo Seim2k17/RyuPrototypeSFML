@@ -76,10 +76,13 @@ CharacterBase::CharacterBase(ECharacterState startState,
       mCharacterSpeed(55.0f), // startvalue playerspeed
       mMoveDirection(EMoveDirection::Right),
       mCharacterFalling(false),
+      mActionHeight(EActionHeight::Normal),
+      mECharacterMovement(ECharacterMovement::CanClimb),
       baseTextureManager(),
       mCharSettings(),
       mCurrentLevel(Textures::LevelID::Level1),
       mDuckStateActive(false),
+      mSetOffset(false),
       mCharacterAnimation(this),
       mAnimationManager(std::make_unique<AnimationManager>()),
       contactListener()
@@ -274,7 +277,17 @@ CharacterBase::drawCurrent(sf::RenderTarget &target, sf::RenderStates) const
     }
 }
 
-CharacterBase::~CharacterBase() {}
+CharacterBase::~CharacterBase() {
+    // Destroy Box2D physics body if it exists
+    if (B2_IS_NON_NULL(mBodyId)) {
+        b2DestroyBody(mBodyId);
+    }
+    
+    // Clear animation manager (releases SFML textures)
+    if (mAnimationManager) {
+        mAnimationManager.reset();
+    }
+}
 
 void
 CharacterBase::notifyObservers(Ryu::EEvent event)

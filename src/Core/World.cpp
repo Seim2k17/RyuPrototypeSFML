@@ -74,11 +74,6 @@ World::World(sf::RenderWindow &window, EventManager& eventManager)
     // st. like: waiting on Event: PhysicsFinished, CharacterFinished, SceneFinished ...
 
     mWorldView.setCenter(sf::Vector2f{mWorldBounds.size.x / 2.f, mWorldBounds.size.y / 2.f});
-
-}
-
-
-World::~World() {
 }
 
 const sf::Drawable &World::getPlayerSprite() {
@@ -212,6 +207,10 @@ void World::createText(const sf::String text, sf::Text &textToShow) {
     textToShow.setPosition(sf::Vector2f{100, 100});
 
     textToShow.setStyle(sf::Text::Bold | sf::Text::Underlined);
+}
+
+World::~World() {
+    // Physics class handles destruction of bodies in its destructor
 }
 
 void World::update(sf::Time dt) {

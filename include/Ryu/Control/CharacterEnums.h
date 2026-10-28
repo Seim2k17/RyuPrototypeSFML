@@ -60,7 +60,8 @@ enum class EActionHeight{
     None=0,
     Low,
     Mid,
-    High,  
+    High,
+    Normal,
 };
 
 enum class ECharacterMovement{

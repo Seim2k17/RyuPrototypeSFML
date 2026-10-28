@@ -117,6 +117,7 @@ class Physics : public Subject {
     void onBodyCreated(BodyCreatedCallback callback);
     void onBodyDestroyed(BodyDestroyedCallback callback);
     void onBodyTransformed(BodyTransformedCallback callback);
+    void clearCharacterPhysics();
 
    private:
     //void createPhysicsBody(SceneObjectPhysicsParameters sceneObject);

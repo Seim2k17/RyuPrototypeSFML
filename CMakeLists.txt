@@ -27,7 +27,7 @@ FetchContent_Declare(TRACY
 )
 FetchContent_MakeAvailable(TRACY)
 message(STATUS "Tracy fetched and built.")
-set_option(TRACY_ENABLE "" ON)
+set_option(TRACY_ENABLE "" OFF)
 
 # Fetch Box2D
 include(FetchContent)
