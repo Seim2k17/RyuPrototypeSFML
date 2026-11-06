@@ -25,9 +25,11 @@ FetchContent_Declare(TRACY
     GIT_SHALLOW ON
     GIT_PROGRESS ON
 )
+# Disable the Tracy profiler: with TRACY_ENABLE=ON the client keeps allocating
+# profiling-event memory (hundreds of MB/s) even when no Tracy server is connected.
+set(TRACY_ENABLE OFF CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(TRACY)
 message(STATUS "Tracy fetched and built.")
-set_option(TRACY_ENABLE "" OFF)
 
 # Fetch Box2D
 include(FetchContent)
