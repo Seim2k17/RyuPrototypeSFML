@@ -223,7 +223,8 @@ void World::update(sf::Time dt) {
     // needable or already in scenegraph ?
     // TODO: is this efficient ?
     // we basically use a sharedptr of plyer in update, question is if we need this here
-    // maybe here is also the discrepance btw. physics and characterassetmovement ! please investigate    mEventManager.requestPlayer()->update(dt); //slowmo
+    // TODO: check if the character should be updated over the scenegraph instead
+    mEventManager.requestPlayer()->update(dt); //slowmo
     mRenderer->update(dt);
 
     /*
