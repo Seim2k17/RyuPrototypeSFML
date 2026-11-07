@@ -278,11 +278,12 @@ CharacterBase::drawCurrent(sf::RenderTarget &target, sf::RenderStates) const
 }
 
 CharacterBase::~CharacterBase() {
-    // Destroy Box2D physics body if it exists
-    if (B2_IS_NON_NULL(mBodyId)) {
-        b2DestroyBody(mBodyId);
-    }
-    
+    // NOTE: the Box2D physics body is owned and destroyed by Physics
+    // (Physics::~Physics destroys all bodies and the world itself).
+    // Destroying it here as well would double-destroy the body and hit
+    // the b2Body_IsValid assertion in Box2D, because the character can
+    // outlive the Physics instance.
+
     // Clear animation manager (releases SFML textures)
     if (mAnimationManager) {
         mAnimationManager.reset();
