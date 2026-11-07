@@ -4,8 +4,11 @@
 #include <SFML/System/Vector2.hpp>
 
 // this is the framesize for the boundary box of the physics body
-static constexpr std::pair<int, int> INIT_FRAME_SIZE(60, 86);
-static constexpr std::pair<int, int> DUCK_FRAME_SIZE(60, 45);
+// (old sheet: 80x96 frames -> 60x86 box; 64x64 sheet keeps proportionally
+// more slack around the ~28x53 sprite content, duck box covers the content
+// below the frame center, ~29px + slack)
+static constexpr std::pair<int, int> INIT_FRAME_SIZE(44, 58);
+static constexpr std::pair<int, int> DUCK_FRAME_SIZE(44, 34);
 
 class ICharacter {
 public:

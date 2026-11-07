@@ -412,7 +412,7 @@ Physics::initCharacterPhysics(ICharacter& character, bool inDuckMode)
     event.name = character.getCharacterName();
     event.size = {size_x, size_y};
     event.isDynamic = true;
-    event.textureId = Textures::SpritesheetID::Ichi80x96;  // StartSpritesheet is the normal one
+    event.textureId = Textures::SpritesheetID::Ichi64x64;  // StartSpritesheet is the normal one
     
     EventBus::emit(Ryu::EPhysicsEvent::CharacterCreated, event);
 

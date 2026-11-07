@@ -29,7 +29,7 @@ CharacterIchi::CharacterIchi(ECharacterState startState,
     mCharacterState->enter(*this);
 
     // TMP set
-    mCharacterAnimation.getSprite().setTexture(ichiTextureManager.getResource(Textures::SpritesheetID::Ichi80x96));
+    mCharacterAnimation.getSprite().setTexture(ichiTextureManager.getResource(Textures::SpritesheetID::Ichi64x64));
     mCharacterAnimation.getSprite().setTextureRect(sf::IntRect({0, 0}, {80, 96}));
     // spawn the character at the requested start position (the animation
     // position is the authoritative character position, the physics body
@@ -79,7 +79,7 @@ CharacterIchi::onNotify(const SceneNode &entity, Ryu::EEvent event)
 // loaded at startup
 // 3. also move  the texturemamager to the animationmanager ?
 static std::map<Textures::SpritesheetID, std::string> spritesheePaths = {
-    {Textures::SpritesheetID::Ichi80x96,
+    {Textures::SpritesheetID::Ichi64x64,
      //"assets/spritesheets/ichi/ichi_spritesheet_level1.png"},
      "assets/spritesheets/ichi/ichi_level1.png"},
     /*
@@ -99,10 +99,10 @@ CharacterIchi::loadTextures()
     // Outfit combat
     // ichiTextureManager.load(Textures::CharacterID::IchiKatanaWalk,"assets/spritesheets/ichi/02_sheet_ichi_katana_walk.png");
     // DEBUG: Check if texture is loaded
-    auto& tex = ichiTextureManager.getResource(Textures::SpritesheetID::Ichi80x96);
+    auto& tex = ichiTextureManager.getResource(Textures::SpritesheetID::Ichi64x64);
     if (tex.getSize().x == 0 || tex.getSize().y == 0) {
-        std::cerr << "ERROR: Texture Ichi80x96 not loaded properly!\n";
-        std::cerr << "Path: " << spritesheePaths[Textures::SpritesheetID::Ichi80x96] << "\n";
+        std::cerr << "ERROR: Texture Ichi64x64 not loaded properly!\n";
+        std::cerr << "Path: " << spritesheePaths[Textures::SpritesheetID::Ichi64x64] << "\n";
     }
 }
 

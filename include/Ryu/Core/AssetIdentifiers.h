@@ -47,7 +47,7 @@ namespace Textures
 
 	BETTER_ENUM(SpritesheetID, char,
 		Unknown=0,
-		Ichi80x96,
+		Ichi64x64,
         Ichi128x196
     );
 
