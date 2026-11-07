@@ -213,19 +213,18 @@ void
 CharacterBase::jumpUp()
 {
     // TODO: physicsrelated stuff now in the PhysicsClass please move this also
-    /*
-    fmt::print("JumpUp x:{} y: {}\n", mCharSettings.jumpUpImpulse.x,
-               mCharSettings.jumpUpImpulse.y);
+    fmt::print("JumpUp x:{} y: {}\n",
+               mFinalCharSettings.jumpUpImpulse.x,
+               mFinalCharSettings.jumpUpImpulse.y);
 
-    // float impulse = mBody->GetMass() * 10000;
-    b2MassData mass{.mass = mCharSettings.bodyMass,
-                    .center = mCharSettings.massCenter,
-                    .I = 0};
-    mBody->SetMassData(&mass);
-
-    mBody->ApplyLinearImpulseToCenter(mCharSettings.jumpUpImpulse, true);
-    // mBody->ApplyLinearImpulseToCenter(mCharSettings.JumpUpForce,true);
-     */
+    // The jump animation fires EEvent::CharacterStartJump after the
+    // prepare-to-jump frames are played (currently frame 10 of IchiJumpUp);
+    // only then the physics body gets its upward impulse. The sprite follows
+    // the body position (see updateCharacterPosition), so the character
+    // leaves the ground from this point on.
+    b2Body_ApplyLinearImpulseToCenter(mBodyId,
+                                      mFinalCharSettings.jumpUpImpulse,
+                                      true);
 }
 
 void
