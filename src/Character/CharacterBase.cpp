@@ -566,23 +566,21 @@ CharacterBase::updateCharacterPosition(sf::Time deltaTime)
         && mECharacterState._value != ECharacterState::JumpForward
         && not mCharacterFalling)
     {
+        // The physics body is driven by the requested movement: the input
+        // velocity is in pixels/second, Box2D works in meters. Only the
+        // horizontal velocity is set, the vertical velocity stays untouched
+        // so gravity and jump impulses keep working.
+        b2Vec2 bodyVelocity = b2Body_GetLinearVelocity(mBodyId);
+        bodyVelocity.x = Converter::pixelsToMeters<float>(movement.x);
+        b2Body_SetLinearVelocity(mBodyId, bodyVelocity);
 
-        if (not IsInBounds(b2Length(mLastBodyPosition)
-                               - b2Length(b2Body_GetPosition(mBodyId)),
-                           0.f, 0.01f))
-        {
-            mCharacterAnimation.move(movement * deltaTime.asSeconds());
-        }
-
-    // TODO: physicsrelated stuff now in the PhysicsClass please move this also
-    /*
-        mBody->SetLinearVelocity(
-            {mCharSettings.MoveMultiplierX
-                 * Converter::pixelsToMeters<float>(movement.x),
-             mCharSettings.MoveMultiplierY
-                 * Converter::pixelsToMeters<float>(movement.y)});
-        mLastBodyPosition = mBody->GetPosition();
-    */
+        // The animation follows the physics body: the body position is the
+        // single source of truth for the character position, the sprite is
+        // placed accordingly (same convention as the jump/falling code).
+        b2Vec2 bodyPosition = b2Body_GetPosition(mBodyId);
+        mCharacterAnimation.setAnimationPosition(
+            {Converter::metersToPixels<float>(bodyPosition.x),
+             Converter::metersToPixels<float>(bodyPosition.y)});
     }
 
     if (mECharacterState._value == ECharacterState::JumpUp

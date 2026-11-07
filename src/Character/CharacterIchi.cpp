@@ -31,6 +31,11 @@ CharacterIchi::CharacterIchi(ECharacterState startState,
     // TMP set
     mCharacterAnimation.getSprite().setTexture(ichiTextureManager.getResource(Textures::SpritesheetID::Ichi80x96));
     mCharacterAnimation.getSprite().setTextureRect(sf::IntRect({0, 0}, {80, 96}));
+    // spawn the character at the requested start position (the animation
+    // position is the authoritative character position, the physics body
+    // is created from it in Physics::initCharacterPhysics)
+    mCharacterAnimation.setAnimationPosition(
+        {static_cast<float>(position.x), static_cast<float>(position.y)});
 }
 
 void
