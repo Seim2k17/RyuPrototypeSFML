@@ -533,9 +533,15 @@ CharacterBase::setupAnimation(Textures::CharacterID aniId)
     spriteAni.setAnimationName(config.animationId._to_string());
     setTextureOnCharacter(spritesheetId);
 
-    // set origin of texture to center
-    sf::FloatRect bounds = spriteAni.getSprite().getLocalBounds();
-    spriteAni.getSprite().setOrigin({bounds.size.x / 2.f, bounds.size.y / 2.f});
+    // Set the origin from the frame size of the NEW animation (from the
+    // config), not from the sprite's current texture rect: getLocalBounds()
+    // still returns the PREVIOUS animation's rect here, which made the
+    // origin change (and the sprite visually jump) when switching between
+    // animations. With the frame size the origin only changes when a
+    // spritesheet with a different frame size is set.
+    spriteAni.getSprite().setOrigin(
+        {static_cast<float>(config.frameSize.x) / 2.f,
+         static_cast<float>(config.frameSize.y) / 2.f});
     spriteAni.setPivotAbs(config.pivotAbsolute);
     spriteAni.setPivotNorm(config.pivotNormalized);
     // the first time we need to init physics-body etc
