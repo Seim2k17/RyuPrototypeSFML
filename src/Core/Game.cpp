@@ -144,6 +144,7 @@ Game::addObservers()
 void Game::run()
 {
 	sf::Clock clock;
+	sf::Clock imguiClock;
 	// uses fixed tick steps (use same delta every time)
 	sf::Time timeSinceLastUpdate = sf::Time::Zero;
 	bool mWindowState = ImGui::SFML::Init(mWindow);
@@ -157,6 +158,12 @@ void Game::run()
 		ZoneScopedN("run_Game_while_WindowState");
 
 		timeSinceLastUpdate += clock.restart();
+		// Clamp the accumulator after long stalls (window drags, breakpoints, ...)
+		// so the game does not try to catch up with a huge burst of updates.
+		if (timeSinceLastUpdate > sf::milliseconds(250))
+		{
+			timeSinceLastUpdate = sf::milliseconds(250);
+		}
 		while (timeSinceLastUpdate > TimePerFrame)
 		{
 			ZoneScopedN("run_Game_while_timetest");
@@ -171,16 +178,31 @@ void Game::run()
 			}
 			if (!mIsPaused )
 			{
-				ImGui::SFML::Update(mWindow, timeSinceLastUpdate);
 				mPlayerController->handleRealtimeInput(commands);
 
 				update(TimePerFrame*mDebugWidgets.debugData.worldUpdateFactor);
-				mDebugWidgets.CreateDebugGui();
-			}//!mAnimator.showAnimationEditor
-			mAnimator.createEditorWidgets(&mAnimator.showAnimationEditor);
+			}
+		}
 
+		// ImGui frame: NewFrame, widget calls and Render must happen exactly
+		// once per rendered frame (not per simulation tick).
+		ImGui::SFML::Update(mWindow, imguiClock.restart());
+		if (!mIsPaused)
+		{
+			mDebugWidgets.CreateDebugGui();
+		}//!mAnimator.showAnimationEditor
+		mAnimator.createEditorWidgets(&mAnimator.showAnimationEditor);
+
+		// Render once per frame, outside the fixed-timestep loop: a slow render
+		// must not slow down the simulation.
 		  render();
-		}	
+
+		// Sleep until the next tick instead of busy-spinning at 100% CPU.
+		sf::Time idleTime = TimePerFrame - timeSinceLastUpdate;
+		if (idleTime > sf::Time::Zero)
+		{
+			sf::sleep(idleTime);
+		}
 	}
 	ImGui::SFML::Shutdown();
 }
