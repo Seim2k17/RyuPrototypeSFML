@@ -104,6 +104,12 @@ Game::onNotify(const SceneNode& entity, RyuEvent event)
 		case RyuEvent::LevelEditorToggle:
 		{
 			mLevelEditor.showLevelEditor = not mLevelEditor.showLevelEditor;
+			// keep the character visible while editing: scene objects are
+			// attached above the player, so the player moves to the top
+			// layer and is drawn as a debug single-color fill
+			mWorld.setPlayerOnTop(mLevelEditor.showLevelEditor);
+			mPlayerController->getPlayableCharacter()->setDebugFillMode(
+				mLevelEditor.showLevelEditor);
 			break;
 		}
 		case RyuEvent::DebugValuesChanged:

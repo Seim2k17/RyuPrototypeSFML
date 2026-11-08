@@ -46,6 +46,18 @@ public:
     /// \p sizePx while a resize-drag is running.
     void setResizePreview(const sf::Vector2f& positionPx,
                           const sf::Vector2f& sizePx, bool show = true);
+    /// Grid overlay for the level editor: vertical/horizontal lines over the
+    /// whole world bounds, drawn in the foreground (updates live on change)
+    void setGridOverlay(bool show, const sf::Vector2f& cellSizePx,
+                        const sf::Color& color);
+    /// keeps the character visible while the level editor is open: scene
+    /// objects are attached after the player (drawn above it), so the player
+    /// is re-attached to the Foreground layer while editing
+    void setPlayerOnTop(bool onTop);
+    /// selection overlay for the main character (level editor): orange fill
+    /// + red outline, NO resize markers (the body shape is animation-driven)
+    void setCharacterSelection(const sf::Vector2f& centerPx,
+                               const sf::Vector2f& sizePx, bool show = true);
     /** \} */
 
 private:
@@ -80,7 +92,20 @@ private:
     sf::Vector2f mResizePreviewPositionPx;
     sf::Vector2f mResizePreviewSizePx;
 
+    // grid overlay state (see setGridOverlay)
+    bool mShowGridOverlay;
+    sf::Vector2f mGridCellSizePx;
+    sf::Color mGridColor;
+    /// the player node, needed to move it between layers (editor visibility)
+    std::shared_ptr<SceneNode> mPlayerNode;
+
+    // main-character selection overlay state (see setCharacterSelection)
+    bool mShowCharacterSelection;
+    sf::Vector2f mCharacterSelectionCenterPx;
+    sf::Vector2f mCharacterSelectionSizePx;
+
     void drawLevelEditorOverlay();
+    void drawGridOverlay();
 
     // Character assets
     CharacterAssetsManager mCharacterAssetsManager;

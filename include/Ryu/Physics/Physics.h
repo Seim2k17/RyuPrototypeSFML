@@ -99,6 +99,13 @@ class Physics : public Subject {
     using BodyTransformedCallback = std::function<void(b2BodyId, b2Vec2, b2Rot)>;
         
    public:
+    /// rect of a character physics body: center in world meters + live shape
+    /// extents in pixels (duck/stand shape aware), used by the level editor
+    struct CharacterPhysicsRect {
+        b2Vec2 centerM;
+        sf::Vector2f sizePx;
+    };
+
     Physics();
     ~Physics();
 
@@ -114,6 +121,13 @@ class Physics : public Subject {
     /// FEET anchored at the old body's bottom edge (called when the duck
     /// state changes); needed since Physics owns all bodies
     void recreateCharacterPhysics(ICharacter& character, bool inDuckMode);
+    /// rect of the character physics body (duck/stand shape aware) for the
+    /// level editor
+    CharacterPhysicsRect getCharacterRect(ECharacters character) const;
+    /// teleports the character body horizontally/vertically (transform +
+    /// zeroed velocity; the debug shape is kept in sync); no state change
+    void setCharacterPositionPx(ECharacters character,
+                                const sf::Vector2f& positionPx);
     void setDebugDrawer(b2DrawSFML dbgDrawer);
     void setDebugPhysics(bool debugPhysics);
     void update();

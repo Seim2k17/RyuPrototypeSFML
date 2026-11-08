@@ -65,6 +65,7 @@ class SpritesheetAnimation : public sf::Drawable,
     void update(sf::Time dt);
     void setAnimationName(std::string name);
     sf::Sprite &getSprite() { return mSprite; }
+    const sf::Sprite &getSprite() const { return mSprite; }
     sf::Vector2f getPivotNorm();
     void setPivotAbs(sf::Vector2i vec);
     void setPivotNorm(sf::Vector2f vec);

@@ -76,6 +76,8 @@ class Editor
     void deleteObject();
     void applyEdits();
     void saveLevel();
+    /// edit-buffers from the MAIN CHARACTER physics body (list pseudo-entry)
+    void syncCharEditBuffers();
 
     /// selection-mode (see class comment)
     int resizeHandleAt(const sf::Vector2f& mouseWorldPosPx) const;
@@ -88,6 +90,7 @@ class Editor
     void syncEditBuffersFromSelection();
     void drawSelectionModeHud();
     void drawToolSidebar();
+    void drawGridControls();
     void switchTool(Tool tool);
     void drawObjectDetails(SceneObjectPhysicsParameters *object);
 
@@ -123,6 +126,17 @@ class Editor
     sf::Vector2f mLastPreviewSizePx;
     b2BodyId mSelectedBodyId;
     b2BodyId mHoveredBodyId;
+
+    // grid-mode overlay (for later tile/tileset creation); pushed to the
+    // renderer on every change so the grid updates live
+    bool mShowGrid;
+    int mGridCellWidth;
+    int mGridCellHeight;
+    int mGridColorIndex;
+
+    /// the "MainCharacter" pseudo-entry of the object list is selected
+    /// (moves the character body; mutually exclusive with the object rows)
+    bool mMainCharRowSelected;
 };
 
 } // namespace RyuLevel

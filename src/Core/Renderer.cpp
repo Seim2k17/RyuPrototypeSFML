@@ -8,7 +8,11 @@
 #include "Ryu/Core/EventManager.h"
 #include "Ryu/Character/CharacterIchi.h"
 #include <SFML/Graphics/Color.hpp>
+#include <SFML/Graphics/PrimitiveType.hpp>
 #include <SFML/Graphics/RectangleShape.hpp>
+#include <SFML/Graphics/Vertex.hpp>
+
+#include <vector>
 
 namespace
 {
@@ -38,6 +42,10 @@ Renderer::Renderer(sf::RenderWindow& window, EventManager& eventManager, const s
      , mHoverShowsOutline(false)
      , mSelectedBodyId(b2_nullBodyId)
      , mShowResizePreview(false)
+     , mShowGridOverlay(false)
+     , mGridCellSizePx({32.f, 32.f})
+     , mGridColor(255, 0, 0, 90)
+     , mShowCharacterSelection(false)
      , mActiveCommands()
      , mSceneObjects(sceneObjects)
      , mEventManager(eventManager)
@@ -126,17 +134,90 @@ void Renderer::buildScene() {
     auto player = mEventManager.requestPlayer();
 
     if (player) {
-    mSceneLayers[static_cast<size_t>(Layer::Ground1)]->attachChild(
-        std::static_pointer_cast<SceneNode>(player));
+        mPlayerNode = std::static_pointer_cast<SceneNode>(player);
+        mSceneLayers[static_cast<size_t>(Layer::Ground1)]->attachChild(
+            mPlayerNode);
     } else {
         std::cerr << "WARNING: Player is null in Renderer::buildScene()" << std::endl;
     }
 }
 
+void
+Renderer::setPlayerOnTop(bool onTop)
+{
+    if (not mPlayerNode) { return; }
+
+    const auto attachLayer = onTop ? Layer::Foreground : Layer::Ground1;
+    auto owner = std::find_if(mSceneLayers.begin(), mSceneLayers.end(),
+        [this](const auto &layer) {
+            return layer && layer.get() == mPlayerNode->getParent();
+        });
+
+    // already in the requested layer (detachChild asserts otherwise)
+    if (owner != mSceneLayers.end()
+        && owner->get()
+             == mSceneLayers[static_cast<size_t>(attachLayer)].get())
+    {
+        return;
+    }
+    if (owner != mSceneLayers.end())
+    {
+        (*owner)->detachChild(*mPlayerNode);
+    }
+    mSceneLayers[static_cast<size_t>(attachLayer)]->attachChild(mPlayerNode);
+}
+
 void Renderer::draw()
 {
     mWindow.draw(mSceneGraph);
+    drawGridOverlay();
     drawLevelEditorOverlay();
+}
+
+void
+Renderer::setCharacterSelection(const sf::Vector2f& centerPx,
+                                const sf::Vector2f& sizePx, bool show)
+{
+    mCharacterSelectionCenterPx = centerPx;
+    mCharacterSelectionSizePx = sizePx;
+    mShowCharacterSelection = show;
+}
+
+void
+Renderer::setGridOverlay(bool show, const sf::Vector2f& cellSizePx,
+                         const sf::Color& color)
+{
+    mShowGridOverlay = show;
+    mGridCellSizePx = cellSizePx;
+    mGridColor = color;
+}
+
+void
+Renderer::drawGridOverlay()
+{
+    if (not mShowGridOverlay) { return; }
+
+    const float cellW = mGridCellSizePx.x;
+    const float cellH = mGridCellSizePx.y;
+    if (cellW < 4.f || cellH < 4.f) { return; }
+
+    // vertical + horizontal lines over the whole world bounds, drawn after
+    // the scene graph so the grid stays visible in the foreground
+    std::vector<sf::Vertex> lines;
+    lines.reserve(static_cast<std::size_t>((mWorldBounds.size.x / cellW + 1)
+                                           + (mWorldBounds.size.y / cellH + 1)) * 2);
+
+    for (float x = mWorldBounds.position.x; x <= mWorldBounds.position.x + mWorldBounds.size.x + 0.5f; x += cellW)
+    {
+        lines.push_back(sf::Vertex{{x, mWorldBounds.position.y}, mGridColor});
+        lines.push_back(sf::Vertex{{x, mWorldBounds.position.y + mWorldBounds.size.y}, mGridColor});
+    }
+    for (float y = mWorldBounds.position.y; y <= mWorldBounds.position.y + mWorldBounds.size.y + 0.5f; y += cellH)
+    {
+        lines.push_back(sf::Vertex{{mWorldBounds.position.x, y}, mGridColor});
+        lines.push_back(sf::Vertex{{mWorldBounds.position.x + mWorldBounds.size.x, y}, mGridColor});
+    }
+    mWindow.draw(lines.data(), lines.size(), sf::PrimitiveType::Lines);
 }
 
 b2BodyId
@@ -292,6 +373,19 @@ Renderer::drawLevelEditorOverlay()
     };
 
     // hover tint from the level-object list (fill only, no outline)
+    // main-character selection (level editor): orange fill + red outline,
+    // drawn after the scene graph so it stays in the foreground
+    if (mShowCharacterSelection)
+    {
+        rect.setPosition(mCharacterSelectionCenterPx
+                         - mCharacterSelectionSizePx / 2.f);
+        rect.setSize(mCharacterSelectionSizePx);
+        rect.setFillColor(hoverFill);
+        rect.setOutlineColor(outline);
+        rect.setOutlineThickness(outlineThickness);
+        mWindow.draw(rect);
+    }
+
     if (not bodyIdsEqual(mHoveredBodyId, mSelectedBodyId)
         && not B2_IS_NULL(mHoveredBodyId))
     {

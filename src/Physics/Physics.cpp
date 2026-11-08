@@ -504,6 +504,55 @@ Physics::recreateCharacterPhysics(ICharacter& character, bool inDuckMode)
     EventBus::emit(Ryu::EPhysicsEvent::CharacterCreated, event);
 }
 
+Physics::CharacterPhysicsRect
+Physics::getCharacterRect(ECharacters character) const
+{
+    CharacterPhysicsRect rect{};
+    const auto it = mCharacterPhysics.find(character);
+    if (it == mCharacterPhysics.end() || not b2Body_IsValid(it->second.mBodyId))
+    {
+        return rect;
+    }
+    rect.centerM = b2Body_GetPosition(it->second.mBodyId);
+    // live shape extents (the duck body is shorter than the stand body)
+    const b2Polygon polygon = b2Shape_GetPolygon(it->second.mShapeId);
+    float halfWidth = 0.f;
+    float halfHeight = 0.f;
+    for (int i = 0; i < polygon.count; ++i)
+    {
+        halfWidth = std::max(halfWidth, std::fabs(polygon.vertices[i].x));
+        halfHeight = std::max(halfHeight, std::fabs(polygon.vertices[i].y));
+    }
+    rect.sizePx = sf::Vector2f(Converter::metersToPixels(halfWidth * 2.f),
+                               Converter::metersToPixels(halfHeight * 2.f));
+    return rect;
+}
+
+void
+Physics::setCharacterPositionPx(ECharacters character,
+                                const sf::Vector2f& positionPx)
+{
+    auto it = mCharacterPhysics.find(character);
+    if (it == mCharacterPhysics.end() || not b2Body_IsValid(it->second.mBodyId))
+    {
+        return;
+    }
+    CharacterPhysicsParameters& charPhysics = it->second;
+    const b2Vec2 newPositionM{
+        Converter::pixelsToMeters<float>(positionPx.x),
+        Converter::pixelsToMeters<float>(positionPx.y)};
+    b2Body_SetTransform(charPhysics.mBodyId, newPositionM, b2Rot_identity);
+    b2Body_SetLinearVelocity(charPhysics.mBodyId, b2Vec2{0.f, 0.f});
+    b2Body_SetAngularVelocity(charPhysics.mBodyId, 0.f);
+    b2Body_SetAwake(charPhysics.mBodyId, true);
+    // keep the debug shape (held in the user data) at the body position
+    void* userData = b2Body_GetUserData(charPhysics.mBodyId);
+    if (userData)
+    {
+        static_cast<sf::Shape*>(userData)->setPosition(positionPx);
+    }
+}
+
 void
 Physics::createPhysicsSceneObjects(ELevel level)
 {

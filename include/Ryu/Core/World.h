@@ -94,6 +94,30 @@ class World : public Observer {
     {
         mRenderer->setResizePreview(positionPx, sizePx, show);
     }
+    void setGridOverlay(bool show, const sf::Vector2f& cellSizePx,
+                        const sf::Color& color)
+    {
+        mRenderer->setGridOverlay(show, cellSizePx, color);
+    }
+    void setPlayerOnTop(bool onTop)
+    {
+        mRenderer->setPlayerOnTop(onTop);
+    }
+    /// MAIN CHARACTER (level editor): rect of its physics body (center in
+    /// world meters + shape extents in px, duck/stand aware) ...
+    Physics::CharacterPhysicsRect getCharacterRect()
+    {
+        return mPhysics.getCharacterRect(ECharacters::Ichi);
+    }
+    void moveMainCharacterToPx(const sf::Vector2f& positionPx)
+    {
+        mPhysics.setCharacterPositionPx(ECharacters::Ichi, positionPx);
+    }
+    void setCharacterSelection(const sf::Vector2f& centerPx,
+                               const sf::Vector2f& sizePx, bool show = true)
+    {
+        mRenderer->setCharacterSelection(centerPx, sizePx, show);
+    }
     /** \} */
 
   private:

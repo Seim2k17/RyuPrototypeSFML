@@ -249,6 +249,10 @@ class CharacterBase : public SceneNode, public Subject, public Observer, public 
     [[deprecated]] void setCharacterSettings(CharacterSetting settings);
     [[deprecated]] void resetCharacterSettings();
     bool duckStateActive() { return mDuckStateActive; };
+    /** debug rendering of the character: while the level editor is open the
+        character is drawn as a single-color fill (fe. the animation may be
+        hidden/occluded or the textures broken in that mode. */
+    void setDebugFillMode(bool active) { mDebugFillMode = active; };
     /// changing the duck state also rebuilds the physics body via the
     /// Physics-owner (duck shape ISN'T the stand shape); a Physics pointer
     /// must be set with setPhysics() - the World does this after character
@@ -312,6 +316,9 @@ class CharacterBase : public SceneNode, public Subject, public Observer, public 
 
     sf::Vector2f movement;
     bool mCharacterFalling;
+
+    /// debug fill for level-editor mode, see setDebugFillMode()
+    bool mDebugFillMode = false;
 
     // TODO: physics -> physics interface
     //std::unique_ptr<b2World> &phWorldRef;

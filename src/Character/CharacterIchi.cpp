@@ -182,6 +182,21 @@ void
 CharacterIchi::drawCurrent(sf::RenderTarget &target,
                            sf::RenderStates states) const
 {
+    if (mDebugFillMode)
+    {
+        // level-editor mode: the character is drawn as a single-color cyan
+        // rect with its CENTER PIVOT at the character position (the char
+        // position is the rect center, no animation-pivot math involved)
+        const auto frameSize = mCharacterAnimation.getFrameSize();
+        sf::RectangleShape debugFill(
+            {static_cast<float>(frameSize.x), static_cast<float>(frameSize.y)});
+        debugFill.setOrigin({static_cast<float>(frameSize.x) / 2.f,
+                             static_cast<float>(frameSize.y) / 2.f});
+        debugFill.setPosition(mCharacterAnimation.getPosition());
+        debugFill.setFillColor(sf::Color(0, 200, 255, 170));
+        target.draw(debugFill, states);
+        return;
+    }
     // draw physicsshape (visible in debug-mode)
     // CharacterBase::drawCurrent(target, states);
     // draw PlayerSprite

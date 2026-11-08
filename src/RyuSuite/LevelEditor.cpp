@@ -120,6 +120,11 @@ Editor::Editor()
     , mActiveTool(Tool::None)
     , mSelectedBodyId(b2_nullBodyId)
     , mHoveredBodyId(b2_nullBodyId)
+    , mShowGrid(false)
+    , mGridCellWidth(32)
+    , mGridCellHeight(32)
+    , mGridColorIndex(0)
+    , mMainCharRowSelected(false)
 {
 }
 
@@ -129,8 +134,10 @@ Editor::switchLevel(ELevel level)
     exitSelectionMode();
     mSelectedLevel = level;
     mSelectedIndex = -1;
+    mMainCharRowSelected = false;
     if (mWorld)
     {
+        mWorld->setCharacterSelection({}, {}, false);
         mWorld->reloadSceneObjects(level);
         syncEditBuffersFromSelection();
         fmt::print("LevelEditor: switched to level {}.\n", level._to_string());
@@ -175,7 +182,17 @@ Editor::deleteObject()
 void
 Editor::applyEdits()
 {
-    if (not mWorld || mSelectedIndex < 0) { return; }
+    if (not mWorld) { return; }
+    if (mMainCharRowSelected)
+    {
+        // the character body shape is animation-driven: position-only edits
+        const sf::Vector2f position{ mEditPositionX, mEditPositionY };
+        mWorld->moveMainCharacterToPx(position);
+        mWorld->setCharacterSelection(position, { mEditWidth, mEditHeight }, true);
+        syncCharEditBuffers();
+        return;
+    }
+    if (mSelectedIndex < 0) { return; }
     auto& objects = mWorld->getSceneObjects().at(mSelectedLevel);
     if (mSelectedIndex >= static_cast<int>(objects.size())) { return; }
 
@@ -261,15 +278,28 @@ Editor::insideSelectedObject(const sf::Vector2f &mouseWorldPosPx) const
 void
 Editor::beginDrag(DragMode mode, int handle, const sf::Vector2f &mouseWorldPosPx)
 {
-    SceneObjectPhysicsParameters* object = mWorld->findSceneObject(mSelectedBodyId);
-    if (object == nullptr) { return; }
+    SceneObjectPhysicsParameters* object = nullptr;
+    if (mMainCharRowSelected)
+    {
+        // the character body: geometry from the live physics rect, no
+        // physics-object recreation involved in its drags
+        const Physics::CharacterPhysicsRect rect = mWorld->getCharacterRect();
+        mDragStartSizePx = rect.sizePx;
+        mDragStartCenterPx = { Converter::metersToPixels(rect.centerM.x),
+                               Converter::metersToPixels(rect.centerM.y) };
+    }
+    else
+    {
+        object = mWorld->findSceneObject(mSelectedBodyId);
+        if (object == nullptr) { return; }
+        mDragStartCenterPx = { Converter::metersToPixels(object->mPosition.x),
+                               Converter::metersToPixels(object->mPosition.y) };
+        mDragStartSizePx = { Converter::metersToPixels(object->mSize.x),
+                             Converter::metersToPixels(object->mSize.y) };
+    }
 
     mDragMode = mode;
     mDragHandle = handle;
-    mDragStartCenterPx = { Converter::metersToPixels(object->mPosition.x),
-                           Converter::metersToPixels(object->mPosition.y) };
-    mDragStartSizePx = { Converter::metersToPixels(object->mSize.x),
-                         Converter::metersToPixels(object->mSize.y) };
     if (mode == DragMode::Resize)
     {
         mDragHandleStartPx = {
@@ -292,6 +322,18 @@ Editor::beginDrag(DragMode mode, int handle, const sf::Vector2f &mouseWorldPosPx
 void
 Editor::updateDrag(const sf::Vector2f &mouseWorldPosPx)
 {
+    if (mMainCharRowSelected && mDragMode == DragMode::Move)
+    {
+        // live character movement (transform only, no body recreation)
+        const sf::Vector2f grabOffset = mDragHandleStartPx - mDragStartCenterPx;
+        const sf::Vector2f newCenter = mouseWorldPosPx - grabOffset;
+        mWorld->moveMainCharacterToPx(newCenter);
+        mWorld->setCharacterSelection(newCenter, mDragStartSizePx, true);
+        mEditPositionX = newCenter.x;
+        mEditPositionY = newCenter.y;
+        return;
+    }
+
     SceneObjectPhysicsParameters* object = mWorld->findSceneObject(mSelectedBodyId);
     if (object == nullptr) { return; }
 
@@ -379,12 +421,20 @@ Editor::endDrag()
     }
     else if (mDragMode == DragMode::Move)
     {
-        // fix the position: recreate the body (type/size stay). The body id
-        // changes on recreation, so capture the fresh one, otherwise the
-        // selection outline would die with the old body and the selection
-        // mode would look deactivated after releasing the mouse button.
-        mSelectedBodyId = mWorld->updateSceneObject(mSelectedBodyId);
-        mWorld->setSelectedHighlight(mSelectedBodyId);
+        if (mMainCharRowSelected)
+        {
+            // the character body moved with plain transforms: nothing to
+            // commit, the selection overlay already follows the body
+        }
+        else
+        {
+            // fix the position: recreate the body (type/size stay). The body id
+            // changes on recreation, so capture the fresh one, otherwise the
+            // selection outline would die with the old body and the selection
+            // mode would look deactivated after releasing the mouse button.
+            mSelectedBodyId = mWorld->updateSceneObject(mSelectedBodyId);
+            mWorld->setSelectedHighlight(mSelectedBodyId);
+        }
     }
 
     // the drag is over: the preview overlay must go away, otherwise a stale
@@ -392,14 +442,21 @@ Editor::endDrag()
     mWorld->setResizePreview({}, {}, false);
 
     // refresh the edit fields from the committed object (fresh body id)
-    SceneObjectPhysicsParameters* committed
-        = mWorld->findSceneObject(mSelectedBodyId);
-    if (committed != nullptr)
+    if (mMainCharRowSelected)
     {
-        mEditPositionX = Converter::metersToPixels(committed->mPosition.x);
-        mEditPositionY = Converter::metersToPixels(committed->mPosition.y);
-        mEditWidth = Converter::metersToPixels(committed->mSize.x);
-        mEditHeight = Converter::metersToPixels(committed->mSize.y);
+        syncCharEditBuffers();
+    }
+    else
+    {
+        SceneObjectPhysicsParameters* committed
+            = mWorld->findSceneObject(mSelectedBodyId);
+        if (committed != nullptr)
+        {
+            mEditPositionX = Converter::metersToPixels(committed->mPosition.x);
+            mEditPositionY = Converter::metersToPixels(committed->mPosition.y);
+            mEditWidth = Converter::metersToPixels(committed->mSize.x);
+            mEditHeight = Converter::metersToPixels(committed->mSize.y);
+        }
     }
 
     mDragMode = DragMode::None;
@@ -443,6 +500,27 @@ Editor::syncEditBuffersFromSelection()
 }
 
 void
+Editor::syncCharEditBuffers()
+{
+    if (not mWorld) { return; }
+    const Physics::CharacterPhysicsRect rect = mWorld->getCharacterRect();
+    mEditPositionX = Converter::metersToPixels(rect.centerM.x);
+    mEditPositionY = Converter::metersToPixels(rect.centerM.y);
+    mEditWidth = rect.sizePx.x;
+    mEditHeight = rect.sizePx.y;
+}
+
+/// select + highlight the MAIN CHARACTER pseudo-entry (list/arrow keys)
+static void
+showMainCharSelection(World *world)
+{
+    const Physics::CharacterPhysicsRect rect = world->getCharacterRect();
+    const sf::Vector2f centerPx{ Converter::metersToPixels(rect.centerM.x),
+                                 Converter::metersToPixels(rect.centerM.y) };
+    world->setCharacterSelection(centerPx, rect.sizePx, true);
+}
+
+void
 Editor::handleKey(sf::Keyboard::Scancode scancode)
 {
     if (not mWorld) { return; }
@@ -458,22 +536,36 @@ Editor::handleKey(sf::Keyboard::Scancode scancode)
     if (objects.empty()) { return; }
 
     mSelectedIndex += step;
-    // wrap around both ends
-    if (mSelectedIndex < 0)
+    // wrap around both ends; -1 = the MainCharacter pseudo-entry
+    const int maxIndex = static_cast<int>(objects.size()) - 1;
+    if (mSelectedIndex < -1)
     {
-        mSelectedIndex = static_cast<int>(objects.size()) - 1;
+        mSelectedIndex = maxIndex;
     }
-    else if (mSelectedIndex >= static_cast<int>(objects.size()))
+    else if (mSelectedIndex > maxIndex)
     {
-        mSelectedIndex = 0;
+        mSelectedIndex = -1;
     }
 
+    mMainCharRowSelected = mSelectedIndex == -1;
     mLastSelectedIndex = -1;
+    if (mMainCharRowSelected)
+    {
+        // main character: no physics-body id in the scene-objects list; the
+        // selection overlay is drawn from the live character rect instead
+        mSelectedBodyId = b2_nullBodyId;
+        mWorld->setSelectedHighlight(b2_nullBodyId);
+        syncCharEditBuffers();
+        showMainCharSelection(mWorld);
+        return;
+    }
+
     syncEditBuffersFromSelection();
     // also mark the object inside the running level
     mSelectedBodyId
         = objects.at(mSelectedIndex).mPhysicsBodyId;
     mWorld->setSelectedHighlight(mSelectedBodyId);
+    mWorld->setCharacterSelection({}, {}, false);
 }
 
 void
@@ -524,6 +616,49 @@ Editor::drawToolSidebar()
 }
 
 void
+Editor::drawGridControls()
+{
+    ImGui::Separator();
+    if (ImGui::CollapsingHeader("Grid Mode"))
+    {
+        // every change pushes the complete overlay state to the renderer so
+        // the grid updates live (cell size, color, on/off)
+        auto updateGrid = [&]()
+        {
+            if (mWorld == nullptr) { return; }
+            const sf::Vector2f cellSizePx{
+                static_cast<float>(std::max(mGridCellWidth, 4)),
+                static_cast<float>(std::max(mGridCellHeight, 4))};
+            const sf::Color color = mGridColorIndex == 1
+                                        ? sf::Color(0, 255, 0, 90)
+                                        : sf::Color(255, 0, 0, 90);
+            mWorld->setGridOverlay(mShowGrid, cellSizePx, color);
+        };
+
+        if (ImGui::Checkbox("Enable grid", &mShowGrid)) { updateGrid(); }
+        if (ImGui::InputInt("Cell width##grid", &mGridCellWidth, 4))
+        {
+            mGridCellWidth = std::max(mGridCellWidth, 4);
+            updateGrid();
+        }
+        if (ImGui::InputInt("Cell height##grid", &mGridCellHeight, 4))
+        {
+            mGridCellHeight = std::max(mGridCellHeight, 4);
+            updateGrid();
+        }
+        const char *gridColorNames[2] = { "Red", "Green" };
+        if (ImGui::Combo("Grid color", &mGridColorIndex,
+                         gridColorNames, 2))
+        {
+            updateGrid();
+        }
+        ImGui::TextWrapped("Later used to create tiles/tilesets for "
+                           "texturizing the sceneobjects.");
+    }
+}
+
+
+void
 Editor::switchTool(Tool tool)
 {
     if (mActiveTool == tool) { return; }
@@ -572,6 +707,27 @@ Editor::handleMouseEvent(const sf::Event &event, const sf::Vector2f &mouseWorldP
     {
         if (pressed->button != sf::Mouse::Button::Left) { return; }
 
+        if (mMainCharRowSelected)
+        {
+            // press inside the character overlay: grab + move it like an
+            // object; press elsewhere: deselect the character
+            const Physics::CharacterPhysicsRect rect = mWorld->getCharacterRect();
+            const sf::Vector2f centerPx{
+                Converter::metersToPixels(rect.centerM.x),
+                Converter::metersToPixels(rect.centerM.y)};
+            const sf::Vector2f halfSize = rect.sizePx / 2.f;
+            if (std::abs(mouseWorldPosPx.x - centerPx.x) <= halfSize.x
+                && std::abs(mouseWorldPosPx.y - centerPx.y) <= halfSize.y)
+            {
+                beginDrag(DragMode::Move, -1, mouseWorldPosPx);
+                return;
+            }
+            mMainCharRowSelected = false;
+            mWorld->setCharacterSelection({}, {}, false);
+            syncEditBuffersFromSelection();
+            return;
+        }
+
         if (not B2_IS_NULL(mSelectedBodyId))
         {
             const int handle = resizeHandleAt(mouseWorldPosPx);
@@ -602,6 +758,8 @@ Editor::handleMouseEvent(const sf::Event &event, const sf::Vector2f &mouseWorldP
 
         mSelectedBodyId = hit;
         // keep the object list in sync with the viewport selection
+        mMainCharRowSelected = false;
+        mWorld->setCharacterSelection({}, {}, false);
         auto& objects = mWorld->getSceneObjects().at(activeLevel);
         for (int i = 0; i < static_cast<int>(objects.size()); ++i)
         {
@@ -632,8 +790,9 @@ Editor::handleMouseEvent(const sf::Event &event, const sf::Vector2f &mouseWorldP
             updateDrag(mouseWorldPosPx);
             return;
         }
-        // hover highlight (only outside the selection mode)
-        if (B2_IS_NULL(mSelectedBodyId))
+        // hover highlight (only outside the selection mode); while the
+        // main-character pseudo-entry is selected the overlay stays clean
+        if (B2_IS_NULL(mSelectedBodyId) && not mMainCharRowSelected)
         {
             const ELevel activeLevel = mWorld->getActiveLevel();
             b2Vec2 positionM{ Converter::pixelsToMeters<float>(mouseWorldPosPx.x),
@@ -710,10 +869,21 @@ Editor::createEditorWidgets(bool *p_open)
         // behind; the level must return to its original playing state
         mActiveTool = Tool::None;
         exitSelectionMode();
+        mMainCharRowSelected = false;
+        if (mWorld != nullptr)
+        {
+            mWorld->setCharacterSelection({}, {}, false);
+        }
+        if (mShowGrid && mWorld != nullptr)
+        {
+            mShowGrid = false;
+            mWorld->setGridOverlay(false, {32.f, 32.f}, sf::Color::Red);
+        }
         return;
     }
 
     drawToolSidebar();
+    drawGridControls();
 
     if (ImGui::Begin("Ryu Level Editor", p_open))
     {
@@ -745,6 +915,19 @@ Editor::createEditorWidgets(bool *p_open)
                               ImVec4(1.f, 0.55f, 0.f, 0.85f));
         if (ImGui::BeginChild("Objects", ImVec2(0, 200), true))
         {
+            // MAIN CHARACTER pseudo-entry: selecting it moves the character
+            // via the usual positioning/drag mechanisms
+            if (ImGui::Selectable("MainCharacter [dynamic]",
+                                  mMainCharRowSelected))
+            {
+                mMainCharRowSelected = true;
+                mSelectedIndex = -1;
+                mLastSelectedIndex = -1;
+                mSelectedBodyId = b2_nullBodyId;
+                mWorld->setSelectedHighlight(b2_nullBodyId);
+                syncCharEditBuffers();
+                showMainCharSelection(mWorld);
+            }
             for (int i = 0; i < static_cast<int>(objects.size()); ++i)
             {
                 const auto& object = objects.at(i);
@@ -755,6 +938,8 @@ Editor::createEditorWidgets(bool *p_open)
                 if (ImGui::Selectable(label.c_str(), mSelectedIndex == i))
                 {
                     mSelectedIndex = i;
+                    mMainCharRowSelected = false;
+                    mWorld->setCharacterSelection({}, {}, false);
                     mLastSelectedIndex = -1;
                     syncEditBuffersFromSelection();
 
