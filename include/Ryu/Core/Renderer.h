@@ -31,6 +31,23 @@ public:
     // Layer management
     enum class Layer { Background, Ground1, Foreground, LayerCount };
 
+    /** \name Level-editor helpers (hover / selection / resize overlay) \{ */
+    /// Hit-tests the scene objects of \p level against \p position (world
+    /// meters); returns the object's bodyId or a null b2BodyId.
+    b2BodyId getSceneObjectAt(ELevel level, const b2Vec2& position) const;
+    /// Marks the hovered object; a null bodyId clears it. When
+    /// \p withOutline is set (selection mode), the hover also gets the red
+    /// outline and edge markers.
+    void setHoverHighlight(b2BodyId bodyId, bool withOutline = false);
+    /// Marks the selected object (drawn with red outline + 8 resize handles);
+    /// a null bodyId clears it.
+    void setSelectedHighlight(b2BodyId bodyId);
+    /// Live-resize preview: an orange overlay drawn at \p positionPx with
+    /// \p sizePx while a resize-drag is running.
+    void setResizePreview(const sf::Vector2f& positionPx,
+                          const sf::Vector2f& sizePx, bool show = true);
+    /** \} */
+
 private:
     void loadTextures();
 
@@ -53,6 +70,17 @@ private:
     void onPhysicsObjectUpdated(const PhysicsObjectUpdatedEvent& event);
     void onPhysicsObjectDestroyed(const PhysicsObjectDestroyedEvent& event);
     // Physics assets - section - end
+
+    // Level editor overlay state (see the helper methods in the public section)
+    b2BodyId mHoveredBodyId;
+    /// hovered object gets outline + handles too (true while selection mode)
+    bool mHoverShowsOutline;
+    b2BodyId mSelectedBodyId;
+    bool mShowResizePreview;
+    sf::Vector2f mResizePreviewPositionPx;
+    sf::Vector2f mResizePreviewSizePx;
+
+    void drawLevelEditorOverlay();
 
     // Character assets
     CharacterAssetsManager mCharacterAssetsManager;

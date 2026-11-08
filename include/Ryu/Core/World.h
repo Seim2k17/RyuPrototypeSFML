@@ -38,6 +38,64 @@ class World : public Observer {
     void setDebugDrawer(sf::RenderTarget &target);
     void onNotify(const SceneNode &entity, Ryu::EEvent event) override;
 
+    /** \name Level editing (used by the level editor; see also Physics) \{ */
+    std::map<ELevel, std::vector<SceneObjectPhysicsParameters>> &getSceneObjects()
+    {
+        return mPhysics.sceneObjects;
+    }
+    SceneObjectPhysicsParameters &addSceneObject(ELevel level,
+                                                 SceneObjectPhysicsParameters object)
+    {
+        return mPhysics.addSceneObject(level, std::move(object));
+    }
+    bool removeSceneObject(b2BodyId bodyId)
+    {
+        return mPhysics.removeSceneObject(bodyId);
+    }
+    /** Re-creates all scene-object bodies and nodes of \p level from the
+        current level data (used after edits or when switching levels). */
+    void reloadSceneObjects(ELevel level)
+    {
+        mPhysics.reloadSceneObjects(level);
+    }
+    /** The level whose scene-object bodies are currently created. */
+    ELevel getActiveLevel() { return mPhysics.getActiveLevel(); }
+    /** Moves a scene object live during a drag; see Physics::moveSceneObject. */
+    bool moveSceneObject(b2BodyId bodyId, const b2Vec2& position)
+    {
+        return mPhysics.moveSceneObject(bodyId, position);
+    }
+    /** Recreates the body of an edited scene object; see Physics. */
+    b2BodyId updateSceneObject(b2BodyId bodyId)
+    {
+        return mPhysics.recreateSceneObject(bodyId);
+    }
+    /** Scene object lookup by body id; nullptr if unknown. */
+    SceneObjectPhysicsParameters* findSceneObject(b2BodyId bodyId)
+    {
+        return mPhysics.findSceneObject(bodyId);
+    }
+    /** Hit-test the scene objects of \p level at a world position (meters). */
+    b2BodyId getSceneObjectAt(ELevel level, const b2Vec2& position)
+    {
+        return mRenderer->getSceneObjectAt(level, position);
+    }
+    /** Hover/selection/preview overlays, see Renderer. */
+    void setHoverHighlight(b2BodyId bodyId, bool withOutline = false)
+    {
+        mRenderer->setHoverHighlight(bodyId, withOutline);
+    }
+    void setSelectedHighlight(b2BodyId bodyId)
+    {
+        mRenderer->setSelectedHighlight(bodyId);
+    }
+    void setResizePreview(const sf::Vector2f& positionPx,
+                          const sf::Vector2f& sizePx, bool show = true)
+    {
+        mRenderer->setResizePreview(positionPx, sizePx, show);
+    }
+    /** \} */
+
   private:
     void createText(const sf::String text, sf::Text &textToShow);
     void loadTextures();

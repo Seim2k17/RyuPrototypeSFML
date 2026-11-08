@@ -14,6 +14,7 @@ namespace Ryu{
         ,TemporaryOutput
         ,TeleportWait
         ,TeleportDo
+        ,LevelEditorToggle
     );
 
     

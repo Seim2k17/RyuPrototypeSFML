@@ -299,8 +299,8 @@ void SpritesheetAnimation::update(sf::Time dt) {
     // textureRect.height << "\n";
     mSprite.setTextureRect(textureRect);
 // SFML 3 version - position and size
-    fmt::print("Frame: {} | TextureRect: pos({}/{}) size({}/{}) | "
-           "TextureSize: {}x{} | SpritePos: ({}/{}) | Color: R{}G{}B{}A{}\n",
+/*    fmt::print("Frame: {} | TextureRect: pos({}/{}) size({}/{}) | "
+/           "TextureSize: {}x{} | SpritePos: ({}/{}) | Color: R{}G{}B{}A{}\n",
     mCurrentFrame,
     textureRect.position.x, textureRect.position.y,
     textureRect.size.x, textureRect.size.y,
@@ -308,6 +308,7 @@ void SpritesheetAnimation::update(sf::Time dt) {
     mSprite.getPosition().x, mSprite.getPosition().y,
     mSprite.getColor().r, mSprite.getColor().g,
     mSprite.getColor().b, mSprite.getColor().a);
+*/
 }
 
 void SpritesheetAnimation::flipAnimationLeft() {

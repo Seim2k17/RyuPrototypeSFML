@@ -1,0 +1,245 @@
+{
+ "levelName": "2",
+ "objects": [
+  {
+   "name": "floor",
+   "positionPx": [
+    320.0,
+    360.0
+   ],
+   "sizePx": [
+    640.0,
+    9.0
+   ],
+   "bodyType": "static",
+   "textureId": "Grass",
+   "entityType": "None",
+   "layer": 1
+  },
+  {
+   "name": "left_side",
+   "positionPx": [
+    4.0,
+    261.0
+   ],
+   "sizePx": [
+    9.0,
+    369.0
+   ],
+   "bodyType": "static",
+   "textureId": "Grass",
+   "entityType": "None",
+   "layer": 1
+  },
+  {
+   "name": "right_side",
+   "positionPx": [
+    635.0,
+    261.0
+   ],
+   "sizePx": [
+    9.0,
+    495.0
+   ],
+   "bodyType": "static",
+   "textureId": "Grass",
+   "entityType": "None",
+   "layer": 1
+  },
+  {
+   "name": "platform_1",
+   "positionPx": [
+    59.0,
+    68.0
+   ],
+   "sizePx": [
+    117.0,
+    14.0
+   ],
+   "bodyType": "static",
+   "textureId": "Grass",
+   "entityType": "None",
+   "layer": 1
+  },
+  {
+   "name": "platform_2",
+   "positionPx": [
+    240.0,
+    68.0
+   ],
+   "sizePx": [
+    133.0,
+    14.0
+   ],
+   "bodyType": "static",
+   "textureId": "Grass",
+   "entityType": "None",
+   "layer": 1
+  },
+  {
+   "name": "grate_1",
+   "positionPx": [
+    205.0,
+    45.0
+   ],
+   "sizePx": [
+    17.0,
+    45.0
+   ],
+   "bodyType": "static",
+   "textureId": "Grate",
+   "entityType": "None",
+   "layer": 1
+  },
+  {
+   "name": "platform_3",
+   "positionPx": [
+    203.0,
+    167.0
+   ],
+   "sizePx": [
+    103.0,
+    14.0
+   ],
+   "bodyType": "static",
+   "textureId": "Grass",
+   "entityType": "None",
+   "layer": 1
+  },
+  {
+   "name": "button_1",
+   "positionPx": [
+    213.0,
+    164.0
+   ],
+   "sizePx": [
+    32.0,
+    9.0
+   ],
+   "bodyType": "static",
+   "textureId": "Button",
+   "entityType": "None",
+   "layer": 1
+  },
+  {
+   "name": "button_2",
+   "positionPx": [
+    576.0,
+    360.0
+   ],
+   "sizePx": [
+    32.0,
+    9.0
+   ],
+   "bodyType": "static",
+   "textureId": "Button",
+   "entityType": "None",
+   "layer": 1
+  },
+  {
+   "name": "platform_3_wall",
+   "positionPx": [
+    265.0,
+    155.0
+   ],
+   "sizePx": [
+    17.0,
+    38.0
+   ],
+   "bodyType": "static",
+   "textureId": "Grass",
+   "entityType": "None",
+   "layer": 1
+  },
+  {
+   "name": "middle_wall",
+   "positionPx": [
+    315.0,
+    196.0
+   ],
+   "sizePx": [
+    17.0,
+    268.0
+   ],
+   "bodyType": "static",
+   "textureId": "Grass",
+   "entityType": "None",
+   "layer": 1
+  },
+  {
+   "name": "box_pushable_1",
+   "positionPx": [
+    400.0,
+    45.0
+   ],
+   "sizePx": [
+    27.0,
+    23.0
+   ],
+   "bodyType": "dynamic",
+   "textureId": "BoxPushable",
+   "entityType": "None",
+   "layer": 1
+  },
+  {
+   "name": "box_pushable_2",
+   "positionPx": [
+    480.0,
+    126.0
+   ],
+   "sizePx": [
+    27.0,
+    23.0
+   ],
+   "bodyType": "dynamic",
+   "textureId": "BoxPushable",
+   "entityType": "None",
+   "layer": 1
+  },
+  {
+   "name": "teleport_1",
+   "positionPx": [
+    32.0,
+    360.0
+   ],
+   "sizePx": [
+    32.0,
+    9.0
+   ],
+   "bodyType": "static",
+   "textureId": "Teleport",
+   "entityType": "None",
+   "layer": 1
+  },
+  {
+   "name": "teleport_2",
+   "positionPx": [
+    468.0,
+    360.0
+   ],
+   "sizePx": [
+    32.0,
+    9.0
+   ],
+   "bodyType": "static",
+   "textureId": "Teleport",
+   "entityType": "None",
+   "layer": 1
+  },
+  {
+   "name": "platform_4",
+   "positionPx": [
+    507.0,
+    173.0
+   ],
+   "sizePx": [
+    133.0,
+    14.0
+   ],
+   "bodyType": "static",
+   "textureId": "Grass",
+   "entityType": "None",
+   "layer": 1
+  }
+ ]
+}

@@ -8,6 +8,7 @@
 #include <Ryu/Debug/imGuiDebug.h>
 #include <Ryu/Events/Observer.h>
 #include <RyuSuite/RAnimator.h>
+#include <RyuSuite/LevelEditor.h>
 
 #include <memory>
 #include <optional>
@@ -42,6 +43,7 @@ class Game : public Observer
         EventManager mEventManager;
         std::unique_ptr<PlayerController> mPlayerController;
         RyuAnimator::Editor mAnimator;
+        RyuLevel::Editor mLevelEditor;
         bool mIsPaused;
         RyuDebug::DebugWidgets mDebugWidgets;
         World mWorld;

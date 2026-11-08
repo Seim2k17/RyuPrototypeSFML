@@ -41,6 +41,14 @@ class PlayerController : public Observer, public Subject /// notifier and observ
         void setActionBindingCharacterSpeed();
         void update(sf::Time deltatime);
 
+        /** \brief While an editor/debug/ImGui overlay is open only the
+            F1-F12 mode keys are forwarded to the game; every other key is
+            swallowed (e.g. text typed in an editor field must not control
+            the character). Set by Game, active whenever any overlay is
+            open or ImGui wants keyboard input. */
+        void setUiInputActive(bool active) { mUiInputActive = active; }
+        bool isUiInputActive() const { return mUiInputActive; }
+
         void onNotify(const SceneNode& entity, RyuEvent event) override;
 
     private:
@@ -54,5 +62,9 @@ class PlayerController : public Observer, public Subject /// notifier and observ
 
         std::shared_ptr<CharacterIchi> playerCharacter;
         EventManager& mEventManager;
+        bool mUiInputActive;
+        /// debug-panel state, tracked here: its toggle-key must still work
+        /// while the input gate is active (usable to close it again)
+        bool mDebugPanelOpen;
 
 };

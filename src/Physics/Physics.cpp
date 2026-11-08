@@ -8,6 +8,7 @@
 #include <Ryu/Events/EventBus.h>
 
 #include <Ryu/Core/Utilities.h>
+#include <Ryu/Scene/LevelData.h>
 
 #include <Ryu/Character/ICharacter.h>
 #include <SFML/Graphics/RectangleShape.hpp>
@@ -81,13 +82,17 @@ Physics::Physics() :
     mCharacterPhysics({}),
     mPhysicsWorldId(),
     mStaticEntities(),
+    mActiveLevel(ELevel::Level2),
     mPhTimeStep(PHYSICS_TIME_STEP),
     mDebugPhysicsActive(false)
 {
     b2WorldDef worldDef = b2DefaultWorldDef();
     worldDef.gravity = GRAVITY;
     mPhysicsWorldId = b2CreateWorld(&worldDef);
-    
+
+    // level data comes from the generic per-level JSON files instead of the
+    // former hardcoded sceneObjects initializer in Physics.h
+    sceneObjects = RyuLevel::loadLevelDataFiles();
 }
 
 Physics::~Physics()
@@ -422,6 +427,7 @@ Physics::initCharacterPhysics(ICharacter& character, bool inDuckMode)
 void
 Physics::createPhysicsSceneObjects(ELevel level)
 {
+    mActiveLevel = level;
     // Destroy old physics bodies before creating new ones
     for(auto& obj : sceneObjects.at(level)) {
         if (b2Body_IsValid(obj.mPhysicsBodyId) && !B2_IS_NULL(obj.mPhysicsBodyId)) {
@@ -435,9 +441,10 @@ Physics::createPhysicsSceneObjects(ELevel level)
         }
     }
     
-    // Clear mStaticEntities and mCharacterPhysics to avoid leaks
+    // Clear mStaticEntities to avoid leaks; the character bodies are owned
+    // separately and must survive a scene-object reload (the World/Renderer
+    // keep their handles).
     mStaticEntities.clear();
-    clearCharacterPhysics();
     
     // Create new physics bodies
     int i = 0;
@@ -579,15 +586,161 @@ Physics::createPhysicsBody(SceneObjectPhysicsParameters& sceneObject, int& i)
     event.size = sceneObject.mSize;
     event.isDynamic = (sceneObject.mType == b2_dynamicBody);
     event.textureId = sceneObject.mTextureId;  // Pass texture ID for rendering
+    event.layer = sceneObject.mLayer;
     
     EventBus::emit(Ryu::EPhysicsEvent::ObjectCreated, event);
     return bodyId;
 }
 
+namespace
+{
+bool
+bodyIdsEqual(const b2BodyId &lhs, const b2BodyId &rhs)
+{
+    return lhs.index1 == rhs.index1 && lhs.generation == rhs.generation
+           && lhs.world0 == rhs.world0;
+}
+
+void
+destroySceneObjectBody(b2BodyId bodyId)
+{
+    if (not b2Body_IsValid(bodyId) || B2_IS_NULL(bodyId)) { return; }
+    // Free the sf::Shape* stored in user data
+    void* userData = b2Body_GetUserData(bodyId);
+    if (userData) { delete static_cast<sf::Shape*>(userData); }
+    b2DestroyBody(bodyId);
+}
+
+} // anonymous namespace
+
+SceneObjectPhysicsParameters&
+Physics::addSceneObject(ELevel level, SceneObjectPhysicsParameters object)
+{
+    auto& objects = sceneObjects[level];
+    int i = 0;
+    object.mPhysicsBodyId = createPhysicsBody(object, i);
+    fmt::print("Physics: added scene object '{}' ({}).\n", object.mName, level._to_string());
+    objects.push_back(std::move(object));
+    return objects.back();
+}
+
+bool
+Physics::removeSceneObject(b2BodyId bodyId)
+{
+    for (auto& [level, objects] : sceneObjects)
+    {
+        for (auto it = objects.begin(); it != objects.end(); ++it)
+        {
+            if (not bodyIdsEqual(it->mPhysicsBodyId, bodyId)) { continue; }
+
+            destroySceneObjectBody(bodyId);
+
+            PhysicsObjectDestroyedEvent event;
+            event.bodyId = bodyId;
+            event.name = it->mName;
+            EventBus::emit(Ryu::EPhysicsEvent::ObjectDestroyed, event);
+
+            fmt::print("Physics: removed scene object '{}'.\n", event.name);
+            objects.erase(it);
+            return true;
+        }
+    }
+    fmt::print("Physics: removeSceneObject: no object for this bodyId.\n");
+    return false;
+}
+
+b2BodyId
+Physics::recreateSceneObject(b2BodyId bodyId)
+{
+    auto* object = findSceneObject(bodyId);
+    if (object == nullptr)
+    {
+        fmt::print("Physics: recreateSceneObject: no object for this bodyId.\n");
+        return b2_nullBodyId;
+    }
+
+    if (b2Body_IsValid(bodyId) && not B2_IS_NULL(bodyId))
+    {
+        void* userData = b2Body_GetUserData(bodyId);
+        if (userData) { delete static_cast<sf::Shape*>(userData); }
+        b2DestroyBody(bodyId);
+    }
+    PhysicsObjectDestroyedEvent event;
+    event.bodyId = bodyId;
+    event.name = object->mName;
+    EventBus::emit(Ryu::EPhysicsEvent::ObjectDestroyed, event);
+
+    int i = 0;
+    object->mPhysicsBodyId = createPhysicsBody(*object, i);
+    return object->mPhysicsBodyId;
+}
+
+bool
+Physics::moveSceneObject(b2BodyId bodyId, const b2Vec2& position)
+{
+    auto* object = findSceneObject(bodyId);
+    if (object == nullptr || not b2Body_IsValid(bodyId))
+    {
+        return false;
+    }
+
+    object->mPosition = position;
+    const float rotation = b2Rot_GetAngle(b2Body_GetRotation(bodyId));
+    b2Body_SetTransform(bodyId, position, b2MakeRot(rotation));
+
+    // the renderer follows the body without recreating the node
+    PhysicsObjectUpdatedEvent event;
+    event.bodyId = bodyId;
+    event.position = position;
+    event.name = object->mName;
+    event.rotation = rotation;
+    EventBus::emit(Ryu::EPhysicsEvent::ObjectUpdated, event);
+    return true;
+}
+
+SceneObjectPhysicsParameters*
+Physics::findSceneObject(b2BodyId bodyId)
+{
+    for (auto& [level, objects] : sceneObjects)
+    {
+        for (auto& object : objects)
+        {
+            if (bodyIdsEqual(object.mPhysicsBodyId, bodyId)) { return &object; }
+        }
+    }
+    return nullptr;
+}
+
+void
+Physics::reloadSceneObjects(ELevel level)
+{
+    // Deactivate scene-object bodies of all other levels first (their
+    // parameters stay, so the editor can switch back to them); the character
+    // body is owned separately and kept.
+    for (auto& [otherLevel, objects] : sceneObjects)
+    {
+        if (otherLevel == level) { continue; }
+        for (auto& obj : objects)
+        {
+            if (not b2Body_IsValid(obj.mPhysicsBodyId)
+                || B2_IS_NULL(obj.mPhysicsBodyId))
+            {
+                continue;
+            }
+            destroySceneObjectBody(obj.mPhysicsBodyId);
+            PhysicsObjectDestroyedEvent event;
+            event.bodyId = obj.mPhysicsBodyId;
+            event.name = obj.mName;
+            EventBus::emit(Ryu::EPhysicsEvent::ObjectDestroyed, event);
+            obj.mPhysicsBodyId = b2_nullBodyId;
+        }
+    }
+    createPhysicsSceneObjects(level);
+}
+
 void
 Physics::setDebugDrawer(b2DrawSFML dbgDrawer)
-{
-    debugDrawer.SetTarget(dbgDrawer.GetRenderTarget());
+{    debugDrawer.SetTarget(dbgDrawer.GetRenderTarget());
     debugDrawer.SetScale(dbgDrawer.GetScale());
     debugDrawer.SetAllFlags();
 

@@ -119,6 +119,33 @@ class Physics : public Subject {
     void onBodyTransformed(BodyTransformedCallback callback);
     void clearCharacterPhysics();
 
+    /** \name Level editing
+     *  Incremental level manipulation used by the level editor.
+     *  \note   Body removal must only ever be done here: Physics owns all
+     *          Box2D bodies (double-destroy hits the B2_ASSERT in Box2D).
+     *  \{ */
+    /** Creates the physics body of a new scene object and fires the
+        ObjectCreated event; the object is appended to sceneObjects \p level. */
+    SceneObjectPhysicsParameters& addSceneObject(ELevel level,
+                                                 SceneObjectPhysicsParameters object);
+    /** Removes a scene object (body + parameters); fires ObjectDestroyed.
+        Returns false if no object with this bodyId exists. */
+    bool removeSceneObject(b2BodyId bodyId);
+    /** Recreates the body of an edited object (position/size/type changes);
+        returns the (new) bodyId. */
+    b2BodyId recreateSceneObject(b2BodyId bodyId);
+    /** Returns the parameters of a scene object, nullptr if unknown. */
+    SceneObjectPhysicsParameters* findSceneObject(b2BodyId bodyId);
+    /** Destroys and recreates all scene-object bodies of \p level (e.g. after
+        editing or loading level data). The character bodies are untouched. */
+    void reloadSceneObjects(ELevel level);
+    /** Moves a scene object live during a drag (no body recreation);
+        returns false if unknown. */
+    bool moveSceneObject(b2BodyId bodyId, const b2Vec2& position);
+    /** The level whose scene-object bodies are currently created. */
+    ELevel getActiveLevel() const { return mActiveLevel; }
+    /** \} */
+
    private:
     //void createPhysicsBody(SceneObjectPhysicsParameters sceneObject);
     b2BodyId createPhysicsBody(SceneObjectPhysicsParameters& sceneObject, int& i);
@@ -133,6 +160,7 @@ class Physics : public Subject {
     std::unordered_map<const b2BodyId, std::unique_ptr<EntityStatic>, b2BodyIdHash, b2BodyIdEqual> mStaticEntities;
     //std::map<const uintptr_t, std::shared_ptr<EntityStatic> > mStaticEntities;
     // std::map<uintptr_t, EntityStatic > mStaticEntities;
+    ELevel mActiveLevel;
     float mPhTimeStep;
     bool mDebugPhysicsActive;
 
@@ -141,39 +169,5 @@ class Physics : public Subject {
     std::vector<BodyTransformedCallback> mBodyTransformedCallbacks;
 
    public: // TODO: tmp storage !!!! -> make static again outside of class, e.g. mnovce to renderer-class
-    std::map<ELevel , std::vector<SceneObjectPhysicsParameters>> sceneObjects = {
-    {ELevel::Level1,
-     {{{320, 351}, {640, 9}, "floor", b2_staticBody, Textures::SceneID::Grass, EntityType::None },
-      {{4, 261}, {9, 360}, "left_side", b2_staticBody, Textures::SceneID::Grass, EntityType::None },
-      {{635, 261}, {9, 495}, "right_side", b2_staticBody, Textures::SceneID::Grass, EntityType::None }
-      ,// 1rst platform
-      {{37, 68}, {80, 14}, "platform_1", b2_staticBody, Textures::SceneID::Grass, EntityType::None },
-      {{128, 126}, {75, 14}, "platform_2", b2_staticBody, Textures::SceneID::Grass, EntityType::Climbable },
-      {{203, 171}, {80, 14}, "platform_3", b2_staticBody, Textures::SceneID::Grass, EntityType::Climbable },
-      {{267, 225}, {171, 14}, "platform_4", b2_staticBody, Textures::SceneID::Grass, EntityType::None },
-      {{384, 189}, {64, 14}, "platform_5", b2_staticBody, Textures::SceneID::Grass, EntityType::None },
-      {{416, 135}, {64, 14}, "platform_6", b2_staticBody, Textures::SceneID::Grass, EntityType::None },
-      {{384, 270}, {64, 14}, "platform_7", b2_staticBody, Textures::SceneID::Grass, EntityType::None },
-      {{416, 315}, {64, 14}, "platform_8", b2_staticBody, Textures::SceneID::Grass, EntityType::None },
-      {{160, 45}, {27, 23}, "box_pushable_1", b2_dynamicBody, Textures::SceneID::BoxPushable, EntityType::None }
-   }},
-    {ELevel::Level2,
-     {{{320, 360}, {640, 9}, "floor", b2_staticBody, Textures::SceneID::Grass, EntityType::None },
-      {{4, 261}, {9, 369}, "left_side", b2_staticBody, Textures::SceneID::Grass, EntityType::None },
-      {{635, 261}, {9, 495}, "right_side", b2_staticBody, Textures::SceneID::Grass, EntityType::None }, // 1rst platform
-      {{59, 68}, {117, 14}, "platform_1", b2_staticBody, Textures::SceneID::Grass, EntityType::None },
-      {{240, 68}, {133, 14}, "platform_2", b2_staticBody, Textures::SceneID::Grass, EntityType::None },
-      {{205, 45}, {17, 45}, "grate_1", b2_staticBody, Textures::SceneID::Grate, EntityType::None },
-      {{203, 167}, {103, 14}, "platform_3", b2_staticBody, Textures::SceneID::Grass, EntityType::None },
-      {{213, 164}, {32, 9}, "button_1", b2_staticBody, Textures::SceneID::Button, EntityType::None },
-      {{576, 360}, {32, 9}, "button_2", b2_staticBody, Textures::SceneID::Button, EntityType::None },
-      {{265, 155}, {17, 38}, "platform_3_wall", b2_staticBody, Textures::SceneID::Grass, EntityType::None },
-      {{315, 196}, {17, 268}, "middle_wall", b2_staticBody, Textures::SceneID::Grass, EntityType::None },
-      {{400, 45}, {27, 23}, "box_pushable_1", b2_dynamicBody, Textures::SceneID::BoxPushable, EntityType::None },
-      {{480, 126}, {27, 23}, "box_pushable_2", b2_dynamicBody, Textures::SceneID::BoxPushable, EntityType::None },
-      {{32, 360}, {32, 9}, "teleport_1", b2_staticBody, Textures::SceneID::Teleport, EntityType::None },
-      {{468, 360}, {32, 9}, "teleport_2", b2_staticBody, Textures::SceneID::Teleport, EntityType::None },
-      {{507, 173}, {133, 14}, "platform_4", b2_staticBody, Textures::SceneID::Grass, EntityType::None },
-   }}
-  };
+    std::map<ELevel, std::vector<SceneObjectPhysicsParameters>> sceneObjects;
 };

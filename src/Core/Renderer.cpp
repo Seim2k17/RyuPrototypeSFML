@@ -10,6 +10,18 @@
 #include <SFML/Graphics/Color.hpp>
 #include <SFML/Graphics/RectangleShape.hpp>
 
+namespace
+{
+
+bool
+bodyIdsEqual(const b2BodyId& lhs, const b2BodyId& rhs)
+{
+    return lhs.index1 == rhs.index1 && lhs.generation == rhs.generation
+           && lhs.world0 == rhs.world0;
+}
+
+} // anonymous namespace
+
 Renderer::Renderer(sf::RenderWindow& window, EventManager& eventManager, const std::map<ELevel, std::vector<SceneObjectPhysicsParameters>>& sceneObjects)
      : mPhysicsAssetsManager()
      , mWindow(window)
@@ -22,6 +34,10 @@ Renderer::Renderer(sf::RenderWindow& window, EventManager& eventManager, const s
      , mSpawnPosition(mWorldBounds.size.x / 2.f,
               mWorldBounds.size.y - 50)  // Spawn near bottom (50 units from bottom)
      , mPushBox(nullptr)
+     , mHoveredBodyId(b2_nullBodyId)
+     , mHoverShowsOutline(false)
+     , mSelectedBodyId(b2_nullBodyId)
+     , mShowResizePreview(false)
      , mActiveCommands()
      , mSceneObjects(sceneObjects)
      , mEventManager(eventManager)
@@ -30,8 +46,8 @@ Renderer::Renderer(sf::RenderWindow& window, EventManager& eventManager, const s
      // baseTextureManager.load(Textures::PhysicAssetsID::Empty, "assets/scenes/99_dummy/box_empty.png");
      loadTextures();
      buildScene();
-     // TODO: more generic scenobject - creation
-     createSceneFromConfiguration(ELevel::Level2);
+     // Scene nodes for the physics scene objects are created exclusively via
+     // the ObjectCreated physics events (single source of truth: Physics).
 
      // Subscribe to physics events
      EventBus::subscribe(Ryu::EPhysicsEvent::ObjectCreated
@@ -120,6 +136,174 @@ void Renderer::buildScene() {
 void Renderer::draw()
 {
     mWindow.draw(mSceneGraph);
+    drawLevelEditorOverlay();
+}
+
+b2BodyId
+Renderer::getSceneObjectAt(ELevel level, const b2Vec2& position) const
+{
+    if (not mSceneObjects.contains(level)) { return b2_nullBodyId; }
+
+    for (const auto& object : mSceneObjects.at(level))
+    {
+        if (B2_IS_NULL(object.mPhysicsBodyId)) { continue; }
+
+        // object rects use center positions; stored in world meters,
+        // hit-test happens in pixels
+        const sf::Vector2f centerPx{
+            Converter::metersToPixels(object.mPosition.x),
+            Converter::metersToPixels(object.mPosition.y)};
+        const sf::Vector2f sizePx{
+            Converter::metersToPixels(object.mSize.x),
+            Converter::metersToPixels(object.mSize.y)};
+        const sf::FloatRect rect{centerPx - sizePx / 2.f, sizePx};
+
+        if (rect.contains({position.x, position.y}))
+        {
+            return object.mPhysicsBodyId;
+        }
+    }
+    return b2_nullBodyId;
+}
+
+void
+Renderer::setHoverHighlight(b2BodyId bodyId, bool withOutline)
+{
+    mHoveredBodyId = bodyId;
+    mHoverShowsOutline = withOutline;
+}
+
+void
+Renderer::setSelectedHighlight(b2BodyId bodyId)
+{
+    mSelectedBodyId = bodyId;
+}
+
+void
+Renderer::setResizePreview(const sf::Vector2f& positionPx,
+                           const sf::Vector2f& sizePx, bool show)
+{
+    mResizePreviewPositionPx = positionPx;
+    mResizePreviewSizePx = sizePx;
+    mShowResizePreview = show;
+}
+
+void
+Renderer::drawLevelEditorOverlay()
+{
+    constexpr float overlayAlpha = 180.f; // 70% opacity
+    const sf::Color hoverFill{255, 140, 0,
+                              static_cast<std::uint8_t>(overlayAlpha)};
+    const sf::Color outline = sf::Color::Red;
+    const float outlineThickness = 1.f;
+
+    sf::RectangleShape rect;
+
+    // live-resize preview of the object currently being resized
+    if (mShowResizePreview)
+    {
+        rect.setPosition(mResizePreviewPositionPx - mResizePreviewSizePx / 2.f);
+        rect.setSize(mResizePreviewSizePx);
+        rect.setFillColor(hoverFill);
+        rect.setOutlineColor(outline);
+        rect.setOutlineThickness(outlineThickness);
+        mWindow.draw(rect);
+    }
+
+    // 8 resize handles (4 corners + edge midpoints) around the object rect
+    auto drawEdgeMarkers = [&](const sf::Vector2f& centerPx,
+                               const sf::Vector2f& sizePx)
+    {
+        constexpr float handleSize = 4.f;
+        const sf::Vector2f half = sizePx / 2.f;
+        const sf::Vector2f handlePoints[8] = {
+            {-half.x, -half.y}, {0.f, -half.y}, {half.x, -half.y},
+            {-half.x, 0.f}, {half.x, 0.f},
+            {-half.x, half.y}, {0.f, half.y}, {half.x, half.y},
+        };
+        rect.setFillColor(outline);
+        rect.setOutlineThickness(0.f);
+        for (const auto& point : handlePoints)
+        {
+            rect.setPosition(centerPx + point
+                             - sf::Vector2f{handleSize, handleSize} / 2.f);
+            rect.setSize({handleSize, handleSize});
+            mWindow.draw(rect);
+        }
+    };
+
+    auto drawHoverHighlight = [&](b2BodyId bodyId)
+    {
+        if (B2_IS_NULL(bodyId)) { return; }
+        for (const auto& [level, objects] : mSceneObjects)
+        {
+            for (const auto& object : objects)
+            {
+                if (not bodyIdsEqual(object.mPhysicsBodyId, bodyId)) { continue; }
+
+                const sf::Vector2f centerPx{
+                    Converter::metersToPixels(object.mPosition.x),
+                    Converter::metersToPixels(object.mPosition.y)};
+                const sf::Vector2f sizePx{
+                    Converter::metersToPixels(object.mSize.x),
+                    Converter::metersToPixels(object.mSize.y)};
+
+                rect.setPosition(centerPx - sizePx / 2.f);
+                rect.setSize(sizePx);
+                rect.setFillColor(hoverFill);
+                rect.setOutlineColor(mHoverShowsOutline ? outline
+                                                        : sf::Color::Transparent);
+                rect.setOutlineThickness(mHoverShowsOutline ? outlineThickness
+                                                            : 0.f);
+                mWindow.draw(rect);
+                if (mHoverShowsOutline) { drawEdgeMarkers(centerPx, sizePx); }
+                return;
+            }
+        }
+    };
+
+    auto drawSelectionHighlight = [&](b2BodyId bodyId)
+    {
+        if (B2_IS_NULL(bodyId)) { return; }
+        for (const auto& [level, objects] : mSceneObjects)
+        {
+            for (const auto& object : objects)
+            {
+                if (not bodyIdsEqual(object.mPhysicsBodyId, bodyId)) { continue; }
+
+                const sf::Vector2f centerPx{
+                    Converter::metersToPixels(object.mPosition.x),
+                    Converter::metersToPixels(object.mPosition.y)};
+                const sf::Vector2f sizePx{
+                    Converter::metersToPixels(object.mSize.x),
+                    Converter::metersToPixels(object.mSize.y)};
+
+                rect.setPosition(centerPx - sizePx / 2.f);
+                rect.setSize(sizePx);
+                rect.setFillColor(hoverFill);
+                rect.setOutlineColor(outline);
+                rect.setOutlineThickness(outlineThickness);
+                mWindow.draw(rect);
+
+                drawEdgeMarkers(centerPx, sizePx);
+                return;
+            }
+        }
+    };
+
+    // hover tint from the level-object list (fill only, no outline)
+    if (not bodyIdsEqual(mHoveredBodyId, mSelectedBodyId)
+        && not B2_IS_NULL(mHoveredBodyId))
+    {
+        drawHoverHighlight(mHoveredBodyId);
+    }
+
+    // selection mode visuals (fill + red outline + handles) only while the
+    // Select tool is on
+    if (not B2_IS_NULL(mSelectedBodyId))
+    {
+        drawSelectionHighlight(mSelectedBodyId);
+    }
 }
 
 void Renderer::update(sf::Time dt)
@@ -187,10 +371,12 @@ Renderer::onPhysicsObjectCreated(const PhysicsObjectCreatedEvent& event)
             Converter::metersToPixels(event.position.y)
         });
         
-        // Attach to the appropriate layer and get the shared_ptr
-        // For physics objects created via events, use Ground1 layer by default
-        // TODO: check if this is valid for all cases, probably not
-        auto nodeShared = mSceneLayers[static_cast<size_t>(Layer::Ground1)]->attachChildReturningPtr(std::move(spriteNode));
+        // Attach to the layer specified in the scene object configuration
+        auto& layerNode = mSceneLayers[static_cast<size_t>(
+            std::clamp(event.layer,
+                       static_cast<int>(Layer::Background),
+                       static_cast<int>(Layer::LayerCount) - 1))];
+        auto nodeShared = layerNode->attachChildReturningPtr(std::move(spriteNode));
         
         // Store the mapping from bodyId to the sprite node for updates
         mPhysicsBodyToNode[event.bodyId] = nodeShared;
@@ -220,11 +406,27 @@ Renderer::onPhysicsObjectUpdated(const PhysicsObjectUpdatedEvent& event)
 void
 Renderer::onPhysicsObjectDestroyed(const PhysicsObjectDestroyedEvent& event)
 {
-    // Remove the destroyed physics object from the mapping
+    // Remove the destroyed physics object from the mapping and detach its
+    // sprite node from the scene graph
+    auto it = mPhysicsBodyToNode.find(event.bodyId);
+    if (it != mPhysicsBodyToNode.end() && !it->second.expired())
+    {
+        if (auto node = it->second.lock())
+        {
+            // detach from the node's actual parent layer (detachChild asserts
+            // when the node is not a child of the node it is called on)
+            auto owner = std::find_if(mSceneLayers.begin(), mSceneLayers.end(),
+                [&node](const auto &layer) {
+                    return layer && layer.get() == node->getParent();
+                });
+            if (owner != mSceneLayers.end()) { (*owner)->detachChild(*node); }
+        }
+    }
     mPhysicsBodyToNode.erase(event.bodyId);
-    
-    // Note: With the scenegraph approach, we don't need to manually remove objects
-    // as they should be managed by the scenegraph.
+
+    // The node itself is destroyed by the scenegraph (detachChild owns it).
+    // Note: With the scenegraph approach, we don't need to manually destroy
+    // objects.
 }
 
 void Renderer::createSceneFromConfiguration(ELevel level)

@@ -45,6 +45,7 @@ Game::Game()
 ,mDebugWidgetsActive(false)
 {
 	addObservers();
+	mLevelEditor.setWorld(&mWorld);
 	//mEventManager.registerPlayer(mPlayerController->getPlayableCharacter());
 	// 1. when everthing is loaded and initialized
 	// 2. in main.cpp: call run() the game
@@ -98,6 +99,11 @@ Game::onNotify(const SceneNode& entity, RyuEvent event)
 		case RyuEvent::RyuAnimatorToggle:
 		{
 			mAnimator.showAnimationEditor == false ? mAnimator.showAnimationEditor=true : mAnimator.showAnimationEditor=false;
+			break;
+		}
+		case RyuEvent::LevelEditorToggle:
+		{
+			mLevelEditor.showLevelEditor = not mLevelEditor.showLevelEditor;
 			break;
 		}
 		case RyuEvent::DebugValuesChanged:
@@ -192,6 +198,14 @@ void Game::run()
 			mDebugWidgets.CreateDebugGui();
 		}//!mAnimator.showAnimationEditor
 		mAnimator.createEditorWidgets(&mAnimator.showAnimationEditor);
+		mLevelEditor.createEditorWidgets(&mLevelEditor.showLevelEditor);
+
+		// while any editor/overlay is open the game only listens to the
+		// mode keys (see PlayerController::handleEvent / handleRealtimeInput)
+		mPlayerController->setUiInputActive(
+			mDebugWidgetsActive
+			|| mAnimator.showAnimationEditor
+			|| mLevelEditor.showLevelEditor);
 
 		// Render once per frame, outside the fixed-timestep loop: a slow render
 		// must not slow down the simulation.
@@ -211,7 +225,46 @@ void Game::processEvents(std::optional<sf::Event> event, CommandQueue& commands)
 {
 	ZoneScoped;
 		// Player-related one-time events
+		// arrow keys navigate the level-editor object list while it is open
+		if (mLevelEditor.showLevelEditor && event->is<sf::Event::KeyPressed>())
+		{
+			const auto* key = event->getIf<sf::Event::KeyPressed>();
+			if (key->scancode == sf::Keyboard::Scancode::Up
+				|| key->scancode == sf::Keyboard::Scancode::Down
+				|| key->scancode == sf::Keyboard::Scancode::Left
+				|| key->scancode == sf::Keyboard::Scancode::Right)
+			{
+				mLevelEditor.handleKey(key->scancode);
+			}
+		}
+
 		mPlayerController->handleEvent(event.value(), commands);
+
+		// forward game-view mouse events to the level editor while it is open
+		if (mLevelEditor.showLevelEditor)
+		{
+			sf::Vector2i mousePixel;
+			if (const auto* moved = event->getIf<sf::Event::MouseMoved>())
+			{
+				mousePixel = moved->position;
+			}
+			else if (const auto* mb = event->getIf<sf::Event::MouseButtonPressed>())
+			{
+				mousePixel = mb->position;
+			}
+			else if (const auto* mr = event->getIf<sf::Event::MouseButtonReleased>())
+			{
+				mousePixel = mr->position;
+			}
+
+			// forward whenever a mouse position was resolvable (mouse move,
+			// button press, button release)
+			if (mousePixel != sf::Vector2i{-1, -1})
+			{
+				mLevelEditor.handleMouseEvent(event.value(),
+					mWindow.mapPixelToCoords(mousePixel));
+			}
+		}
 		//auto evt = event->getIf<T>()
 
 

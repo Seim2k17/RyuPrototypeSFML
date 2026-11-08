@@ -62,6 +62,8 @@ PlayerController::PlayerController(EventManager& eventManager)
 , mActionBindingRelease({})
 , playerCharacter(std::make_shared<CharacterIchi>(ECharacterState::Idle, CHAR_START_POSITION))
 , mEventManager(eventManager)
+, mUiInputActive(false)
+, mDebugPanelOpen(false)
 {
     initializeBindings();
     mEventManager.registerPlayer(playerCharacter);
@@ -164,6 +166,23 @@ PlayerController::handleEvent(const sf::Event& event, CommandQueue& commands)
     // first test for one-time events
     if(const auto* keyPressed = event.getIf<sf::Event::KeyPressed>())
     {
+        // While an editor/overlay is open (see setUiInputActive) only mode
+        // switches work: F1-F12, and P when it closes the debug panel the
+        // player is currently typing in (but it never opens the panel in
+        // this mode). All other keys are swallowed so text typed in editor
+        // fields does not control the character. The keys remain visible
+        // to ImGui (ImGui::SFML::ProcessEvent runs before this in
+        // Game::processEvents).
+        const bool functionKey
+            = keyPressed->scancode >= sf::Keyboard::Scancode::F1
+              && keyPressed->scancode <= sf::Keyboard::Scancode::F12;
+        if (mUiInputActive && not functionKey
+            && not (keyPressed->scancode == sf::Keyboard::Scancode::P
+                    && mDebugPanelOpen))
+        {
+            return;
+        }
+
         switch (keyPressed->scancode)
         {
             case sf::Keyboard::Scancode::D:
@@ -215,6 +234,9 @@ PlayerController::handleEvent(const sf::Event& event, CommandQueue& commands)
                     std::cout << s.getPosition().x << "," << s.getPosition().y << "\n";
                 };
                 notify(*playerCharacter,RyuEvent::DebugToggle);
+                // remember the panel state (the toggler of the event): P
+                // closes it again while an overlay input gate is active
+                mDebugPanelOpen = not mDebugPanelOpen;
                 break;
             }
             case sf::Keyboard::Scancode::F1:
@@ -225,6 +247,11 @@ PlayerController::handleEvent(const sf::Event& event, CommandQueue& commands)
             case sf::Keyboard::Scancode::F2:
             {
                  notify(*playerCharacter,RyuEvent::RyuAnimatorToggle);
+                 break;
+            }
+            case sf::Keyboard::Scancode::F3:
+            {
+                 notify(*playerCharacter,RyuEvent::LevelEditorToggle);
                  break;
             }
 
@@ -310,6 +337,13 @@ void
 PlayerController::handleRealtimeInput(CommandQueue& commands)
 {
     ZoneScopedN("handleInput_PlCtrl");
+
+    // While an editor/overlay is open the realtime bindings (movement etc.)
+    // are suspended: the keys stay available for the editor / ImGui.
+    if (mUiInputActive)
+    {
+        return;
+    }
 
     for(auto const& binding : mKeyBindingPress)
     {

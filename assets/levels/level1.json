@@ -1,0 +1,185 @@
+{
+ "levelName": "1",
+ "objects": [
+  {
+   "name": "floor",
+   "positionPx": [
+    320.0,
+    351.0
+   ],
+   "sizePx": [
+    640.0,
+    9.0
+   ],
+   "bodyType": "static",
+   "textureId": "Grass",
+   "entityType": "None",
+   "layer": 1
+  },
+  {
+   "name": "left_side",
+   "positionPx": [
+    4.0,
+    261.0
+   ],
+   "sizePx": [
+    9.0,
+    360.0
+   ],
+   "bodyType": "static",
+   "textureId": "Grass",
+   "entityType": "None",
+   "layer": 1
+  },
+  {
+   "name": "right_side",
+   "positionPx": [
+    635.0,
+    261.0
+   ],
+   "sizePx": [
+    9.0,
+    495.0
+   ],
+   "bodyType": "static",
+   "textureId": "Grass",
+   "entityType": "None",
+   "layer": 1
+  },
+  {
+   "name": "platform_1",
+   "positionPx": [
+    37.0,
+    68.0
+   ],
+   "sizePx": [
+    80.0,
+    14.0
+   ],
+   "bodyType": "static",
+   "textureId": "Grass",
+   "entityType": "None",
+   "layer": 1
+  },
+  {
+   "name": "platform_2",
+   "positionPx": [
+    128.0,
+    126.0
+   ],
+   "sizePx": [
+    75.0,
+    14.0
+   ],
+   "bodyType": "static",
+   "textureId": "Grass",
+   "entityType": "Climbable",
+   "layer": 1
+  },
+  {
+   "name": "platform_3",
+   "positionPx": [
+    203.0,
+    171.0
+   ],
+   "sizePx": [
+    80.0,
+    14.0
+   ],
+   "bodyType": "static",
+   "textureId": "Grass",
+   "entityType": "Climbable",
+   "layer": 1
+  },
+  {
+   "name": "platform_4",
+   "positionPx": [
+    267.0,
+    225.0
+   ],
+   "sizePx": [
+    171.0,
+    14.0
+   ],
+   "bodyType": "static",
+   "textureId": "Grass",
+   "entityType": "None",
+   "layer": 1
+  },
+  {
+   "name": "platform_5",
+   "positionPx": [
+    384.0,
+    189.0
+   ],
+   "sizePx": [
+    64.0,
+    14.0
+   ],
+   "bodyType": "static",
+   "textureId": "Grass",
+   "entityType": "None",
+   "layer": 1
+  },
+  {
+   "name": "platform_6",
+   "positionPx": [
+    416.0,
+    135.0
+   ],
+   "sizePx": [
+    64.0,
+    14.0
+   ],
+   "bodyType": "static",
+   "textureId": "Grass",
+   "entityType": "None",
+   "layer": 1
+  },
+  {
+   "name": "platform_7",
+   "positionPx": [
+    384.0,
+    270.0
+   ],
+   "sizePx": [
+    64.0,
+    14.0
+   ],
+   "bodyType": "static",
+   "textureId": "Grass",
+   "entityType": "None",
+   "layer": 1
+  },
+  {
+   "name": "platform_8",
+   "positionPx": [
+    416.0,
+    315.0
+   ],
+   "sizePx": [
+    64.0,
+    14.0
+   ],
+   "bodyType": "static",
+   "textureId": "Grass",
+   "entityType": "None",
+   "layer": 1
+  },
+  {
+   "name": "box_pushable_1",
+   "positionPx": [
+    160.0,
+    45.0
+   ],
+   "sizePx": [
+    27.0,
+    23.0
+   ],
+   "bodyType": "dynamic",
+   "textureId": "BoxPushable",
+   "entityType": "None",
+   "layer": 1
+  }
+ ]
+}
