@@ -425,6 +425,86 @@ Physics::initCharacterPhysics(ICharacter& character, bool inDuckMode)
 }
 
 void
+Physics::recreateCharacterPhysics(ICharacter& character, bool inDuckMode)
+{
+    auto it = mCharacterPhysics.find(character.getCharacterName());
+    if (it == mCharacterPhysics.end() || not b2Body_IsValid(it->second.mBodyId))
+    {
+        // nothing to rebuild: fall back to a fresh initialization
+        initCharacterPhysics(character, inDuckMode);
+        return;
+    }
+
+    CharacterPhysicsParameters& charPhysics = it->second;
+
+    // keep the FEET anchored: the bottom edge of the old body must stay
+    // where it is, otherwise the character visually sinks into the floor
+    // (duck) or floats above it (stand up). The polygon's local corner
+    // gives the old half-height.
+    const b2Vec2 oldCenter = b2Body_GetPosition(charPhysics.mBodyId);
+    const b2Polygon oldPolygon = b2Shape_GetPolygon(charPhysics.mShapeId);
+    const double oldHalfHeightM = std::fabs(oldPolygon.vertices[0].y);
+    const double oldBottomM = oldCenter.y + oldHalfHeightM;
+
+    // keep doubts in the transition minimal: carry over the velocity
+    const b2Vec2 velocity = b2Body_GetLinearVelocity(charPhysics.mBodyId);
+
+    // destroy the old body (its user data holds the debug sf::Shape)
+    void* userData = b2Body_GetUserData(charPhysics.mBodyId);
+    if (userData) { delete static_cast<sf::Shape*>(userData); }
+    b2DestroyBody(charPhysics.mBodyId);
+    charPhysics.mBodyId = b2_nullBodyId;
+
+    const auto shapeSize = inDuckMode ? DUCK_FRAME_SIZE : INIT_FRAME_SIZE;
+    const float size_x = shapeSize.first;
+    const float size_y = shapeSize.second;
+
+    // re-anchor the new body on the old bottom edge
+    const double newCenterM = oldBottomM
+                              - Converter::pixelsToMeters<double>(size_y * 0.5f);
+
+    b2BodyDef bodyDef = b2DefaultBodyDef();
+    bodyDef.type = b2_dynamicBody;
+    bodyDef.fixedRotation = true;
+    bodyDef.gravityScale = 9.8f;
+    bodyDef.position.x = oldCenter.x;
+    bodyDef.position.y = newCenterM;
+
+    charPhysics.mBodyId = b2CreateBody(mPhysicsWorldId, &bodyDef);
+
+    b2Polygon polygonBoxShape = b2MakeBox(
+        Converter::pixelsToMeters<double>(size_x * 0.5f),
+        Converter::pixelsToMeters<double>(size_y * 0.5f));
+    charPhysics.mShapeDef = b2DefaultShapeDef();
+    charPhysics.mShapeDef.density = 4;
+    charPhysics.mShapeId = b2CreatePolygonShape(charPhysics.mBodyId,
+                                                &charPhysics.mShapeDef,
+                                                &polygonBoxShape);
+
+    sf::Shape* shape = new sf::RectangleShape(sf::Vector2f(size_x, size_y));
+    shape->setOrigin({size_x / 2.0f, size_y / 2.0f});
+    shape->setPosition(sf::Vector2f(Converter::metersToPixels(bodyDef.position.x),
+                                    Converter::metersToPixels(bodyDef.position.y)));
+    b2Body_SetUserData(charPhysics.mBodyId, shape);
+
+    b2Body_SetLinearVelocity(charPhysics.mBodyId, velocity);
+    b2Body_SetAwake(charPhysics.mBodyId, true);
+
+    // the character holds its bodyId; hand over the fresh one
+    character.setBodyId(charPhysics.mBodyId);
+
+    PhysicsObjectCreatedEvent event;
+    event.bodyId = charPhysics.mBodyId;
+    event.shapeId = charPhysics.mShapeId;
+    event.name = character.getCharacterName();
+    event.size = {size_x, size_y};
+    event.isDynamic = true;
+    event.textureId = Textures::SpritesheetID::Ichi64x64;
+
+    EventBus::emit(Ryu::EPhysicsEvent::CharacterCreated, event);
+}
+
+void
 Physics::createPhysicsSceneObjects(ELevel level)
 {
     mActiveLevel = level;

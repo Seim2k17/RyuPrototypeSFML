@@ -119,10 +119,15 @@ Game::onNotify(const SceneNode& entity, RyuEvent event)
 		}
 		case RyuEvent::TeleportDo:
 		{
-			fmt::print("TeleportInActive\n");
-			teleportMainCharacter(mDebugWidgets.debugData.mousPos[0]
-								  ,mDebugWidgets.debugData.mousPos[1]);
-            fmt::print("Game: Teleport here: {}/{}\n", mDebugWidgets.debugData.mousPos[0], mDebugWidgets.debugData.mousPos[1]);
+			// mousPos holds WINDOW coordinates captured by ImGui; map them
+			// through the active view to world coordinates, otherwise the
+			// teleport lands at the raw window position (wrong as soon as
+			// window and world sizes differ)
+			const sf::Vector2f worldTarget = mWindow.mapPixelToCoords(
+				{static_cast<int>(mDebugWidgets.debugData.mousPos[0]),
+				 static_cast<int>(mDebugWidgets.debugData.mousPos[1])});
+			teleportMainCharacter(worldTarget.x, worldTarget.y);
+            fmt::print("Game: Teleport here: {}/{}\n", worldTarget.x, worldTarget.y);
 			break;
 		}
 		case RyuEvent::TemporaryOutput:

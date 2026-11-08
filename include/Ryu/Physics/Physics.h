@@ -110,6 +110,10 @@ class Physics : public Subject {
     sf::Shape* getShapeFromPhysicsBody(b2BodyId physicsBodyId);
     b2WorldId& getPhysicsWorldId(){return mPhysicsWorldId;}
     void initCharacterPhysics(ICharacter& character, bool inDuckMode);
+    /// rebuilds the character body with the duck/non-duck shape, keeping the
+    /// FEET anchored at the old body's bottom edge (called when the duck
+    /// state changes); needed since Physics owns all bodies
+    void recreateCharacterPhysics(ICharacter& character, bool inDuckMode);
     void setDebugDrawer(b2DrawSFML dbgDrawer);
     void setDebugPhysics(bool debugPhysics);
     void update();

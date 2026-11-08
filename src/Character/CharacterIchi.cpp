@@ -15,6 +15,7 @@
 #include <box2d/box2d.h>
 #include <fmt/core.h>
 
+#include <algorithm>
 #include <iostream>
 #include <math.h>
 #include <string>
@@ -30,7 +31,9 @@ CharacterIchi::CharacterIchi(ECharacterState startState,
 
     // TMP set
     mCharacterAnimation.getSprite().setTexture(ichiTextureManager.getResource(Textures::SpritesheetID::Ichi64x64));
-    mCharacterAnimation.getSprite().setTextureRect(sf::IntRect({0, 0}, {80, 96}));
+    // frame size of the new 64x64 spritesheet (the old value 80x96 read
+    // across frame boundaries and skewed the origin/bounds)
+    mCharacterAnimation.getSprite().setTextureRect(sf::IntRect({0, 0}, {64, 64}));
     // spawn the character at the requested start position (the animation
     // position is the authoritative character position, the physics body
     // is created from it in Physics::initCharacterPhysics)
@@ -47,7 +50,23 @@ CharacterIchi::setTextureOnCharacter(Textures::SpritesheetID textureId)
 void
 CharacterIchi::teleportCharacter(float x, float y)
 {
-    b2Vec2 newBodyPos{Converter::pixelsToMeters<float>(x), Converter::pixelsToMeters<float>(y)};
+    // clamp the target inside the visible world so the body is never
+    // teleported (halfway) into walls or out of the canvas: the physics
+    // body is INIT_FRAME_SIZE (44x58px) and centered on the target, so
+    // the center must keep that margin from the world edges
+    constexpr float worldWidthPx = 640.f;
+    constexpr float worldHeightPx = 360.f;
+    const float halfBodyWidthPx = INIT_FRAME_SIZE.first / 2.f;
+    const float halfBodyHeightPx = INIT_FRAME_SIZE.second / 2.f;
+    const float clampedX = std::clamp(x, halfBodyWidthPx,
+                                      worldWidthPx - halfBodyWidthPx);
+    const float clampedY = std::clamp(y, halfBodyHeightPx,
+                                      worldHeightPx - halfBodyHeightPx);
+    fmt::print("CharacterIchi: teleporting to {}/{} (clamped from {}/{})\n",
+               clampedX, clampedY, x, y);
+
+    b2Vec2 newBodyPos{Converter::pixelsToMeters<float>(clampedX),
+                      Converter::pixelsToMeters<float>(clampedY)};
     b2Body_SetTransform(getBody(), newBodyPos, b2Rot_identity); //b2Rot{1, 0});
     
     b2Body_SetLinearVelocity(getBody(), b2Vec2{0.0f, 0.0f});
@@ -172,13 +191,16 @@ CharacterIchi::drawCurrent(sf::RenderTarget &target,
 void
 CharacterIchi::checkTeleportContact(std::string name)
 {
+    // NOTE: targets are world-pixel coordinates for the 640x360 canvas;
+    // the y-values place the 58px-high physics body with its feet exactly
+    // on the floor surface (floor top at y=346.5 -> center at ~317.5)
     if (name == "teleport_1") {
         fmt::print("Now we teleport in Ichi to posi 1\n");
-        teleportCharacter(50, 20);
+        teleportCharacter(50, 30);
     }
     if (name == "teleport_2") {
-        fmt::print("Now we teleport in Ichi to posi 1\n");
-        teleportCharacter(1000, 270);
+        fmt::print("Now we teleport in Ichi to posi 2\n");
+        teleportCharacter(585, 318);
     }
 }
 

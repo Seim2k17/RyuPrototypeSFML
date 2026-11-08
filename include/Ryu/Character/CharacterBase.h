@@ -34,6 +34,8 @@ namespace sf {
 class Event;
 }
 
+class Physics;
+
 class CommandQueue;
 class b2World;
 class b2Body;
@@ -181,6 +183,11 @@ class CharacterBase : public SceneNode, public Subject, public Observer, public 
     void updatePhysics();
     void updatePhysics(const sf::Vector2f &position);
 */
+    /// world-pixel animation position for a given physics-body position;
+    /// the duck body is shorter than the animation frame, so in duck mode
+    /// the sprite is shifted up to keep the feet on the body's ground line
+    sf::Vector2f animationPositionFromBody(b2Vec2 bodyPosition) const;
+
     void checkClimbingState();
     std::string checkContactObjects();
 
@@ -235,14 +242,20 @@ class CharacterBase : public SceneNode, public Subject, public Observer, public 
     // TODO: also physics-stuff
     b2Vec2 getLinearVelocity() { return b2Body_GetLinearVelocity(mBodyId); }
     bool allowedToFall();
-    bool inDuckMode();
+    bool inDuckMode() const;
     void jumpUp();
     void jumpForward();
     float getDirectionMultiplier();
     [[deprecated]] void setCharacterSettings(CharacterSetting settings);
     [[deprecated]] void resetCharacterSettings();
     bool duckStateActive() { return mDuckStateActive; };
-    void setDuckState(bool duckstate) { mDuckStateActive = duckstate; };
+    /// changing the duck state also rebuilds the physics body via the
+    /// Physics-owner (duck shape ISN'T the stand shape); a Physics pointer
+    /// must be set with setPhysics() - the World does this after character
+    /// creation (Physics owns all bodies)
+    void setDuckState(bool duckstate);
+    /// connect the character with its Physics-owner (no ownership)
+    void setPhysics(Physics* physics) { mPhysics = physics; }
     virtual void onNotify(const SceneNode &entity, Ryu::EEvent event) override;
     void ouputAnimations() { mAnimationManager->outputStoredAnimations(); }
     void toggleTestStates();
@@ -282,6 +295,8 @@ class CharacterBase : public SceneNode, public Subject, public Observer, public 
     // TODO: move to Renderer-class ?!
     BaseTextureManager baseTextureManager;
     bool mDuckStateActive;
+    /// physics-owner (no ownership, set by World after character creation)
+    Physics* mPhysics;
     int testStatesCount = 2;
     int testStateCurrent = 0;
     sf::Vector2f positionCrossOffset{0, 0};

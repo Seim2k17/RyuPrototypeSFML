@@ -66,6 +66,9 @@ World::World(sf::RenderWindow &window, EventManager& eventManager)
     mPhysics.createPhysicsSceneObjects(ELevel::Level2);
     auto player = mEventManager.requestPlayer();
     mPhysics.initCharacterPhysics(*player, false);
+    // connect the character with its physics-owner so state changes
+    // (e.g. duck) can rebuild the physics body through Physics
+    player->setPhysics(&mPhysics);
     setDebugDrawer(mWindow);
 
     // TODO: here the scene and the character is created

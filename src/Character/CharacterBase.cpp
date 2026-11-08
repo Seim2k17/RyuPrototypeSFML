@@ -8,6 +8,7 @@
 #include <Ryu/Character/CharacterBase.h>
 #include <Ryu/Core/AssetManager.h>
 #include <Ryu/Core/Utilities.h>
+#include <Ryu/Physics/Physics.h>
 #include <Ryu/Physics/RaycastTypes.h>
 #include <Ryu/Statemachine/CharacterStateFalling.h>
 #include <Ryu/Statemachine/CharacterStateIdle.h>
@@ -48,6 +49,7 @@ CharacterBase::CharacterBase(const sf::Vector2i &position)
       mCharacterAnimation(this),
       mECharacterState(ECharacterState::None),
       mDuckStateActive(false),
+      mPhysics(nullptr),
       mAnimationManager(std::make_unique<AnimationManager>()),
       mCharacterPhysicsValues({}),
       contactListener()
@@ -82,6 +84,7 @@ CharacterBase::CharacterBase(ECharacterState startState,
       mCharSettings(),
       mCurrentLevel(Textures::LevelID::Level1),
       mDuckStateActive(false),
+      mPhysics(nullptr),
       mSetOffset(false),
       mCharacterAnimation(this),
       mAnimationManager(std::make_unique<AnimationManager>()),
@@ -325,12 +328,47 @@ CharacterBase::allowedToFall()
 }
 
 bool
-CharacterBase::inDuckMode()
+CharacterBase::inDuckMode() const
 {
     return (mECharacterState._value == ECharacterState::DuckEnter
             || mECharacterState._value == ECharacterState::DuckEnd
             || mECharacterState._value == ECharacterState::DuckIdle
             || mECharacterState._value == ECharacterState::DuckWalk);
+}
+
+void
+CharacterBase::setDuckState(bool duckstate)
+{
+    // entering/leaving the duck mode needs no body rebuild when it's
+    // already in the requested mode (states call this repeatedly)
+    if (mDuckStateActive == duckstate) { return; }
+    mDuckStateActive = duckstate;
+    if (mPhysics != nullptr)
+    {
+        // the body shape changes between duck/stand: rebuild it feet-anchored
+        mPhysics->recreateCharacterPhysics(*this, duckstate);
+    }
+    else
+    {
+        fmt::print("WARNING: no Physics-owner set, duck body not resized\n");
+    }
+}
+
+sf::Vector2f
+CharacterBase::animationPositionFromBody(b2Vec2 bodyPosition) const
+{
+    // The duck body is shorter than the animation frame (body 34px high vs
+    // 64px frames, stand body 58px): with feet-anchored bodies the duck
+    // center sits (58-34)/2 = 12px lower than the stand center, so the
+    // full-height frame content would sink into the ground. Shifting the
+    // sprite up by that difference keeps the figure's feet on the same
+    // ground line the feet-anchored body is resting on.
+    const float yDuckOffset
+        = inDuckMode()
+              ? (INIT_FRAME_SIZE.second - DUCK_FRAME_SIZE.second) / 2.f
+              : 0.f;
+    return {Converter::metersToPixels<float>(bodyPosition.x),
+            Converter::metersToPixels<float>(bodyPosition.y) - yDuckOffset};
 }
 
 std::string
@@ -427,11 +465,7 @@ CharacterBase::update(sf::Time deltaTime)
         b2Vec2 bodyPosition = b2Body_GetPosition(mBodyId);
 
         mCharacterAnimation.setAnimationPosition(
-            {Converter::metersToPixels<float>(bodyPosition.x),
-             inDuckMode()
-                 ? (Converter::metersToPixels<float>(
-                     bodyPosition.y - (DUCK_FRAME_SIZE.second) / 2))
-                 : Converter::metersToPixels<float>(bodyPosition.y)});
+            animationPositionFromBody(bodyPosition));
     }
     /*
         fmt::print("GravityScale: {}\n",  mBody->GetGravityScale());;
@@ -578,8 +612,7 @@ CharacterBase::updateCharacterPosition(sf::Time deltaTime)
         // placed accordingly (same convention as the jump/falling code).
         b2Vec2 bodyPosition = b2Body_GetPosition(mBodyId);
         mCharacterAnimation.setAnimationPosition(
-            {Converter::metersToPixels<float>(bodyPosition.x),
-             Converter::metersToPixels<float>(bodyPosition.y)});
+            animationPositionFromBody(bodyPosition));
     }
 
     if (mECharacterState._value == ECharacterState::JumpUp
@@ -588,8 +621,7 @@ CharacterBase::updateCharacterPosition(sf::Time deltaTime)
         // physics body get a impulse in jump(), so here no update is needed
         auto pPosi = b2Body_GetPosition(mBodyId);
         mCharacterAnimation.setAnimationPosition(
-            {Converter::metersToPixels(pPosi.x),
-             Converter::metersToPixels(pPosi.y)});
+            animationPositionFromBody(pPosi));
     }
 
     mCharacterState->update(*this);
