@@ -41,7 +41,7 @@ Game::Game()
 ,mAnimator(RyuAnimator::Editor())
 ,mIsPaused(false)
 ,mWorld(mWindow, mEventManager)
-,mDebugWidgets(mPlayerController->getPlayableCharacter()) // TODO: player from 1691421player controller
+,mDebugWidgets(mPlayerController->getPlayableCharacter(), mWindow) // TODO: player from 1691421player controller
 ,mDebugWidgetsActive(false)
 {
 	addObservers();
@@ -210,19 +210,6 @@ void Game::run()
 		}//!mAnimator.showAnimationEditor
 		mAnimator.createEditorWidgets(&mAnimator.showAnimationEditor);
 		mLevelEditor.createEditorWidgets(&mLevelEditor.showLevelEditor);
-		
-		// Display cursor position at top-left
-		const sf::Vector2i mousePos = sf::Mouse::getPosition(mWindow);
-		const sf::Vector2f mouseWorldPos = mWindow.mapPixelToCoords(mousePos);
-		ImGui::SetNextWindowPos(ImVec2(10, 10), ImGuiCond_Always);
-		ImGui::SetNextWindowBgAlpha(0.0f); // Transparent background
-		ImGuiWindowFlags flags = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | 
-		                         ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings;
-		if (ImGui::Begin("##CursorPosition", nullptr, flags))
-		{
-			ImGui::TextColored(ImVec4(1, 1, 1, 1), "Cursor: (%.0f, %.0f)", mouseWorldPos.x, mouseWorldPos.y);
-			ImGui::End();
-		}
 
 		// while editors are  open the game only listens to the
 		// mode keys (see PlayerController::handleEvent / handleRealtimeInput)

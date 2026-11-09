@@ -2,6 +2,7 @@
 #include <Ryu/Debug/imGuiDebug.h>
 #include <Ryu/Events/EventEnums.h>
 
+#include <SFML/Graphics.hpp>
 #include <box2d/box2d.h>
 #include <fmt/core.h>
 #include <imgui.h>
@@ -10,8 +11,8 @@
 
 namespace RyuDebug {
 
-DebugWidgets::DebugWidgets(std::weak_ptr<CharacterIchi> character)
-    : playerCharacter(character) {}
+DebugWidgets::DebugWidgets(std::weak_ptr<CharacterIchi> character, sf::RenderWindow& window)
+    : playerCharacter(character), mWindow(window) {}
 
 void DebugWidgets::ShowWidgets() {
     ImGuiIO &io = ImGui::GetIO();
@@ -178,6 +179,23 @@ void DebugWidgets::CreateDebugGui() {
             }
         }
         ImGui::End();
+    }
+    
+    // Display cursor position at top-left of screen
+    if (debugData.activateRyuDebug)
+    {
+        ImGui::SetNextWindowPos(ImVec2(10, 10), ImGuiCond_Always);
+        ImGui::SetNextWindowBgAlpha(0.0f); // Transparent background
+        ImGuiWindowFlags flags = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | 
+                                 ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings;
+        if (ImGui::Begin("##CursorPosition", nullptr, flags))
+        {
+            ImGuiIO &io = ImGui::GetIO();
+            sf::Vector2i mousePos(io.MousePos.x, io.MousePos.y);
+            sf::Vector2f mouseWorldPos = mWindow.mapPixelToCoords(mousePos);
+            ImGui::TextColored(ImVec4(1, 1, 1, 1), "Cursor: (%.0f, %.0f)", mouseWorldPos.x, mouseWorldPos.y);
+            ImGui::End();
+        }
     }
 }
 } // namespace RyuDebug

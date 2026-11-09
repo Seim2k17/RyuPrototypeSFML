@@ -160,6 +160,58 @@ void World::draw() {
 
         b2World_Draw(mPhysics.getPhysicsWorldId(), &debugDrawer.GetDebugDraw());
 
+        // Draw pivot points (center) of all physics bodies as small red +
+        const float pivotSize = 4.f; // half-length of each cross arm
+        sf::Vertex pivotLines[] = {
+            sf::Vertex(sf::Vector2f(-pivotSize, 0), sf::Color::Red),
+            sf::Vertex(sf::Vector2f(+pivotSize, 0), sf::Color::Red),
+            sf::Vertex(sf::Vector2f(0, -pivotSize), sf::Color::Red),
+            sf::Vertex(sf::Vector2f(0, +pivotSize), sf::Color::Red)
+        };
+        
+        // Helper lambda to convert b2Vec2 to pixel sf::Vector2f
+        auto toPx = [](const b2Vec2& pos) -> sf::Vector2f {
+            return { Converter::metersToPixels(pos.x), 
+                     Converter::metersToPixels(pos.y) };
+        };
+        
+        // Draw pivot for scene objects in the active level
+        const ELevel activeLevel = mPhysics.getActiveLevel();
+        const auto& sceneObjects = getSceneObjects();
+        if (sceneObjects.find(activeLevel) != sceneObjects.end())
+        {
+            for (const auto& obj : sceneObjects.at(activeLevel))
+            {
+                if (B2_IS_NULL(obj.mPhysicsBodyId)) continue;
+                b2Vec2 pos = b2Body_GetPosition(obj.mPhysicsBodyId);
+                sf::Vector2f posPx = toPx(pos);
+                
+                // Draw cross at pivot position
+                for (auto& v : pivotLines)
+                {
+                    v.position += posPx;
+                }
+                mWindow.draw(pivotLines, 4, sf::PrimitiveType::Lines);
+                // Reset for next body
+                for (auto& v : pivotLines)
+                {
+                    v.position -= posPx;
+                }
+            }
+        }
+
+        // Draw pivot for character
+        if (player && !B2_IS_NULL(player->getBody()))
+        {
+            b2Vec2 charPos = b2Body_GetPosition(player->getBody());
+            sf::Vector2f charPosPx = toPx(charPos);
+            for (auto& v : pivotLines)
+            {
+                v.position += charPosPx;
+            }
+            mWindow.draw(pivotLines, 4, sf::PrimitiveType::Lines);
+        }
+
         // force sfml to restore its texture state
         sf::Texture tempTexture;
         mWindow.draw(sf::Sprite(tempTexture));

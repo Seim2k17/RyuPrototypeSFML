@@ -52,7 +52,7 @@ struct DebugData{
 class DebugWidgets : public Subject {
 
     public:
-        DebugWidgets(std::weak_ptr<CharacterIchi> character);
+        DebugWidgets(std::weak_ptr<CharacterIchi> character, sf::RenderWindow& window);
 
         void ShowWidgets();
         void CreateDebugGui();
@@ -62,6 +62,7 @@ class DebugWidgets : public Subject {
 
     private:
         std::weak_ptr<CharacterIchi> playerCharacter;
+        sf::RenderWindow& mWindow;
 };
 
 
