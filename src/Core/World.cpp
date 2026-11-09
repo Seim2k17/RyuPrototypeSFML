@@ -220,7 +220,13 @@ void World::update(sf::Time dt) {
 
 	ZoneScopedN("Update_World");
 
-    mPhysics.update();
+	// selection mode pauses the world stepping: dragged bodies keep their
+	// pose (no gravity between the drag teleports); the scene graph /
+	// character updates below keep running so the visuals still follow
+	if (mPhysicsActive)
+	{
+		mPhysics.update();
+	}
     // Draw debug shapes of all physics objects
 
     // needable or already in scenegraph ?

@@ -103,6 +103,9 @@ class World : public Observer {
     {
         mRenderer->setPlayerOnTop(onTop);
     }
+    /// level-editor selection mode: pauses the physics world stepping (the
+    /// playable character keeps its pose; drags teleport bodies exactly)
+    void setPhysicsActive(bool active) { mPhysicsActive = active; }
     /// MAIN CHARACTER (level editor): rect of its physics body (center in
     /// world meters + shape extents in px, duck/stand aware) ...
     Physics::CharacterPhysicsRect getCharacterRect()
@@ -142,6 +145,8 @@ class World : public Observer {
     std::vector<sf::Text> texts;
     bool phDebugPhysics;
     bool physics_toggled;
+    /// physics world-stepping gate (level editor selection mode)
+    bool mPhysicsActive = true;
     float phTimeStep;
 
     Physics mPhysics;

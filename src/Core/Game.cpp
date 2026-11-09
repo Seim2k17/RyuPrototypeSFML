@@ -210,12 +210,24 @@ void Game::run()
 		}//!mAnimator.showAnimationEditor
 		mAnimator.createEditorWidgets(&mAnimator.showAnimationEditor);
 		mLevelEditor.createEditorWidgets(&mLevelEditor.showLevelEditor);
+		
+		// Display cursor position at top-left
+		const sf::Vector2i mousePos = sf::Mouse::getPosition(mWindow);
+		const sf::Vector2f mouseWorldPos = mWindow.mapPixelToCoords(mousePos);
+		ImGui::SetNextWindowPos(ImVec2(10, 10), ImGuiCond_Always);
+		ImGui::SetNextWindowBgAlpha(0.0f); // Transparent background
+		ImGuiWindowFlags flags = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | 
+		                         ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings;
+		if (ImGui::Begin("##CursorPosition", nullptr, flags))
+		{
+			ImGui::TextColored(ImVec4(1, 1, 1, 1), "Cursor: (%.0f, %.0f)", mouseWorldPos.x, mouseWorldPos.y);
+			ImGui::End();
+		}
 
-		// while any editor/overlay is open the game only listens to the
+		// while editors are  open the game only listens to the
 		// mode keys (see PlayerController::handleEvent / handleRealtimeInput)
 		mPlayerController->setUiInputActive(
-			mDebugWidgetsActive
-			|| mAnimator.showAnimationEditor
+			mAnimator.showAnimationEditor
 			|| mLevelEditor.showLevelEditor);
 
 		// Render once per frame, outside the fixed-timestep loop: a slow render
@@ -314,6 +326,9 @@ void Game::update(sf::Time deltaTime)
 {
 	ZoneScoped;
 
+	// selection mode pauses the physics world stepping so dragged bodies
+	// don't fall between the drag updates; leaving it resumes automatically
+	mWorld.setPhysicsActive(not mLevelEditor.selectModeActive());
 	mWorld.update(deltaTime);
 
 	if(mAnimator.fileBrowserState != RyuAnimator::EFileBrowserState::None || (mAnimator.parsedSpritesheet && mAnimator.textureSet))

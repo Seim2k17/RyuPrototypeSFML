@@ -170,7 +170,7 @@ void b2DrawSFML::DrawPolygon(const b2Vec2* vertices, int vertexCount, b2HexColor
         m_convexShape.setPoint(i, M_ToPixels(vertices[i]));
     }
 
-    m_convexShape.setFillColor(sf::Color::Blue);
+    m_convexShape.setFillColor(sf::Color::Transparent);
     m_convexShape.setOutlineColor(M_ConvertColor(color));
     m_convexShape.setOutlineThickness(1.0f);
 
@@ -195,19 +195,10 @@ void b2DrawSFML::DrawSolidPolygon(b2Transform transform, const b2Vec2* vertices,
         m_convexShape.setPoint(i, M_ToPixels(vertices[i]));
     }
 
-    m_convexShape.setFillColor(M_ConvertColor(color, 0.25f));/// 2nd param: alpha
-    //m_convexShape.setOutlineColor(sf::Color::Transparent);
+    m_convexShape.setFillColor(M_ConvertColor(color, 0.1f));/// 2nd param: alpha
+    m_convexShape.setOutlineColor(sf::Color::Transparent);
 
-//    if()
-//    {
-        m_convexShape.setOutlineColor(sf::Color::Green);
-//    }
-//    else
-    {
-//        m_convexShape.setOutlineColor(sf::Color::Red);
-    }
-
-    m_convexShape.setOutlineThickness(2.0f);
+    m_convexShape.setOutlineThickness(0.0f);
 
     m_renderTarget->draw(m_convexShape);
 }
@@ -229,7 +220,7 @@ void b2DrawSFML::DrawSolidCircle(b2Transform transform, float radius, b2HexColor
     m_circleShape.setRadius(M_ToPixels(radius));
     m_circleShape.setPosition(M_ToPixels({transform.p.x, transform.p.y}));
     m_circleShape.setOrigin(M_ToPixels({ radius, radius }));
-    m_circleShape.setFillColor(M_ConvertColor(color, 0.8f));
+    m_circleShape.setFillColor(M_ConvertColor(color, 0.15f));
     m_circleShape.setOutlineColor(sf::Color::Transparent);
     m_circleShape.setOutlineThickness(0.0f);
 

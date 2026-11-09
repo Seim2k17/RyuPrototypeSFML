@@ -68,6 +68,10 @@ class Editor
 
     bool showLevelEditor = false;
 
+    /// selection mode = the Select tool is turned on (physics is paused
+    /// while it is active so dragged bodies don't fall between updates)
+    bool selectModeActive() const { return mActiveTool == Tool::Select; }
+
   private:
     enum class DragMode { None, Move, Resize };
 
@@ -78,6 +82,11 @@ class Editor
     void saveLevel();
     /// edit-buffers from the MAIN CHARACTER physics body (list pseudo-entry)
     void syncCharEditBuffers();
+    
+    // snapping helpers
+    void applySnapping(sf::Vector2f& positionPx, const sf::Vector2f& sizePx) const;
+    void setSnapDirectionVertical(bool up);
+    void setSnapDirectionHorizontal(bool left);
 
     /// selection-mode (see class comment)
     int resizeHandleAt(const sf::Vector2f& mouseWorldPosPx) const;
@@ -133,6 +142,12 @@ class Editor
     int mGridCellWidth;
     int mGridCellHeight;
     int mGridColorIndex;
+
+    // snapping settings: only one per dimension can be active
+    bool mSnapUp;
+    bool mSnapDown;
+    bool mSnapLeft;
+    bool mSnapRight;
 
     /// the "MainCharacter" pseudo-entry of the object list is selected
     /// (moves the character body; mutually exclusive with the object rows)

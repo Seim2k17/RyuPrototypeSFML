@@ -125,6 +125,10 @@ Editor::Editor()
     , mGridCellHeight(32)
     , mGridColorIndex(0)
     , mMainCharRowSelected(false)
+    , mSnapUp(false)
+    , mSnapDown(false)
+    , mSnapLeft(false)
+    , mSnapRight(false)
 {
 }
 
@@ -326,7 +330,14 @@ Editor::updateDrag(const sf::Vector2f &mouseWorldPosPx)
     {
         // live character movement (transform only, no body recreation)
         const sf::Vector2f grabOffset = mDragHandleStartPx - mDragStartCenterPx;
-        const sf::Vector2f newCenter = mouseWorldPosPx - grabOffset;
+        sf::Vector2f newCenter = mouseWorldPosPx - grabOffset;
+        
+        // Apply snapping if any snap direction is active
+        if (mSnapUp || mSnapDown || mSnapLeft || mSnapRight)
+        {
+            applySnapping(newCenter, mDragStartSizePx);
+        }
+        
         mWorld->moveMainCharacterToPx(newCenter);
         mWorld->setCharacterSelection(newCenter, mDragStartSizePx, true);
         mEditPositionX = newCenter.x;
@@ -340,7 +351,14 @@ Editor::updateDrag(const sf::Vector2f &mouseWorldPosPx)
     if (mDragMode == DragMode::Move)
     {
         const sf::Vector2f grabOffset = mDragHandleStartPx - mDragStartCenterPx;
-        const sf::Vector2f newCenter = mouseWorldPosPx - grabOffset;
+        sf::Vector2f newCenter = mouseWorldPosPx - grabOffset;
+        
+        // Apply snapping if any snap direction is active
+        if (mSnapUp || mSnapDown || mSnapLeft || mSnapRight)
+        {
+            applySnapping(newCenter, mDragStartSizePx);
+        }
+        
         b2Vec2 position{ Converter::pixelsToMeters<float>(newCenter.x),
                          Converter::pixelsToMeters<float>(newCenter.y) };
         // live movement without body recreation
@@ -654,9 +672,118 @@ Editor::drawGridControls()
         }
         ImGui::TextWrapped("Later used to create tiles/tilesets for "
                            "texturizing the sceneobjects.");
+        
+        // Snapping controls
+        ImGui::Separator();
+        ImGui::Text("Snapping");
+        
+        // Vertical snapping (mutually exclusive: Up or Down or None)
+        ImGui::Text("Vertical:");
+        ImGui::SameLine();
+        if (ImGui::RadioButton("Up##snapV", mSnapUp && !mSnapDown))
+        {
+            setSnapDirectionVertical(true);
+        }
+        ImGui::SameLine();
+        if (ImGui::RadioButton("Down##snapV", mSnapDown && !mSnapUp))
+        {
+            setSnapDirectionVertical(false);
+        }
+        ImGui::SameLine();
+        if (ImGui::RadioButton("None##snapV", !mSnapUp && !mSnapDown))
+        {
+            mSnapUp = false;
+            mSnapDown = false;
+        }
+        
+        // Horizontal snapping (mutually exclusive: Left or Right or None)
+        ImGui::Text("Horizontal:");
+        ImGui::SameLine();
+        if (ImGui::RadioButton("Left##snapH", mSnapLeft && !mSnapRight))
+        {
+            setSnapDirectionHorizontal(true);
+        }
+        ImGui::SameLine();
+        if (ImGui::RadioButton("Right##snapH", mSnapRight && !mSnapLeft))
+        {
+            setSnapDirectionHorizontal(false);
+        }
+        ImGui::SameLine();
+        if (ImGui::RadioButton("None##snapH", !mSnapLeft && !mSnapRight))
+        {
+            mSnapLeft = false;
+            mSnapRight = false;
+        }
+        
+        ImGui::TextWrapped("When active and moving objects in selection mode, "
+                           "objects will snap to the nearest grid line based on the selected direction.");
     }
 }
 
+
+void
+Editor::setSnapDirectionVertical(bool up)
+{
+    mSnapUp = up;
+    mSnapDown = !up;
+}
+
+void
+Editor::setSnapDirectionHorizontal(bool left)
+{
+    mSnapLeft = left;
+    mSnapRight = !left;
+}
+
+/// Snap the position to the nearest grid line based on active snap directions
+/// @param positionPx the center position in pixels (in/out)
+/// @param sizePx the object size in pixels
+void
+Editor::applySnapping(sf::Vector2f& positionPx, const sf::Vector2f& sizePx) const
+{
+    if (!mSnapUp && !mSnapDown && !mSnapLeft && !mSnapRight)
+    {
+        return; // No snapping direction active
+    }
+
+    const float cellW = static_cast<float>(std::max(mGridCellWidth, 1));
+    const float cellH = static_cast<float>(std::max(mGridCellHeight, 1));
+
+    // Calculate object edges in pixel coordinates
+    const sf::Vector2f halfSize = sizePx / 2.f;
+    const float leftEdge = positionPx.x - halfSize.x;
+    const float rightEdge = positionPx.x + halfSize.x;
+    const float topEdge = positionPx.y - halfSize.y;
+    const float bottomEdge = positionPx.y + halfSize.y;
+
+    // Snap horizontal (Left/Right)
+    if (mSnapLeft)
+    {
+        // Snap left edge to nearest grid line
+        const float snapX = std::round(leftEdge / cellW) * cellW;
+        positionPx.x = snapX + halfSize.x;
+    }
+    else if (mSnapRight)
+    {
+        // Snap right edge to nearest grid line
+        const float snapX = std::round(rightEdge / cellW) * cellW;
+        positionPx.x = snapX - halfSize.x;
+    }
+
+    // Snap vertical (Up/Down)
+    if (mSnapUp)
+    {
+        // Snap top edge to nearest grid line
+        const float snapY = std::round(topEdge / cellH) * cellH;
+        positionPx.y = snapY + halfSize.y;
+    }
+    else if (mSnapDown)
+    {
+        // Snap bottom edge to nearest grid line
+        const float snapY = std::round(bottomEdge / cellH) * cellH;
+        positionPx.y = snapY - halfSize.y;
+    }
+}
 
 void
 Editor::switchTool(Tool tool)
