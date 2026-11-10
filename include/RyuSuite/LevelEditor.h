@@ -140,6 +140,7 @@ class Editor
     float mEditPositionY;
     float mEditWidth;
     float mEditHeight;
+    float mEditAngle; /// degrees, editor-facing (radians in the physics world)
 
     // drag state; the Select tool gates all selection interactions
     DragMode mDragMode;

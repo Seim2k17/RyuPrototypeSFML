@@ -55,8 +55,11 @@ constexpr ResizeHandle kHandles[kNumHandles] = {
     {{-1.f, 1.f}, -1, 1}, {{0.f, 1.f}, 0, 1}, {{1.f, 1.f}, 1, 1},
 };
 
+/// minimum side length so corner + midpoint markers fit next to each
+/// other (must match the renderer's kMarkerFootprint)
+constexpr float kMarkerFootprint = 12.f;
 /// rotate-mode: 4 corner markers (arcs around the corners), hit tolerance
-constexpr float kRotateMarkerHitRadius = 9.f;
+constexpr float kRotateMarkerHitRadius = 8.f;
 /// rotate-mode: hit tolerance of the pivot-point marker
 constexpr float kPivotHitRadius = 7.f;
 
@@ -132,6 +135,7 @@ Editor::Editor()
     , mEditPositionY(180.f)
     , mEditWidth(64.f)
     , mEditHeight(16.f)
+    , mEditAngle(0.f)
     , mDragMode(DragMode::None)
     , mDragHandle(-1)
     , mDragStartCenterPx({})
@@ -233,6 +237,7 @@ Editor::applyEdits()
     object.mEntityType = mEditEntityType == 1 ? EntityType::Climbable
                                               : EntityType::None;
     object.mLayer = mEditLayer;
+    object.mRotation = Converter::degToRad(mEditAngle);
     object.mPosition = { Converter::pixelsToMeters(mEditPositionX),
                          Converter::pixelsToMeters(mEditPositionY) };
     object.mSize = { Converter::pixelsToMeters(mEditWidth),
@@ -268,10 +273,17 @@ Editor::resizeHandleAt(const sf::Vector2f &mouseWorldPosPx) const
         Converter::metersToPixels(object->mSize.y) / 2.f};
     const float angleRad = mWorld->getSceneObjectRotation(mSelectedBodyId);
 
+    // edge-midpoint handles are dropped on small objects (same rule as the
+    // renderer draws them), so hit-testing matches the visible markers
+    const bool hasHorizontalMid = 2.f * halfPx.x >= 3.f * kMarkerFootprint;
+    const bool hasVerticalMid = 2.f * halfPx.y >= 3.f * kMarkerFootprint;
+
     int nearestHandle = -1;
     float bestDistanceSq = kHandleHitRadius * kHandleHitRadius;
     for (int i = 0; i < kNumHandles; ++i)
     {
+        if (kHandles[i].relativePos.x == 0.f && not hasHorizontalMid) { continue; }
+        if (kHandles[i].relativePos.y == 0.f && not hasVerticalMid) { continue; }
         const sf::Vector2f handleCenterPx = centerPx
             + rotateOffset({ halfPx.x * kHandles[i].relativePos.x,
                              halfPx.y * kHandles[i].relativePos.y }, angleRad);
@@ -545,7 +557,8 @@ Editor::updateDrag(const sf::Vector2f &mouseWorldPosPx)
             Converter::pixelsToMeters(mRotateStartPivotPx.y)};
         mWorld->rotateSceneObject(mSelectedBodyId, newAngle, pivotM);
 
-        // keep the edit fields in sync with the live drag
+        // keep the edit fields in sync with the live drag (angle in degrees)
+        mEditAngle = static_cast<float>(Converter::radToDeg(newAngle));
         SceneObjectPhysicsParameters* object
             = mWorld->findSceneObject(mSelectedBodyId);
         if (object != nullptr)
@@ -658,6 +671,8 @@ Editor::endDrag()
             mEditPositionY = Converter::metersToPixels(committed->mPosition.y);
             mEditWidth = Converter::metersToPixels(committed->mSize.x);
             mEditHeight = Converter::metersToPixels(committed->mSize.y);
+            mEditAngle
+                = static_cast<float>(Converter::radToDeg(committed->mRotation));
         }
     }
 
@@ -704,6 +719,7 @@ Editor::syncEditBuffersFromSelection()
     mEditPositionY = Converter::metersToPixels(object.mPosition.y);
     mEditWidth = Converter::metersToPixels(object.mSize.x);
     mEditHeight = Converter::metersToPixels(object.mSize.y);
+    mEditAngle = static_cast<float>(Converter::radToDeg(object.mRotation));
 }
 
 void
@@ -715,6 +731,7 @@ Editor::syncCharEditBuffers()
     mEditPositionY = Converter::metersToPixels(rect.centerM.y);
     mEditWidth = rect.sizePx.x;
     mEditHeight = rect.sizePx.y;
+    mEditAngle = 0.f; // the character body has no rotation
 }
 
 /// select + highlight the MAIN CHARACTER pseudo-entry (list/arrow keys)
@@ -1217,6 +1234,7 @@ Editor::drawObjectDetails(SceneObjectPhysicsParameters *object)
     ImGui::InputInt("Layer (0=BG,1=G1,2=FG)", &mEditLayer);
     ImGui::DragFloat("PosX", &mEditPositionX, 0.5f, 0.f, 640.f);
     ImGui::DragFloat("PosY", &mEditPositionY, 0.5f, 0.f, 360.f);
+    ImGui::DragFloat("Angle", &mEditAngle, 1.f, -360.f, 360.f);
     ImGui::DragFloat("Width", &mEditWidth, 0.5f, 1.f, 640.f);
     ImGui::DragFloat("Height", &mEditHeight, 0.5f, 1.f, 360.f);
 

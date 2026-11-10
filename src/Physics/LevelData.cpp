@@ -94,7 +94,9 @@ objectFromJson(const json &obj)
         bodyTypeFromString(obj.at("bodyType").get<std::string>()),
         sceneIdFromString(obj.at("textureId").get<std::string>()),
         entityTypeFromString(obj.at("entityType").get<std::string>()),
-        obj.value("layer", 1)
+        obj.value("layer", 1),
+        // degrees in the JSON, radians in the physics world
+        Converter::degToRad(obj.value("rotationDeg", 0.f))
     };
 }
 
@@ -110,7 +112,8 @@ objectToJson(const SceneObjectPhysicsParameters &object)
         { "bodyType", bodyTypeToString(object.mType) },
         { "textureId", sceneIdToString(object.mTextureId) },
         { "entityType", entityTypeToString(object.mEntityType) },
-        { "layer", object.mLayer }
+        { "layer", object.mLayer },
+        { "rotationDeg", Converter::radToDeg(object.mRotation) }
     };
 }
 

@@ -325,17 +325,37 @@ Renderer::drawLevelEditorOverlay()
         return b2Rot_GetAngle(b2Body_GetRotation(bodyId));
     };
 
-    // 8 resize handles (4 corners + edge midpoints) around the object rect
+    // 8 resize handles (4 corners + edge midpoints) around the object rect;
+    // on small objects the edge-midpoint handles are dropped so markers
+    // don't overlap (corners always stay)
+    constexpr float kMarkerFootprint = 12.f; /// px, marker + spacing
     auto drawEdgeMarkers = [&](const sf::Vector2f& centerPx,
                                const sf::Vector2f& sizePx, float angleRad)
     {
         constexpr float handleSize = 4.f;
         const sf::Vector2f half = sizePx / 2.f;
-        const sf::Vector2f handlePoints[8] = {
-            {-half.x, -half.y}, {0.f, -half.y}, {half.x, -half.y},
-            {-half.x, 0.f}, {half.x, 0.f},
-            {-half.x, half.y}, {0.f, half.y}, {half.x, half.y},
+        const bool showHorizontalMid = sizePx.x >= 3.f * kMarkerFootprint;
+        const bool showVerticalMid = sizePx.y >= 3.f * kMarkerFootprint;
+
+        std::vector<sf::Vector2f> handlePoints{
+            {-half.x, -half.y}, {half.x, -half.y},
+            {-half.x, half.y}, {half.x, half.y},
         };
+        if (showHorizontalMid)
+        {
+            handlePoints.push_back({0.f, -half.y});
+            handlePoints.push_back({0.f, half.y});
+        }
+        if (showVerticalMid)
+        {
+            handlePoints.push_back({-half.x, 0.f});
+            handlePoints.push_back({half.x, 0.f});
+        }
+
+        // the rect was last used for the rotated highlight: reset origin and
+        // rotation, otherwise the markers are drawn shifted/rotated
+        rect.setOrigin({0.f, 0.f});
+        rect.setRotation(sf::degrees(0.f));
         rect.setFillColor(outline);
         rect.setOutlineThickness(0.f);
         for (const auto& point : handlePoints)
@@ -351,8 +371,8 @@ Renderer::drawLevelEditorOverlay()
     // object rect; the arc curls around the corner point
     auto drawRotationMarker = [&](const sf::Vector2f& cornerPx)
     {
-        constexpr float radius = 7.f;
-        constexpr float arrowLength = 5.f;
+        constexpr float radius = 5.f;
+        constexpr float arrowLength = 3.5f;
         constexpr float startAngle = 0.6f;  // rad, gap so the arc reads as open
         constexpr float sweep = 4.4f;      // rad (~250 degrees)
         constexpr int segments = 14;

@@ -61,10 +61,14 @@ struct SceneObjectPhysicsParameters
     SceneObjectPhysicsParameters(
         b2Vec2 position, b2Vec2 size,
         std::string name, b2BodyType type, /* = b2_staticBody,*/
-        Textures::SceneID textureId, /* = Textures::SceneID::Grass,*/ EntityType entityType, int layer = 1); /*=EntityType::None);*/
+        Textures::SceneID textureId, /* = Textures::SceneID::Grass,*/ EntityType entityType, int layer = 1, /*=EntityType::None);*/
+        float rotation = 0.f); /* radians, ccw */
 
     b2Vec2 mPosition;
     b2Vec2 mSize;
+    /// rotation around the body center (radians, ccw); persisted in the
+    /// level JSON as "rotationDeg" and applied on (re)creation of the body
+    float mRotation;
     std::string mName;
     b2BodyType mType;
     Textures::SceneID mTextureId;

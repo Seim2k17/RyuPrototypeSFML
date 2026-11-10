@@ -54,6 +54,7 @@ CharacterPhysicsParameters::~CharacterPhysicsParameters()
 SceneObjectPhysicsParameters::SceneObjectPhysicsParameters() :
     mPosition({}),
     mSize({}),
+    mRotation(0.f),
     mName(""),
     mType(b2BodyType::b2_staticBody),
     mTextureId(Textures::SceneID::Unknown),
@@ -66,9 +67,10 @@ SceneObjectPhysicsParameters::SceneObjectPhysicsParameters() :
 SceneObjectPhysicsParameters::SceneObjectPhysicsParameters(
         b2Vec2 positionInPixel, b2Vec2 sizeInPixel,
         std::string name, b2BodyType type,
-        Textures::SceneID textureId, EntityType entityType, int layer) :
+        Textures::SceneID textureId, EntityType entityType, int layer, float rotation) :
     mPosition(Converter::pixelsToMeters(positionInPixel.x), Converter::pixelsToMeters(positionInPixel.y)),
     mSize(Converter::pixelsToMeters(sizeInPixel.x), Converter::pixelsToMeters(sizeInPixel.y)),
+    mRotation(rotation),
     mName(name),
     mType(type),
     mTextureId(textureId),
@@ -613,6 +615,14 @@ Physics::createPhysicsBody(SceneObjectPhysicsParameters& sceneObject, int& i)
 
     b2BodyId bodyId = b2CreateBody(mPhysicsWorldId, &bodyDef);
 
+    // apply the persisted rotation (e.g. after a resize recreated the body);
+    // bodyDef has no rotation member, so it is set via the transform
+    if (sceneObject.mRotation != 0.f)
+    {
+        b2Body_SetTransform(bodyId, objPosition,
+                            b2MakeRot(sceneObject.mRotation));
+    }
+
     b2ShapeDef shapeDef = b2DefaultShapeDef(); // initialize shapedefinition
     shapeDef.density = 2.0; // TODO make it configurable ?
     // shapeDef.friction = 0.98; // deprecated since Box2D 3.1
@@ -847,6 +857,7 @@ Physics::rotateSceneObject(b2BodyId bodyId, float angleRadians,
                                    b2RotateVector(deltaRotation, centerToPivot));
 
     object->mPosition = newCenter;
+    object->mRotation = angleRadians;
     b2Body_SetTransform(bodyId, newCenter, b2MakeRot(angleRadians));
 
     // the renderer follows the body without recreating the node
