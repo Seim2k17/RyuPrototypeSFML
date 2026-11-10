@@ -14,6 +14,7 @@ struct PhysicsObjectCreatedEvent {
     bool isDynamic;
     std::variant<Textures::PhysicAssetsID, Textures::SceneID, Textures::SpritesheetID> textureId;  // Optional: Pass texture ID for rendering
     int layer = 1; // scenegraph layer (0=Background, 1=Ground1, 2=Foreground)
+    float rotation = 0.f; // radians, ccw (scene objects)
 };
 
 struct PhysicsObjectUpdatedEvent {

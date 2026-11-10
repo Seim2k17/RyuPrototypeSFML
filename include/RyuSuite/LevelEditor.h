@@ -149,6 +149,9 @@ class Editor
     /// object center px at drag start (position + size for the resize math)
     sf::Vector2f mDragStartCenterPx;
     sf::Vector2f mDragStartSizePx;
+    /// object rotation (rad) at drag start; resize math runs in the local
+    /// (unrotated) object frame and re-rotates the result with it
+    float mDragStartRotation;
     /// handle center at drag start (needed for live resize math)
     sf::Vector2f mDragHandleStartPx;
     /// final geometry of the running resize drag (committed on release)

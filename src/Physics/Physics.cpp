@@ -726,6 +726,7 @@ Physics::createPhysicsBody(SceneObjectPhysicsParameters& sceneObject, int& i)
     event.isDynamic = (sceneObject.mType == b2_dynamicBody);
     event.textureId = sceneObject.mTextureId;  // Pass texture ID for rendering
     event.layer = sceneObject.mLayer;
+    event.rotation = sceneObject.mRotation;
     
     EventBus::emit(Ryu::EPhysicsEvent::ObjectCreated, event);
     return bodyId;

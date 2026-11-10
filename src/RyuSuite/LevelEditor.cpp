@@ -140,6 +140,7 @@ Editor::Editor()
     , mDragHandle(-1)
     , mDragStartCenterPx({})
     , mDragStartSizePx({})
+    , mDragStartRotation(0.f)
     , mDragHandleStartPx({})
     , mLastPreviewCenterPx({})
     , mLastPreviewSizePx({})
@@ -417,13 +418,17 @@ Editor::beginDrag(DragMode mode, int handle, const sf::Vector2f &mouseWorldPosPx
 
     mDragMode = mode;
     mDragHandle = handle;
+    mDragStartRotation = mWorld->getSceneObjectRotation(mSelectedBodyId);
     if (mode == DragMode::Resize)
     {
-        mDragHandleStartPx = {
-            mDragStartCenterPx.x
-              + kHandles[handle].relativePos.x * mDragStartSizePx.x / 2.f,
-            mDragStartCenterPx.y
-              + kHandles[handle].relativePos.y * mDragStartSizePx.y / 2.f };
+        // handle position in the rotated world (the drag math itself runs in
+        // the unrotated object frame, see updateDrag)
+        mDragHandleStartPx = mDragStartCenterPx
+            + rotateOffset({ kHandles[handle].relativePos.x
+                                * mDragStartSizePx.x / 2.f,
+                             kHandles[handle].relativePos.y
+                                * mDragStartSizePx.y / 2.f },
+                           mDragStartRotation);
         // commit fallback for a press+release without any mouse movement
         mLastPreviewCenterPx = mDragStartCenterPx;
         mLastPreviewSizePx = mDragStartSizePx;
@@ -500,37 +505,42 @@ Editor::updateDrag(const sf::Vector2f &mouseWorldPosPx)
     {
         const int maskX = kHandles[mDragHandle].maskX;
         const int maskY = kHandles[mDragHandle].maskY;
-        const sf::Vector2f delta = mouseWorldPosPx - mDragHandleStartPx;
+        const sf::Vector2f halfStart = mDragStartSizePx / 2.f;
 
-        sf::Vector2f newSize = mDragStartSizePx;
-        sf::Vector2f newCenter = mDragStartCenterPx;
+        // resize math in the object's LOCAL (unrotated) frame so rotated
+        // objects grow along their own edges: the cursor is rotated into
+        // local space, the dragged edge follows it there and the opposite
+        // (anchored) edge stays put in the world
+        const sf::Vector2f localMouse = rotateOffset(
+            mouseWorldPosPx - mDragStartCenterPx, -mDragStartRotation);
 
-        // commit helper: the mask>0 edge (right/bottom) grows directly, the
-        // mask<0 edge (left/top) follows the cursor in the mirrored size
-        // direction; minimum size enforced. In BOTH cases the center moves
-        // by delta/2: the cursor-following edge travels by delta and the
-        // anchored edge stays, so their midpoint always shifts by delta/2.
-        auto applyAxis = [&](int mask, float deltaAxis, float &sizeAxis,
-                             float &centerAxis, float startSizeAxis,
-                             float startCenterAxis)
+        // per-axis helper: mask=+1 drags the right/bottom edge, -1 the
+        // left/top one, 0 keeps the axis; minimum size enforced
+        auto applyAxis = [](int mask, float mouseLocalAxis, float startHalfAxis,
+                            float &sizeAxis, float &centerLocalAxis)
         {
-            if (mask == 0) { return; }
-            if (mask > 0)
+            if (mask == 0)
             {
-                deltaAxis = std::max(deltaAxis, kMinObjectSize - startSizeAxis);
+                sizeAxis = 2.f * startHalfAxis;
+                centerLocalAxis = 0.f;
+                return;
             }
-            if (mask < 0)
-            {
-                deltaAxis = std::min(deltaAxis, startSizeAxis - kMinObjectSize);
-            }
-            sizeAxis = startSizeAxis + static_cast<float>(mask) * deltaAxis;
-            centerAxis = startCenterAxis + deltaAxis / 2.f;
+            const float anchoredEdge = -static_cast<float>(mask) * startHalfAxis;
+            const float newSize = std::max(
+                static_cast<float>(mask) * (mouseLocalAxis - anchoredEdge),
+                kMinObjectSize);
+            sizeAxis = newSize;
+            // center offset (local) from the drag-start center
+            centerLocalAxis = static_cast<float>(mask)
+                * (newSize / 2.f - startHalfAxis);
         };
 
-        applyAxis(maskX, delta.x, newSize.x, newCenter.x,
-                  mDragStartSizePx.x, mDragStartCenterPx.x);
-        applyAxis(maskY, delta.y, newSize.y, newCenter.y,
-                  mDragStartSizePx.y, mDragStartCenterPx.y);
+        sf::Vector2f newSize = mDragStartSizePx;
+        sf::Vector2f centerLocal{};
+        applyAxis(maskX, localMouse.x, halfStart.x, newSize.x, centerLocal.x);
+        applyAxis(maskY, localMouse.y, halfStart.y, newSize.y, centerLocal.y);
+        const sf::Vector2f newCenter
+            = mDragStartCenterPx + rotateOffset(centerLocal, mDragStartRotation);
 
         mLastPreviewCenterPx = newCenter;
         mLastPreviewSizePx = newSize;
@@ -539,9 +549,10 @@ Editor::updateDrag(const sf::Vector2f &mouseWorldPosPx)
         mEditPositionY = newCenter.y;
         mEditWidth = newSize.x;
         mEditHeight = newSize.y;
-        // live preview overlay in the game view; the body is recreated with
-        // the final size when the drag ends
-        mWorld->setResizePreview(newCenter, newSize, true);
+        // live preview overlay in the game view (drawn at the object's
+        // rotation); the body is recreated with the final size when the
+        // drag ends
+        mWorld->setResizePreview(newCenter, newSize, true, mDragStartRotation);
     }
     else if (mDragMode == DragMode::Rotate)
     {

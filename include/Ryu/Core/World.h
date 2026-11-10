@@ -112,9 +112,10 @@ class World : public Observer {
         mRenderer->setPivotMarker(positionPx, show);
     }
     void setResizePreview(const sf::Vector2f& positionPx,
-                          const sf::Vector2f& sizePx, bool show = true)
+                          const sf::Vector2f& sizePx, bool show = true,
+                          float angleRad = 0.f)
     {
-        mRenderer->setResizePreview(positionPx, sizePx, show);
+        mRenderer->setResizePreview(positionPx, sizePx, show, angleRad);
     }
     void setGridOverlay(bool show, const sf::Vector2f& cellSizePx,
                         const sf::Color& color)

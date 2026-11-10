@@ -45,6 +45,9 @@ Renderer::Renderer(sf::RenderWindow& window, EventManager& eventManager, const s
      , mShowPivotMarker(false)
      , mPivotMarkerPositionPx()
      , mShowResizePreview(false)
+     , mResizePreviewPositionPx()
+     , mResizePreviewSizePx()
+     , mResizePreviewRotationRad(0.f)
      , mShowGridOverlay(false)
      , mGridCellSizePx({32.f, 32.f})
      , mGridColor(255, 0, 0, 90)
@@ -278,10 +281,12 @@ Renderer::setPivotMarker(const sf::Vector2f& positionPx, bool show)
 
 void
 Renderer::setResizePreview(const sf::Vector2f& positionPx,
-                           const sf::Vector2f& sizePx, bool show)
+                           const sf::Vector2f& sizePx, bool show,
+                           float angleRad)
 {
     mResizePreviewPositionPx = positionPx;
     mResizePreviewSizePx = sizePx;
+    mResizePreviewRotationRad = angleRad;
     mShowResizePreview = show;
 }
 
@@ -299,12 +304,16 @@ Renderer::drawLevelEditorOverlay()
     // live-resize preview of the object currently being resized
     if (mShowResizePreview)
     {
-        rect.setPosition(mResizePreviewPositionPx - mResizePreviewSizePx / 2.f);
+        rect.setOrigin(mResizePreviewSizePx / 2.f);
+        rect.setPosition(mResizePreviewPositionPx);
+        rect.setRotation(sf::radians(mResizePreviewRotationRad));
         rect.setSize(mResizePreviewSizePx);
         rect.setFillColor(hoverFill);
         rect.setOutlineColor(outline);
         rect.setOutlineThickness(outlineThickness);
         mWindow.draw(rect);
+        rect.setOrigin({0.f, 0.f});
+        rect.setRotation(sf::degrees(0.f));
     }
 
     // local->world helper: marker positions are given in the unrotated
@@ -614,6 +623,9 @@ Renderer::onPhysicsObjectCreated(const PhysicsObjectCreatedEvent& event)
             Converter::metersToPixels(event.position.x),
             Converter::metersToPixels(event.position.y)
         });
+        // rotation of the (re)created body, so a recreated sprite keeps the
+        // object's orientation
+        spriteNode->setRotation(sf::radians(event.rotation));
         
         // Attach to the layer specified in the scene object configuration
         auto& layerNode = mSceneLayers[static_cast<size_t>(
@@ -702,6 +714,7 @@ void Renderer::createSceneFromConfiguration(ELevel level)
             Converter::metersToPixels(obj.mPosition.x),
             Converter::metersToPixels(obj.mPosition.y)
         });
+        spriteNode->setRotation(sf::radians(obj.mRotation));
         
         // Use the layer specified in the scene object configuration
         mSceneLayers[static_cast<size_t>(obj.mLayer)]->attachChild(std::move(spriteNode));

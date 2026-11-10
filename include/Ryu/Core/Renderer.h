@@ -53,9 +53,11 @@ public:
     /// circle + crosshair drawn at \p positionPx; show=false clears it.
     void setPivotMarker(const sf::Vector2f& positionPx, bool show = true);
     /// Live-resize preview: an orange overlay drawn at \p positionPx with
-    /// \p sizePx while a resize-drag is running.
+    /// \p sizePx (rotated by \p angleRad around its center) while a
+    /// resize-drag is running.
     void setResizePreview(const sf::Vector2f& positionPx,
-                          const sf::Vector2f& sizePx, bool show = true);
+                          const sf::Vector2f& sizePx, bool show = true,
+                          float angleRad = 0.f);
     /// Grid overlay for the level editor: vertical/horizontal lines over the
     /// whole world bounds, drawn in the foreground (updates live on change)
     void setGridOverlay(bool show, const sf::Vector2f& cellSizePx,
@@ -106,6 +108,7 @@ private:
     bool mShowResizePreview;
     sf::Vector2f mResizePreviewPositionPx;
     sf::Vector2f mResizePreviewSizePx;
+    float mResizePreviewRotationRad;
 
     // grid overlay state (see setGridOverlay)
     bool mShowGridOverlay;
