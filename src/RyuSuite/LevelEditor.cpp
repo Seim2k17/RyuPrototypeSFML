@@ -15,6 +15,7 @@
 #include <SFML/Window/Mouse.hpp>
 
 #include <array>
+#include <cmath>
 #include <string>
 
 namespace RyuLevel
@@ -53,6 +54,27 @@ constexpr ResizeHandle kHandles[kNumHandles] = {
     {{-1.f, 0.f}, -1, 0}, {{1.f, 0.f}, 1, 0},
     {{-1.f, 1.f}, -1, 1}, {{0.f, 1.f}, 0, 1}, {{1.f, 1.f}, 1, 1},
 };
+
+/// rotate-mode: 4 corner markers (arcs around the corners), hit tolerance
+constexpr float kRotateMarkerHitRadius = 9.f;
+/// rotate-mode: hit tolerance of the pivot-point marker
+constexpr float kPivotHitRadius = 7.f;
+
+/// rotates a local offset (unrotated object frame) by \p angleRad (world px)
+sf::Vector2f
+rotateOffset(const sf::Vector2f& localPx, float angleRad)
+{
+    const float c = std::cos(angleRad);
+    const float s = std::sin(angleRad);
+    return { localPx.x * c - localPx.y * s, localPx.x * s + localPx.y * c };
+}
+
+/// angle (radians) of a 2d vector, used for the rotate-drag math
+float
+vectorAngle(const sf::Vector2f& v)
+{
+    return std::atan2(v.y, v.x);
+}
 
 Textures::SceneID
 textureIdFromIndex(int index)
@@ -117,6 +139,10 @@ Editor::Editor()
     , mDragHandleStartPx({})
     , mLastPreviewCenterPx({})
     , mLastPreviewSizePx({})
+    , mPivotOffsetPx({})
+    , mRotateStartPivotPx({})
+    , mRotateStartMouseAngle(0.f)
+    , mRotateStartObjectAngle(0.f)
     , mActiveTool(Tool::None)
     , mSelectedBodyId(b2_nullBodyId)
     , mHoveredBodyId(b2_nullBodyId)
@@ -240,14 +266,15 @@ Editor::resizeHandleAt(const sf::Vector2f &mouseWorldPosPx) const
     const sf::Vector2f halfPx{
         Converter::metersToPixels(object->mSize.x) / 2.f,
         Converter::metersToPixels(object->mSize.y) / 2.f};
+    const float angleRad = mWorld->getSceneObjectRotation(mSelectedBodyId);
 
     int nearestHandle = -1;
     float bestDistanceSq = kHandleHitRadius * kHandleHitRadius;
     for (int i = 0; i < kNumHandles; ++i)
     {
-        const sf::Vector2f handleCenterPx{
-            centerPx.x + halfPx.x * kHandles[i].relativePos.x,
-            centerPx.y + halfPx.y * kHandles[i].relativePos.y};
+        const sf::Vector2f handleCenterPx = centerPx
+            + rotateOffset({ halfPx.x * kHandles[i].relativePos.x,
+                             halfPx.y * kHandles[i].relativePos.y }, angleRad);
         const sf::Vector2f distance = mouseWorldPosPx - handleCenterPx;
         const float distanceSq = distance.x * distance.x + distance.y * distance.y;
         if (distanceSq <= bestDistanceSq)
@@ -260,6 +287,77 @@ Editor::resizeHandleAt(const sf::Vector2f &mouseWorldPosPx) const
         }
     }
     return nearestHandle;
+}
+
+int
+Editor::rotateMarkerAt(const sf::Vector2f &mouseWorldPosPx) const
+{
+    SceneObjectPhysicsParameters* object
+        = mWorld ? mWorld->findSceneObject(mSelectedBodyId) : nullptr;
+    if (object == nullptr || mDragMode != DragMode::None) { return -1; }
+
+    const sf::Vector2f centerPx{
+        Converter::metersToPixels(object->mPosition.x),
+        Converter::metersToPixels(object->mPosition.y)};
+    const sf::Vector2f halfPx{
+        Converter::metersToPixels(object->mSize.x) / 2.f,
+        Converter::metersToPixels(object->mSize.y) / 2.f};
+    const float angleRad = mWorld->getSceneObjectRotation(mSelectedBodyId);
+
+    int nearestMarker = -1;
+    float bestDistanceSq = kRotateMarkerHitRadius * kRotateMarkerHitRadius;
+    for (int i = 0; i < 4; ++i)
+    {
+        const float signX = (i % 2 == 0) ? -1.f : 1.f;
+        const float signY = (i < 2) ? -1.f : 1.f;
+        const sf::Vector2f markerPx = centerPx
+            + rotateOffset({ signX * halfPx.x, signY * halfPx.y }, angleRad);
+        const sf::Vector2f distance = mouseWorldPosPx - markerPx;
+        const float distanceSq = distance.x * distance.x + distance.y * distance.y;
+        if (distanceSq <= bestDistanceSq)
+        {
+            nearestMarker = i;
+            bestDistanceSq = distanceSq;
+        }
+    }
+    return nearestMarker;
+}
+
+bool
+Editor::pivotMarkerAt(const sf::Vector2f &mouseWorldPosPx) const
+{
+    if (mWorld == nullptr || B2_IS_NULL(mSelectedBodyId)) { return false; }
+    const sf::Vector2f distance = mouseWorldPosPx - selectedPivotWorldPx();
+    return distance.x * distance.x + distance.y * distance.y
+           <= kPivotHitRadius * kPivotHitRadius;
+}
+
+sf::Vector2f
+Editor::selectedPivotWorldPx() const
+{
+    SceneObjectPhysicsParameters* object
+        = mWorld ? mWorld->findSceneObject(mSelectedBodyId) : nullptr;
+    if (object == nullptr) { return {}; }
+    const sf::Vector2f centerPx{
+        Converter::metersToPixels(object->mPosition.x),
+        Converter::metersToPixels(object->mPosition.y)};
+    const float angleRad = mWorld->getSceneObjectRotation(mSelectedBodyId);
+    return centerPx + rotateOffset(mPivotOffsetPx, angleRad);
+}
+
+void
+Editor::updatePivotMarker()
+{
+    if (mWorld == nullptr) { return; }
+    if (mActiveTool == Tool::Rotate && not B2_IS_NULL(mSelectedBodyId)
+        && mWorld->findSceneObject(mSelectedBodyId) != nullptr)
+    {
+        mWorld->setPivotMarker(selectedPivotWorldPx(), true);
+    }
+    else
+    {
+        mWorld->setPivotMarker({}, false);
+    }
 }
 
 bool
@@ -275,8 +373,11 @@ Editor::insideSelectedObject(const sf::Vector2f &mouseWorldPosPx) const
     const sf::Vector2f halfPx{
         Converter::metersToPixels(object->mSize.x) / 2.f,
         Converter::metersToPixels(object->mSize.y) / 2.f};
-    return std::abs(mouseWorldPosPx.x - centerPx.x) <= halfPx.x
-           && std::abs(mouseWorldPosPx.y - centerPx.y) <= halfPx.y;
+    const float angleRad = mWorld->getSceneObjectRotation(mSelectedBodyId);
+    // hit test in the unrotated object frame (rotation-aware)
+    const sf::Vector2f localPx
+        = rotateOffset(mouseWorldPosPx - centerPx, -angleRad);
+    return std::abs(localPx.x) <= halfPx.x && std::abs(localPx.y) <= halfPx.y;
 }
 
 void
@@ -314,6 +415,22 @@ Editor::beginDrag(DragMode mode, int handle, const sf::Vector2f &mouseWorldPosPx
         // commit fallback for a press+release without any mouse movement
         mLastPreviewCenterPx = mDragStartCenterPx;
         mLastPreviewSizePx = mDragStartSizePx;
+    }
+    else if (mode == DragMode::Rotate)
+    {
+        // rotation happens around the world-space pivot captured here; the
+        // mouse angle relative to it drives the live rotation delta
+        mRotateStartPivotPx = selectedPivotWorldPx();
+        mRotateStartMouseAngle
+            = vectorAngle(mouseWorldPosPx - mRotateStartPivotPx);
+        mRotateStartObjectAngle
+            = mWorld->getSceneObjectRotation(mSelectedBodyId);
+        updatePivotMarker();
+    }
+    else if (mode == DragMode::MovePivot)
+    {
+        // pivot drags follow the cursor directly (clamped to the object
+        // borders in updateDrag); no additional start state needed
     }
     else
     {
@@ -414,6 +531,50 @@ Editor::updateDrag(const sf::Vector2f &mouseWorldPosPx)
         // the final size when the drag ends
         mWorld->setResizePreview(newCenter, newSize, true);
     }
+    else if (mDragMode == DragMode::Rotate)
+    {
+        // rotate the object live around the pivot captured at drag start;
+        // the body center travels on an arc, the sprite follows via the
+        // per-frame physics-updated events
+        const float mouseAngle
+            = vectorAngle(mouseWorldPosPx - mRotateStartPivotPx);
+        const float newAngle = mRotateStartObjectAngle
+            + (mouseAngle - mRotateStartMouseAngle);
+        const b2Vec2 pivotM{
+            Converter::pixelsToMeters(mRotateStartPivotPx.x),
+            Converter::pixelsToMeters(mRotateStartPivotPx.y)};
+        mWorld->rotateSceneObject(mSelectedBodyId, newAngle, pivotM);
+
+        // keep the edit fields in sync with the live drag
+        SceneObjectPhysicsParameters* object
+            = mWorld->findSceneObject(mSelectedBodyId);
+        if (object != nullptr)
+        {
+            mEditPositionX = Converter::metersToPixels(object->mPosition.x);
+            mEditPositionY = Converter::metersToPixels(object->mPosition.y);
+        }
+    }
+    else if (mDragMode == DragMode::MovePivot)
+    {
+        // move the pivot inside the object borders: the cursor position is
+        // transformed into the unrotated object frame and clamped
+        SceneObjectPhysicsParameters* object
+            = mWorld->findSceneObject(mSelectedBodyId);
+        if (object == nullptr) { return; }
+        const sf::Vector2f centerPx{
+            Converter::metersToPixels(object->mPosition.x),
+            Converter::metersToPixels(object->mPosition.y)};
+        const sf::Vector2f halfPx{
+            Converter::metersToPixels(object->mSize.x) / 2.f,
+            Converter::metersToPixels(object->mSize.y) / 2.f};
+        const float angleRad
+            = mWorld->getSceneObjectRotation(mSelectedBodyId);
+        const sf::Vector2f localPx
+            = rotateOffset(mouseWorldPosPx - centerPx, -angleRad);
+        mPivotOffsetPx = { std::clamp(localPx.x, -halfPx.x, halfPx.x),
+                           std::clamp(localPx.y, -halfPx.y, halfPx.y) };
+        updatePivotMarker();
+    }
 }
 
 void
@@ -454,6 +615,29 @@ Editor::endDrag()
             mWorld->setSelectedHighlight(mSelectedBodyId);
         }
     }
+    else if (mDragMode == DragMode::Rotate)
+    {
+        // the rotation was applied live as a body transform; nothing to
+        // recreate. Re-express the (world-fixed) pivot in the object's new
+        // local frame so the pivot marker follows the rotated object.
+        SceneObjectPhysicsParameters* object
+            = mWorld->findSceneObject(mSelectedBodyId);
+        if (object != nullptr)
+        {
+            const sf::Vector2f centerPx{
+                Converter::metersToPixels(object->mPosition.x),
+                Converter::metersToPixels(object->mPosition.y)};
+            const float angleRad
+                = mWorld->getSceneObjectRotation(mSelectedBodyId);
+            mPivotOffsetPx = rotateOffset(mRotateStartPivotPx - centerPx,
+                                          -angleRad);
+        }
+        updatePivotMarker();
+    }
+    else if (mDragMode == DragMode::MovePivot)
+    {
+        // the pivot marker is already up to date (moved live)
+    }
 
     // the drag is over: the preview overlay must go away, otherwise a stale
     // orange outline would stay at the last previewed geometry
@@ -493,6 +677,11 @@ Editor::exitSelectionMode()
     // withOutline=false also resets the renderer's outline-on-hover state
     mWorld->setHoverHighlight(b2_nullBodyId, false);
     mWorld->setResizePreview({}, {}, false);
+    mWorld->setPivotMarker({}, false);
+    mWorld->setSelectionStyle(Renderer::SelectionStyle::ResizeHandles);
+    mPivotOffsetPx = {};
+    mRotateStartMouseAngle = 0.f;
+    mRotateStartObjectAngle = 0.f;
 }
 
 void
@@ -582,7 +771,13 @@ Editor::handleKey(sf::Keyboard::Scancode scancode)
     // also mark the object inside the running level
     mSelectedBodyId
         = objects.at(mSelectedIndex).mPhysicsBodyId;
+    mPivotOffsetPx = {};
     mWorld->setSelectedHighlight(mSelectedBodyId);
+    if (mActiveTool == Tool::Rotate)
+    {
+        mWorld->setSelectionStyle(Renderer::SelectionStyle::RotateMarkers);
+    }
+    updatePivotMarker();
     mWorld->setCharacterSelection({}, {}, false);
 }
 
@@ -617,17 +812,25 @@ Editor::drawToolSidebar()
         if (active) { ImGui::PopStyleColor(2); }
     };
 
-    toolButton("Select", Tool::Select);
+    toolButton("Resize", Tool::Resize);
+    toolButton("Rotate", Tool::Rotate);
     ImGui::Separator();
     ImGui::BeginDisabled();
     toolButton("Edit", Tool::Edit);
     ImGui::EndDisabled();
     ImGui::Separator();
 
-    if (mActiveTool == Tool::Select)
+    if (mActiveTool == Tool::Resize)
     {
-        ImGui::TextWrapped("Selection-mode: hover to highlight, click to "
+        ImGui::TextWrapped("Resize-mode: hover to highlight, click to "
                            "select, drag inside to move, handles to resize. "
+                           "Click the tool again to turn it off.");
+    }
+    else if (mActiveTool == Tool::Rotate)
+    {
+        ImGui::TextWrapped("Rotate-mode: click to select, drag a corner "
+                           "arrow to rotate around the pivot, drag the pivot "
+                           "marker to move it within the object. "
                            "Click the tool again to turn it off.");
     }
     ImGui::End();
@@ -790,23 +993,29 @@ Editor::switchTool(Tool tool)
 {
     if (mActiveTool == tool) { return; }
     mActiveTool = tool;
-    if (tool == Tool::Select)
+    if (tool == Tool::Resize || tool == Tool::Rotate)
     {
-        // entering the selection mode: the object currently chosen in the
+        if (mWorld == nullptr) { return; }
+        // entering a transform mode: the object currently chosen in the
         // object list is selected in the level right away (outline + markers)
+        mWorld->setSelectionStyle(tool == Tool::Rotate
+            ? Renderer::SelectionStyle::RotateMarkers
+            : Renderer::SelectionStyle::ResizeHandles);
         if (mSelectedIndex >= 0)
         {
             auto& objects = mWorld->getSceneObjects().at(mSelectedLevel);
             if (mSelectedIndex < static_cast<int>(objects.size()))
             {
                 mSelectedBodyId = objects.at(mSelectedIndex).mPhysicsBodyId;
+                mPivotOffsetPx = {};
                 mWorld->setSelectedHighlight(mSelectedBodyId);
             }
         }
+        updatePivotMarker();
     }
     else
     {
-        // leaving the selection mode: clear the selection highlights
+        // leaving the transform mode: clear the selection highlights
         exitSelectionMode();
     }
 }
@@ -823,8 +1032,8 @@ Editor::handleMouseEvent(const sf::Event &event, const sf::Vector2f &mouseWorldP
         return;
     }
 
-    // the Select tool gates all selection interactions
-    if (mActiveTool != Tool::Select)
+    // the transform tools (resize/rotate) gate all selection interactions
+    if (mActiveTool != Tool::Resize && mActiveTool != Tool::Rotate)
     {
         mWorld->setHoverHighlight(b2_nullBodyId);
         return;
@@ -836,6 +1045,9 @@ Editor::handleMouseEvent(const sf::Event &event, const sf::Vector2f &mouseWorldP
 
         if (mMainCharRowSelected)
         {
+            // the character body is animation-driven: no rotation support;
+            // in rotate mode the press is simply ignored
+            if (mActiveTool == Tool::Rotate) { return; }
             // press inside the character overlay: grab + move it like an
             // object; press elsewhere: deselect the character
             const Physics::CharacterPhysicsRect rect = mWorld->getCharacterRect();
@@ -857,6 +1069,31 @@ Editor::handleMouseEvent(const sf::Event &event, const sf::Vector2f &mouseWorldP
 
         if (not B2_IS_NULL(mSelectedBodyId))
         {
+            if (mActiveTool == Tool::Rotate)
+            {
+                // press on the pivot marker: move the pivot inside the object
+                if (pivotMarkerAt(mouseWorldPosPx))
+                {
+                    beginDrag(DragMode::MovePivot, -1, mouseWorldPosPx);
+                    return;
+                }
+                // press on a corner marker: rotate around the pivot
+                const int marker = rotateMarkerAt(mouseWorldPosPx);
+                if (marker >= 0)
+                {
+                    beginDrag(DragMode::Rotate, marker, mouseWorldPosPx);
+                    return;
+                }
+                // press inside the object keeps the selection (moving is a
+                // resize-mode feature); press on empty game view deselects
+                if (insideSelectedObject(mouseWorldPosPx)) { return; }
+                mSelectedBodyId = b2_nullBodyId;
+                mWorld->setSelectedHighlight(b2_nullBodyId);
+                updatePivotMarker();
+                syncEditBuffersFromSelection();
+                return;
+            }
+
             const int handle = resizeHandleAt(mouseWorldPosPx);
             if (handle >= 0)
             {
@@ -868,7 +1105,7 @@ Editor::handleMouseEvent(const sf::Event &event, const sf::Vector2f &mouseWorldP
                 beginDrag(DragMode::Move, -1, mouseWorldPosPx);
                 return;
             }
-            // click on empty game view: deselect the object (the Select tool
+            // click on empty game view: deselect the object (the tool
             // itself stays on)
             mSelectedBodyId = b2_nullBodyId;
             mWorld->setSelectedHighlight(b2_nullBodyId);
@@ -897,7 +1134,10 @@ Editor::handleMouseEvent(const sf::Event &event, const sf::Vector2f &mouseWorldP
             }
         }
         mLastSelectedIndex = -1;
+        mSelectedBodyId = hit;
+        mPivotOffsetPx = {};
         mWorld->setSelectedHighlight(hit);
+        updatePivotMarker();
         syncEditBuffersFromSelection();
         return;
     }
@@ -938,8 +1178,8 @@ Editor::handleMouseEvent(const sf::Event &event, const sf::Vector2f &mouseWorldP
 void
 Editor::drawSelectionModeHud()
 {
-    // the text belongs purely to the Select tool state, not to an object
-    if (mActiveTool != Tool::Select) { return; }
+    // the text belongs purely to the active tool state, not to an object
+    if (mActiveTool != Tool::Resize && mActiveTool != Tool::Rotate) { return; }
 
     const ImGuiViewport *viewport = ImGui::GetMainViewport();
     const ImVec2 pos{ viewport->WorkSize.x - 240.f, viewport->WorkSize.y - 36.f };
@@ -951,7 +1191,8 @@ Editor::drawSelectionModeHud()
                              | ImGuiWindowFlags_NoNav;
     ImGui::Begin("##selectionModeHud", nullptr, flags);
     ImGui::PushStyleColor(ImGuiCol_Text, {1.f, 0.f, 0.f, 1.f});
-    ImGui::Text("selection-mode active");
+    ImGui::Text("%s", mActiveTool == Tool::Rotate
+                        ? "rotate-mode active" : "resize-mode active");
     ImGui::PopStyleColor();
     ImGui::End();
 }
@@ -1070,13 +1311,18 @@ Editor::createEditorWidgets(bool *p_open)
                     mLastSelectedIndex = -1;
                     syncEditBuffersFromSelection();
 
-                    // in selection mode a list click selects the object in
-                    // the level (persistent outline + markers); without the
-                    // Select tool the list click only fills the edit buffers
-                    if (mActiveTool == Tool::Select)
+                    // in a transform mode a list click selects the object
+                    // in the level (persistent outline + markers); without
+                    // such a tool the list click only fills the edit buffers
+                    if (transformModeActive())
                     {
                         mSelectedBodyId = object.mPhysicsBodyId;
+                        mPivotOffsetPx = {};
                         mWorld->setSelectedHighlight(mSelectedBodyId);
+                        mWorld->setSelectionStyle(mActiveTool == Tool::Rotate
+                            ? Renderer::SelectionStyle::RotateMarkers
+                            : Renderer::SelectionStyle::ResizeHandles);
+                        updatePivotMarker();
                     }
                 }
 
@@ -1089,7 +1335,7 @@ Editor::createEditorWidgets(bool *p_open)
                 {
                     mHoveredBodyId = object.mPhysicsBodyId;
                     mWorld->setHoverHighlight(mHoveredBodyId,
-                                              mActiveTool == Tool::Select);
+                                              transformModeActive());
                 }
             }
 

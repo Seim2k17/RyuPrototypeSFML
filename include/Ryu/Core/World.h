@@ -65,6 +65,18 @@ class World : public Observer {
     {
         return mPhysics.moveSceneObject(bodyId, position);
     }
+    /** Rotates a scene object live around a world-space pivot; see
+        Physics::rotateSceneObject. */
+    bool rotateSceneObject(b2BodyId bodyId, float angleRadians,
+                           const b2Vec2& pivotM)
+    {
+        return mPhysics.rotateSceneObject(bodyId, angleRadians, pivotM);
+    }
+    /** Current rotation (radians) of a scene-object body; 0 if unknown. */
+    float getSceneObjectRotation(b2BodyId bodyId) const
+    {
+        return mPhysics.getSceneObjectRotation(bodyId);
+    }
     /** Recreates the body of an edited scene object; see Physics. */
     b2BodyId updateSceneObject(b2BodyId bodyId)
     {
@@ -88,6 +100,16 @@ class World : public Observer {
     void setSelectedHighlight(b2BodyId bodyId)
     {
         mRenderer->setSelectedHighlight(bodyId);
+    }
+    /// marker style of the selected object: resize handles or rotate arrows
+    void setSelectionStyle(Renderer::SelectionStyle style)
+    {
+        mRenderer->setSelectionStyle(style);
+    }
+    /// pivot-point marker of the selected object (rotate tool)
+    void setPivotMarker(const sf::Vector2f& positionPx, bool show = true)
+    {
+        mRenderer->setPivotMarker(positionPx, show);
     }
     void setResizePreview(const sf::Vector2f& positionPx,
                           const sf::Vector2f& sizePx, bool show = true)

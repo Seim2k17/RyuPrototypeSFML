@@ -39,9 +39,19 @@ public:
     /// \p withOutline is set (selection mode), the hover also gets the red
     /// outline and edge markers.
     void setHoverHighlight(b2BodyId bodyId, bool withOutline = false);
-    /// Marks the selected object (drawn with red outline + 8 resize handles);
-    /// a null bodyId clears it.
+    /// Marker style of the selected object in the level editor.
+    enum class SelectionStyle {
+        ResizeHandles,  /// 8 square handles (corners + edge midpoints)
+        RotateMarkers   /// 4 rounded-arrow markers at the corners
+    };
+    /// Marks the selected object (drawn with red outline; the markers follow
+    /// the current selection style); a null bodyId clears it.
     void setSelectedHighlight(b2BodyId bodyId);
+    /// Sets the marker style of the selected object (resize vs rotate tool).
+    void setSelectionStyle(SelectionStyle style);
+    /// Pivot-point marker of the selected object (rotate tool): a small
+    /// circle + crosshair drawn at \p positionPx; show=false clears it.
+    void setPivotMarker(const sf::Vector2f& positionPx, bool show = true);
     /// Live-resize preview: an orange overlay drawn at \p positionPx with
     /// \p sizePx while a resize-drag is running.
     void setResizePreview(const sf::Vector2f& positionPx,
@@ -88,6 +98,11 @@ private:
     /// hovered object gets outline + handles too (true while selection mode)
     bool mHoverShowsOutline;
     b2BodyId mSelectedBodyId;
+    /// marker style of the selected object (resize vs rotate tool)
+    SelectionStyle mSelectionStyle;
+    // pivot-point marker state (see setPivotMarker)
+    bool mShowPivotMarker;
+    sf::Vector2f mPivotMarkerPositionPx;
     bool mShowResizePreview;
     sf::Vector2f mResizePreviewPositionPx;
     sf::Vector2f mResizePreviewSizePx;

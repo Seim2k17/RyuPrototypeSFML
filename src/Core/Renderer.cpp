@@ -41,6 +41,9 @@ Renderer::Renderer(sf::RenderWindow& window, EventManager& eventManager, const s
      , mHoveredBodyId(b2_nullBodyId)
      , mHoverShowsOutline(false)
      , mSelectedBodyId(b2_nullBodyId)
+     , mSelectionStyle(SelectionStyle::ResizeHandles)
+     , mShowPivotMarker(false)
+     , mPivotMarkerPositionPx()
      , mShowResizePreview(false)
      , mShowGridOverlay(false)
      , mGridCellSizePx({32.f, 32.f})
@@ -261,6 +264,19 @@ Renderer::setSelectedHighlight(b2BodyId bodyId)
 }
 
 void
+Renderer::setSelectionStyle(SelectionStyle style)
+{
+    mSelectionStyle = style;
+}
+
+void
+Renderer::setPivotMarker(const sf::Vector2f& positionPx, bool show)
+{
+    mPivotMarkerPositionPx = positionPx;
+    mShowPivotMarker = show;
+}
+
+void
 Renderer::setResizePreview(const sf::Vector2f& positionPx,
                            const sf::Vector2f& sizePx, bool show)
 {
@@ -291,9 +307,27 @@ Renderer::drawLevelEditorOverlay()
         mWindow.draw(rect);
     }
 
+    // local->world helper: marker positions are given in the unrotated
+    // object frame and rotated around the object center
+    auto rotateAround = [](const sf::Vector2f& centerPx, float angleRad,
+                           const sf::Vector2f& localPx) -> sf::Vector2f
+    {
+        const float c = std::cos(angleRad);
+        const float s = std::sin(angleRad);
+        return { centerPx.x + localPx.x * c - localPx.y * s,
+                 centerPx.y + localPx.x * s + localPx.y * c };
+    };
+
+    // live rotation of a scene-object body (0 for unrotated/invalid bodies)
+    auto bodyAngle = [](b2BodyId bodyId) -> float
+    {
+        if (B2_IS_NULL(bodyId) || not b2Body_IsValid(bodyId)) { return 0.f; }
+        return b2Rot_GetAngle(b2Body_GetRotation(bodyId));
+    };
+
     // 8 resize handles (4 corners + edge midpoints) around the object rect
     auto drawEdgeMarkers = [&](const sf::Vector2f& centerPx,
-                               const sf::Vector2f& sizePx)
+                               const sf::Vector2f& sizePx, float angleRad)
     {
         constexpr float handleSize = 4.f;
         const sf::Vector2f half = sizePx / 2.f;
@@ -306,11 +340,85 @@ Renderer::drawLevelEditorOverlay()
         rect.setOutlineThickness(0.f);
         for (const auto& point : handlePoints)
         {
-            rect.setPosition(centerPx + point
+            rect.setPosition(rotateAround(centerPx, angleRad, point)
                              - sf::Vector2f{handleSize, handleSize} / 2.f);
             rect.setSize({handleSize, handleSize});
             mWindow.draw(rect);
         }
+    };
+
+    // one rounded-arrow rotation marker (arc + arrowhead) at a corner of the
+    // object rect; the arc curls around the corner point
+    auto drawRotationMarker = [&](const sf::Vector2f& cornerPx)
+    {
+        constexpr float radius = 7.f;
+        constexpr float arrowLength = 5.f;
+        constexpr float startAngle = 0.6f;  // rad, gap so the arc reads as open
+        constexpr float sweep = 4.4f;      // rad (~250 degrees)
+        constexpr int segments = 14;
+
+        sf::VertexArray arc{sf::PrimitiveType::LineStrip};
+        sf::Vector2f arrowTip{};
+        for (int i = 0; i <= segments; ++i)
+        {
+            const float t = startAngle + sweep * i / segments;
+            const sf::Vector2f point{ cornerPx.x + radius * std::cos(t),
+                                     cornerPx.y + radius * std::sin(t) };
+            arc.append({point, outline});
+            arrowTip = point;
+        }
+        mWindow.draw(arc);
+
+        // arrowhead: two short tangential lines at the arc's end
+        const float endAngle = startAngle + sweep;
+        const sf::Vector2f tangent{ -std::sin(endAngle), std::cos(endAngle) };
+        const sf::Vector2f inward{ -std::cos(endAngle), -std::sin(endAngle) };
+        const sf::Vector2f headBase{ arrowTip - tangent * arrowLength };
+        const sf::Vertex head[] = {
+            { headBase - inward * (arrowLength / 2.f), outline },
+            { arrowTip, outline },
+            { headBase + inward * (arrowLength / 2.f), outline },
+            { arrowTip, outline },
+        };
+        mWindow.draw(head, 4, sf::PrimitiveType::Lines);
+    };
+
+    // 4 rotation markers at the corners of the object rect
+    auto drawRotateMarkers = [&](const sf::Vector2f& centerPx,
+                                 const sf::Vector2f& sizePx, float angleRad)
+    {
+        const sf::Vector2f half = sizePx / 2.f;
+        const sf::Vector2f corners[4] = {
+            {-half.x, -half.y}, {half.x, -half.y},
+            {-half.x, half.y}, {half.x, half.y},
+        };
+        for (const auto& corner : corners)
+        {
+            drawRotationMarker(rotateAround(centerPx, angleRad, corner));
+        }
+    };
+
+    // pivot-point marker of the selected object (rotate tool): filled circle
+    // + crosshair so it stays visible over the orange selection fill
+    auto drawPivotMarker = [&](const sf::Vector2f& positionPx)
+    {
+        constexpr float radius = 4.f;
+        constexpr float crossHalf = 9.f;
+        sf::CircleShape pivot{radius};
+        pivot.setOrigin({radius, radius});
+        pivot.setPosition(positionPx);
+        pivot.setFillColor(outline);
+        pivot.setOutlineColor(sf::Color::White);
+        pivot.setOutlineThickness(1.f);
+        mWindow.draw(pivot);
+
+        const sf::Vertex cross[] = {
+            { {positionPx.x - crossHalf, positionPx.y}, outline },
+            { {positionPx.x + crossHalf, positionPx.y}, outline },
+            { {positionPx.x, positionPx.y - crossHalf}, outline },
+            { {positionPx.x, positionPx.y + crossHalf}, outline },
+        };
+        mWindow.draw(cross, 4, sf::PrimitiveType::Lines);
     };
 
     auto drawHoverHighlight = [&](b2BodyId bodyId)
@@ -328,8 +436,11 @@ Renderer::drawLevelEditorOverlay()
                 const sf::Vector2f sizePx{
                     Converter::metersToPixels(object.mSize.x),
                     Converter::metersToPixels(object.mSize.y)};
+                const float angleRad = bodyAngle(bodyId);
 
-                rect.setPosition(centerPx - sizePx / 2.f);
+                rect.setOrigin(sizePx / 2.f);
+                rect.setPosition(centerPx);
+                rect.setRotation(sf::radians(angleRad));
                 rect.setSize(sizePx);
                 rect.setFillColor(hoverFill);
                 rect.setOutlineColor(mHoverShowsOutline ? outline
@@ -337,7 +448,10 @@ Renderer::drawLevelEditorOverlay()
                 rect.setOutlineThickness(mHoverShowsOutline ? outlineThickness
                                                             : 0.f);
                 mWindow.draw(rect);
-                if (mHoverShowsOutline) { drawEdgeMarkers(centerPx, sizePx); }
+                if (mHoverShowsOutline)
+                {
+                    drawEdgeMarkers(centerPx, sizePx, angleRad);
+                }
                 return;
             }
         }
@@ -358,15 +472,25 @@ Renderer::drawLevelEditorOverlay()
                 const sf::Vector2f sizePx{
                     Converter::metersToPixels(object.mSize.x),
                     Converter::metersToPixels(object.mSize.y)};
+                const float angleRad = bodyAngle(bodyId);
 
-                rect.setPosition(centerPx - sizePx / 2.f);
+                rect.setOrigin(sizePx / 2.f);
+                rect.setPosition(centerPx);
+                rect.setRotation(sf::radians(angleRad));
                 rect.setSize(sizePx);
                 rect.setFillColor(hoverFill);
                 rect.setOutlineColor(outline);
                 rect.setOutlineThickness(outlineThickness);
                 mWindow.draw(rect);
 
-                drawEdgeMarkers(centerPx, sizePx);
+                if (mSelectionStyle == SelectionStyle::RotateMarkers)
+                {
+                    drawRotateMarkers(centerPx, sizePx, angleRad);
+                }
+                else
+                {
+                    drawEdgeMarkers(centerPx, sizePx, angleRad);
+                }
                 return;
             }
         }
@@ -392,11 +516,17 @@ Renderer::drawLevelEditorOverlay()
         drawHoverHighlight(mHoveredBodyId);
     }
 
-    // selection mode visuals (fill + red outline + handles) only while the
-    // Select tool is on
+    // selection mode visuals (fill + red outline + handles) only while a
+    // transform tool (resize/rotate) is on
     if (not B2_IS_NULL(mSelectedBodyId))
     {
         drawSelectionHighlight(mSelectedBodyId);
+    }
+
+    // pivot point of the selected object (rotate tool)
+    if (mShowPivotMarker)
+    {
+        drawPivotMarker(mPivotMarkerPositionPx);
     }
 }
 

@@ -827,6 +827,48 @@ Physics::moveSceneObject(b2BodyId bodyId, const b2Vec2& position)
     return true;
 }
 
+bool
+Physics::rotateSceneObject(b2BodyId bodyId, float angleRadians,
+                           const b2Vec2& pivotM)
+{
+    auto* object = findSceneObject(bodyId);
+    if (object == nullptr || not b2Body_IsValid(bodyId))
+    {
+        return false;
+    }
+
+    // incremental rotation about the pivot: the vector from the pivot to the
+    // body center is rotated by the angle delta, the body itself by the new
+    // absolute angle
+    const float oldAngle = b2Rot_GetAngle(b2Body_GetRotation(bodyId));
+    const b2Rot deltaRotation = b2MakeRot(angleRadians - oldAngle);
+    const b2Vec2 centerToPivot = b2Sub(object->mPosition, pivotM);
+    const b2Vec2 newCenter = b2Add(pivotM,
+                                   b2RotateVector(deltaRotation, centerToPivot));
+
+    object->mPosition = newCenter;
+    b2Body_SetTransform(bodyId, newCenter, b2MakeRot(angleRadians));
+
+    // the renderer follows the body without recreating the node
+    PhysicsObjectUpdatedEvent event;
+    event.bodyId = bodyId;
+    event.position = newCenter;
+    event.name = object->mName;
+    event.rotation = angleRadians;
+    EventBus::emit(Ryu::EPhysicsEvent::ObjectUpdated, event);
+    return true;
+}
+
+float
+Physics::getSceneObjectRotation(b2BodyId bodyId) const
+{
+    if (not b2Body_IsValid(bodyId) || B2_IS_NULL(bodyId))
+    {
+        return 0.f;
+    }
+    return b2Rot_GetAngle(b2Body_GetRotation(bodyId));
+}
+
 SceneObjectPhysicsParameters*
 Physics::findSceneObject(b2BodyId bodyId)
 {

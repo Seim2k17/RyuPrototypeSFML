@@ -160,6 +160,13 @@ class Physics : public Subject {
     /** Moves a scene object live during a drag (no body recreation);
         returns false if unknown. */
     bool moveSceneObject(b2BodyId bodyId, const b2Vec2& position);
+    /** Rotates a scene object live around the world-space pivot \p pivotM
+        (no body recreation): the body center travels on an arc around the
+        pivot so the object turns around it. Returns false if unknown. */
+    bool rotateSceneObject(b2BodyId bodyId, float angleRadians,
+                           const b2Vec2& pivotM);
+    /** Current rotation (radians) of a scene-object body; 0 if unknown. */
+    float getSceneObjectRotation(b2BodyId bodyId) const;
     /** The level whose scene-object bodies are currently created. */
     ELevel getActiveLevel() const { return mActiveLevel; }
     /** \} */

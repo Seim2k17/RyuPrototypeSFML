@@ -6,15 +6,23 @@
  * (assets/levels/levelN.json, see LevelData.h) and created/edited live
  * through the incremental Physics API.
  *
- * Selection mode (mouse in the game view, while this editor is open):
+ * Transform modes (mouse in the game view, while this editor is open):
  * - hovering an object highlights it (orange transparent + red outline)
  * - clicking an object selects it and shows 8 resize handles
  *   (corners + edge midpoints); dragging a handle resizes the object live
  * - clicking inside the selected object and dragging moves it live;
  *   releasing fixes the position and leaves the selection mode
  * - left-clicking anywhere else in the game view exits the selection mode
- * While the selection mode is active a red "selection-mode active" text
- * is shown at the bottom right of the game view.
+ * Rotate mode (Rotate tool):
+ * - the selected object shows 4 rounded-arrow markers at its corners and
+ *   its pivot point (circle + crosshair); dragging a corner marker rotates
+ *   the object live around the pivot point
+ * - dragging the pivot marker moves the pivot, clamped to the object borders
+ * While a transform mode is active a red "<mode> active" text is shown at
+ * the bottom right of the game view.
+ *
+ * NOTE: rotation is a live transform on the physics body; it is not (yet)
+ * persisted in the level JSON files.
  *
  * @author: Simon Nguyen
  * @date: 02/02/2025
@@ -42,10 +50,11 @@ namespace RyuLevel
 class Editor
 {
   public:
-    /// tools of the level editor (sidebar); Select = selection mode
+    /// tools of the level editor (sidebar); Resize/Rotate = transform modes
     enum class Tool {
         None,   /// no tool: plain game view, no selection interactions
-        Select, /// selection mode: hover/click/drag objects in the game view
+        Resize, /// resize mode: hover/click/drag objects in the game view
+        Rotate, /// rotate mode: rotate objects around a movable pivot point
         Edit    /// placeholder, not implemented yet
     };
 
@@ -68,12 +77,15 @@ class Editor
 
     bool showLevelEditor = false;
 
-    /// selection mode = the Select tool is turned on (physics is paused
-    /// while it is active so dragged bodies don't fall between updates)
-    bool selectModeActive() const { return mActiveTool == Tool::Select; }
+    /// transform mode = the Resize or Rotate tool is turned on (physics is
+    /// paused while it is active so dragged bodies don't fall between updates)
+    bool transformModeActive() const
+    {
+        return mActiveTool == Tool::Resize || mActiveTool == Tool::Rotate;
+    }
 
   private:
-    enum class DragMode { None, Move, Resize };
+    enum class DragMode { None, Move, Resize, Rotate, MovePivot };
 
     void switchLevel(ELevel level);
     void addObject();
@@ -90,7 +102,15 @@ class Editor
 
     /// selection-mode (see class comment)
     int resizeHandleAt(const sf::Vector2f& mouseWorldPosPx) const;
+    /// rotate-mode: index of the rotation marker under the cursor, -1 = none
+    int rotateMarkerAt(const sf::Vector2f& mouseWorldPosPx) const;
+    /// rotate-mode: true if the cursor is on the pivot point marker
+    bool pivotMarkerAt(const sf::Vector2f& mouseWorldPosPx) const;
     bool insideSelectedObject(const sf::Vector2f& mouseWorldPosPx) const;
+    /// world-space position of the pivot of the selected object
+    sf::Vector2f selectedPivotWorldPx() const;
+    /// pushes the pivot marker (world px) to the renderer
+    void updatePivotMarker();
     void beginDrag(DragMode mode, int handle,
                    const sf::Vector2f& mouseWorldPosPx);
     void updateDrag(const sf::Vector2f& mouseWorldPosPx);
@@ -133,6 +153,13 @@ class Editor
     /// final geometry of the running resize drag (committed on release)
     sf::Vector2f mLastPreviewCenterPx;
     sf::Vector2f mLastPreviewSizePx;
+    // rotate-mode state: pivot offset in the unrotated object frame (px,
+    // relative to the object center; 0 = center), the world-space pivot
+    // captured at drag start and the angles a rotate-drag started with
+    sf::Vector2f mPivotOffsetPx;
+    sf::Vector2f mRotateStartPivotPx;
+    float mRotateStartMouseAngle;
+    float mRotateStartObjectAngle;
     b2BodyId mSelectedBodyId;
     b2BodyId mHoveredBodyId;
 
