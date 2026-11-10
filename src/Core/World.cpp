@@ -25,7 +25,7 @@
 #include <SFML/System/Vector2.hpp>
 #include <box2d/box2d.h>
 // TODO: integrate the files in the project
-#include <../build_arch/_deps/tracy-src/public/tracy/Tracy.hpp>
+#include <tracy/Tracy.hpp>
 
 #include <array>
 #include <iostream>

@@ -21,7 +21,7 @@
 #include <fmt/format.h>
 
 // TODO: integrate the files in the project
-#include <../build_arch/_deps/tracy-src/public/tracy/Tracy.hpp>
+#include <tracy/Tracy.hpp>
 
 #include <iostream>
 #include <fstream>

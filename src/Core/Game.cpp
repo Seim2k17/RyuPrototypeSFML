@@ -17,7 +17,7 @@
 #include <fmt/core.h>
 #include <imgui-SFML.h>
 // TODO: integrate the files in the project
-#include <../build_arch/_deps/tracy-src/public/tracy/Tracy.hpp>
+#include <tracy/Tracy.hpp>
 
 #include <SFML/Graphics.hpp>
 #include <imgui.h>
@@ -315,7 +315,7 @@ void Game::update(sf::Time deltaTime)
 
 	// selection mode pauses the physics world stepping so dragged bodies
 	// don't fall between the drag updates; leaving it resumes automatically
-	mWorld.setPhysicsActive(not mLevelEditor.selectModeActive());
+	mWorld.setPhysicsActive(not mLevelEditor.transformModeActive());
 	mWorld.update(deltaTime);
 
 	if(mAnimator.fileBrowserState != RyuAnimator::EFileBrowserState::None || (mAnimator.parsedSpritesheet && mAnimator.textureSet))
