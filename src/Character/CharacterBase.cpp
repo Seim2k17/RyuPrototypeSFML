@@ -383,33 +383,43 @@ CharacterBase::checkContactObjects()
 void
 CharacterBase::createRaycasts()
 {
+    // raycast origins are derived from the physics body (not the animation
+    // sprite) so a sprite offset cannot desync the raycasts (see FIXME in
+    // CharacterStateLedgeHang::enter)
+    if (mPhysics == nullptr)
+    {
+        return;
+    }
 
-    // TODO: physicsrelated stuff now in the PhysicsClass please move this also
-    /*
-    auto const &charPos = mCharacterAnimation.getPosition();
+    b2WorldId worldId = mPhysics->getPhysicsWorldId();
+    b2Vec2 bodyPos = b2Body_GetPosition(mBodyId);
+    sf::Vector2f charPos{Converter::metersToPixels<float>(bodyPos.x),
+                         Converter::metersToPixels<float>(bodyPos.y)};
+
+    constexpr float rayCastLength = 40.f;
+    constexpr float belowRayLength = 55.f;
+
     mRaycastComponent.createCharacterRaycast(
         RaycastPosition::Up, charPos.x, charPos.y - Ryu::Physics::raycastOffset,
-        0, mCharacterPhysicsValues.rayCastLength, getMoveDirection(),
-        phWorldRef);
+        0, rayCastLength, getMoveDirection(), worldId, mBodyId);
     mRaycastComponent.createCharacterRaycast(
         RaycastPosition::Mid, charPos.x, charPos.y, 0,
-        mCharacterPhysicsValues.rayCastLength, getMoveDirection(), phWorldRef);
+        rayCastLength, getMoveDirection(), worldId, mBodyId);
     mRaycastComponent.createCharacterRaycast(
         RaycastPosition::Down, charPos.x,
         charPos.y + Ryu::Physics::raycastOffset, 0,
-        mCharacterPhysicsValues.rayCastLength, getMoveDirection(), phWorldRef);
+        rayCastLength, getMoveDirection(), worldId, mBodyId);
 
     if (isFalling())
     {
         mRaycastComponent.createCharacterRaycast(
             RaycastPosition::Below, charPos.x,
-            charPos.y + Ryu::Physics::raycastOffset, 90.f, 55.f,
-            getMoveDirection(), phWorldRef);
+            charPos.y + Ryu::Physics::raycastOffset, 90.f, belowRayLength,
+            getMoveDirection(), worldId, mBodyId);
     } else
     {
         mRaycastComponent.eraseBelow();
     }
-    */
 }
 
 void

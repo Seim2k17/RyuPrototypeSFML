@@ -82,6 +82,7 @@ CharacterStateFalling::update(CharacterBase& character)
 void
 CharacterStateFalling::enter(CharacterBase& character)
 {
+    character.setFalling(true);
     character.setupAnimation(Textures::CharacterID::IchiFallingLoop);
     character.setCharacterStateEnum(ECharacterState::Falling);
 
