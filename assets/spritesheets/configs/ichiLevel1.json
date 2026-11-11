@@ -1,26 +1,1354 @@
 {
-  "Name" : "ichi",
-  "Spritesheet" : "Ichi80x96",
-  "Level" : "Level1",
-  "Path" : "assets/spritesheets/ichi/ichi_spritesheet_level1.png",
-  "Animations" : [
-    {"AnimationDirection":"forward","PivotNorm":{"x":4,"y":3},"AnimationId":"IchiIdle","AnimationType":"Character","FrameSize":{"height":80,"width":96},"Frames":[{"duration":100,"event":"None","height":96,"width":80,"x_sheet":0,"y_sheet":0}],"Name":"idle","Sheet_begin":0,"Sheet_end":0,"animationDuration":"100 ms","numFrames":1,"repeat":true},
-    {"AnimationDirection":"forward","PivotNorm":{"x":4,"y":3},"AnimationId":"IchiRun","AnimationType":"Character","FrameSize":{"height":80,"width":96},"Frames":[{"duration":60,"event":"None","height":96,"width":80,"x_sheet":80,"y_sheet":0},{"duration":100,"event":"None","height":96,"width":80,"x_sheet":160,"y_sheet":0},{"duration":100,"event":"None","height":96,"width":80,"x_sheet":240,"y_sheet":0},{"duration":100,"event":"None","height":96,"width":80,"x_sheet":320,"y_sheet":0},{"duration":100,"event":"None","height":96,"width":80,"x_sheet":400,"y_sheet":0},{"duration":100,"event":"None","height":96,"width":80,"x_sheet":480,"y_sheet":0},{"duration":100,"event":"None","height":96,"width":80,"x_sheet":560,"y_sheet":0},{"duration":60,"event":"None","height":96,"width":80,"x_sheet":640,"y_sheet":0}],"Name":"run","Sheet_begin":1,"Sheet_end":8,"animationDuration":"720 ms","numFrames":8,"repeat":true},
-    {"AnimationDirection":"forward","PivotNorm":{"x":4,"y":3},"AnimationId":"IchiStartFalling","AnimationType":"Character","FrameSize":{"height":80,"width":96},"Frames":[{"duration":200,"event":"None","height":96,"width":80,"x_sheet":720,"y_sheet":0},{"duration":200,"event":"None","height":96,"width":80,"x_sheet":800,"y_sheet":0},{"duration":200,"event":"None","height":96,"width":80,"x_sheet":880,"y_sheet":0},{"duration":200,"event":"None","height":96,"width":80,"x_sheet":960,"y_sheet":0}],"Name":"falling_enter","Sheet_begin":9,"Sheet_end":12,"animationDuration":"800 ms","numFrames":4,"repeat":false},
-    {"AnimationDirection":"forward","PivotNorm":{"x":4,"y":3},"AnimationId":"IchiFallingLoop","AnimationType":"Character","FrameSize":{"height":80,"width":96},"Frames":[{"duration":200,"event":"None","height":96,"width":80,"x_sheet":0,"y_sheet":96},{"duration":200,"event":"None","height":96,"width":80,"x_sheet":80,"y_sheet":96},{"duration":200,"event":"None","height":96,"width":80,"x_sheet":160,"y_sheet":96},{"duration":200,"event":"None","height":96,"width":80,"x_sheet":240,"y_sheet":96},{"duration":200,"event":"None","height":96,"width":80,"x_sheet":320,"y_sheet":96}],"Name":"fallng_loop","Sheet_begin":13,"Sheet_end":17,"animationDuration":"1000 ms","numFrames":5,"repeat":true},
-    {"AnimationDirection":"forward","PivotNorm":{"x":4,"y":3},"AnimationId":"IchiLandEnter","AnimationType":"Character","FrameSize":{"height":80,"width":96},"Frames":[{"duration":200,"event":"None","height":96,"width":80,"x_sheet":400,"y_sheet":96},{"duration":100,"event":"None","height":96,"width":80,"x_sheet":480,"y_sheet":96}],"Name":"falling_land_enter","Sheet_begin":18,"Sheet_end":19,"animationDuration":"300 ms","numFrames":2,"repeat":false},
-    {"AnimationDirection":"forward","PivotNorm":{"x":4,"y":3},"AnimationId":"IchiLandLow","AnimationType":"Character","FrameSize":{"height":80,"width":96},"Frames":[{"duration":100,"event":"None","height":96,"width":80,"x_sheet":560,"y_sheet":96},{"duration":100,"event":"None","height":96,"width":80,"x_sheet":640,"y_sheet":96},{"duration":100,"event":"None","height":96,"width":80,"x_sheet":720,"y_sheet":96},{"duration":100,"event":"None","height":96,"width":80,"x_sheet":800,"y_sheet":96},{"duration":100,"event":"None","height":96,"width":80,"x_sheet":880,"y_sheet":96},{"duration":100,"event":"None","height":96,"width":80,"x_sheet":960,"y_sheet":96},{"duration":100,"event":"None","height":96,"width":80,"x_sheet":0,"y_sheet":192},{"duration":1000,"event":"None","height":96,"width":80,"x_sheet":80,"y_sheet":192},{"duration":100,"event":"None","height":96,"width":80,"x_sheet":160,"y_sheet":192},{"duration":100,"event":"None","height":96,"width":80,"x_sheet":240,"y_sheet":192},{"duration":100,"event":"None","height":96,"width":80,"x_sheet":320,"y_sheet":192},{"duration":100,"event":"None","height":96,"width":80,"x_sheet":400,"y_sheet":192}],"Name":"land_low","Sheet_begin":20,"Sheet_end":31,"animationDuration":"2100 ms","numFrames":12,"repeat":false},
-    {"AnimationDirection":"forward","PivotNorm":{"x":4,"y":3},"AnimationId":"IchiLandHigh","AnimationType":"Character","FrameSize":{"height":80,"width":96},"Frames":[{"duration":100,"event":"None","height":96,"width":80,"x_sheet":480,"y_sheet":192},{"duration":80,"event":"None","height":96,"width":80,"x_sheet":560,"y_sheet":192},{"duration":100,"event":"None","height":96,"width":80,"x_sheet":640,"y_sheet":192},{"duration":100,"event":"None","height":96,"width":80,"x_sheet":720,"y_sheet":192},{"duration":100,"event":"None","height":96,"width":80,"x_sheet":800,"y_sheet":192},{"duration":100,"event":"None","height":96,"width":80,"x_sheet":880,"y_sheet":192},{"duration":100,"event":"None","height":96,"width":80,"x_sheet":960,"y_sheet":192},{"duration":100,"event":"None","height":96,"width":80,"x_sheet":0,"y_sheet":288},{"duration":100,"event":"None","height":96,"width":80,"x_sheet":80,"y_sheet":288},{"duration":150,"event":"None","height":96,"width":80,"x_sheet":160,"y_sheet":288},{"duration":100,"event":"None","height":96,"width":80,"x_sheet":240,"y_sheet":288},{"duration":100,"event":"None","height":96,"width":80,"x_sheet":320,"y_sheet":288},{"duration":100,"event":"None","height":96,"width":80,"x_sheet":400,"y_sheet":288},{"duration":100,"event":"None","height":96,"width":80,"x_sheet":480,"y_sheet":288}],"Name":"land_hard","Sheet_begin":32,"Sheet_end":45,"animationDuration":"2780 ms","numFrames":14,"repeat":false},
-    {"AnimationDirection":"forward","PivotNorm":{"x":4,"y":3},"AnimationId":"IchiDuckEnter","AnimationType":"Character","FrameSize":{"height":80,"width":96},"Frames":[{"duration":100,"event":"None","height":96,"width":80,"x_sheet":560,"y_sheet":288},{"duration":100,"event":"None","height":96,"width":80,"x_sheet":640,"y_sheet":288},{"duration":100,"event":"None","height":96,"width":80,"x_sheet":720,"y_sheet":288}],"Name":"duck_enter","Sheet_begin":46,"Sheet_end":48,"animationDuration":"300 ms","numFrames":3,"repeat":false},
-    {"AnimationDirection":"forward","PivotNorm":{"x":4,"y":3},"AnimationId":"IchiDuckIdle","AnimationType":"Character","FrameSize":{"height":80,"width":96},"Frames":[{"duration":100,"event":"None","height":96,"width":80,"x_sheet":800,"y_sheet":288}],"Name":"duck_idle","Sheet_begin":49,"Sheet_end":49,"animationDuration":"100 ms","numFrames":1,"repeat":true},
-    {"AnimationDirection":"forward","PivotNorm":{"x":4,"y":3},"AnimationId":"IchiDuckWalk","AnimationType":"Character","FrameSize":{"height":80,"width":96},"Frames":[{"duration":100,"event":"None","height":96,"width":80,"x_sheet":880,"y_sheet":288},{"duration":100,"event":"None","height":96,"width":80,"x_sheet":960,"y_sheet":288},{"duration":100,"event":"None","height":96,"width":80,"x_sheet":0,"y_sheet":384},{"duration":100,"event":"None","height":96,"width":80,"x_sheet":80,"y_sheet":384},{"duration":100,"event":"None","height":96,"width":80,"x_sheet":160,"y_sheet":384},{"duration":100,"event":"None","height":96,"width":80,"x_sheet":240,"y_sheet":384},{"duration":100,"event":"None","height":96,"width":80,"x_sheet":320,"y_sheet":384}],"Name":"duck_walk","Sheet_begin":50,"Sheet_end":56,"animationDuration":"700 ms","numFrames":7,"repeat":true},
-    {"AnimationDirection":"forward","PivotNorm":{"x":4,"y":3},"AnimationId":"IchiLadderBack","AnimationType":"Character","FrameSize":{"height":80,"width":96},"Frames":[{"duration":100,"event":"None","height":96,"width":80,"x_sheet":400,"y_sheet":384}],"Name":"ladder_back","Sheet_begin":57,"Sheet_end":57,"animationDuration":"100 ms","numFrames":1,"repeat":true},
-    {"AnimationDirection":"forward","PivotNorm":{"x":4,"y":3},"AnimationId":"IchiLadderEnter","AnimationType":"Character","FrameSize":{"height":80,"width":96},"Frames":[{"duration":100,"event":"None","height":96,"width":80,"x_sheet":480,"y_sheet":384},{"duration":100,"event":"None","height":96,"width":80,"x_sheet":560,"y_sheet":384},{"duration":100,"event":"None","height":96,"width":80,"x_sheet":640,"y_sheet":384},{"duration":100,"event":"None","height":96,"width":80,"x_sheet":720,"y_sheet":384},{"duration":100,"event":"None","height":96,"width":80,"x_sheet":800,"y_sheet":384}],"Name":"ladder_enter","Sheet_begin":58,"Sheet_end":62,"animationDuration":"500 ms","numFrames":5,"repeat":false},
-    {"AnimationDirection":"forward","PivotNorm":{"x":4,"y":3},"AnimationId":"IchiLadderClimbLoop","AnimationType":"Character","FrameSize":{"height":80,"width":96},"Frames":[{"duration":100,"event":"None","height":96,"width":80,"x_sheet":880,"y_sheet":384},{"duration":100,"event":"None","height":96,"width":80,"x_sheet":960,"y_sheet":384},{"duration":100,"event":"None","height":96,"width":80,"x_sheet":0,"y_sheet":480},{"duration":100,"event":"None","height":96,"width":80,"x_sheet":80,"y_sheet":480},{"duration":100,"event":"None","height":96,"width":80,"x_sheet":160,"y_sheet":480},{"duration":100,"event":"None","height":96,"width":80,"x_sheet":240,"y_sheet":480},{"duration":100,"event":"None","height":96,"width":80,"x_sheet":320,"y_sheet":480},{"duration":100,"event":"None","height":96,"width":80,"x_sheet":400,"y_sheet":480},{"duration":100,"event":"None","height":96,"width":80,"x_sheet":480,"y_sheet":480},{"duration":100,"event":"None","height":96,"width":80,"x_sheet":560,"y_sheet":480},{"duration":100,"event":"None","height":96,"width":80,"x_sheet":640,"y_sheet":480},{"duration":100,"event":"None","height":96,"width":80,"x_sheet":720,"y_sheet":480},{"duration":100,"event":"None","height":96,"width":80,"x_sheet":800,"y_sheet":480}],"Name":"ladder_climb_loop","Sheet_begin":63,"Sheet_end":75,"animationDuration":"1300 ms","numFrames":13,"repeat":true},
-    {"AnimationDirection":"forward","PivotNorm":{"x":4,"y":3},"AnimationId":"IchiJumpUp","AnimationType":"Character","FrameSize":{"height":96,"width":80},"Frames":[{"duration":100,"event":"None","height":96,"width":80,"x_sheet":880,"y_sheet":480},{"duration":100,"event":"None","height":96,"width":80,"x_sheet":960,"y_sheet":480},{"duration":100,"event":"None","height":96,"width":80,"x_sheet":0,"y_sheet":576},{"duration":100,"event":"None","height":96,"width":80,"x_sheet":80,"y_sheet":576},{"duration":100,"event":"None","height":96,"width":80,"x_sheet":160,"y_sheet":576},{"duration":100,"event":"None","height":96,"width":80,"x_sheet":240,"y_sheet":576},{"duration":100,"event":"None","height":96,"width":80,"x_sheet":320,"y_sheet":576},{"duration":100,"event":"None","height":96,"width":80,"x_sheet":400,"y_sheet":576},{"duration":100,"event":"None","height":96,"width":80,"x_sheet":480,"y_sheet":576},{"duration":100,"event":"None","height":96,"width":80,"x_sheet":560,"y_sheet":576},{"duration":100,"event":"CharacterStartJump","height":96,"width":80,"x_sheet":640,"y_sheet":576},{"duration":100,"event":"None","height":96,"width":80,"x_sheet":720,"y_sheet":576},{"duration":100,"event":"None","height":96,"width":80,"x_sheet":800,"y_sheet":576},{"duration":100,"event":"None","height":96,"width":80,"x_sheet":880,"y_sheet":576},{"duration":100,"event":"None","height":96,"width":80,"x_sheet":960,"y_sheet":576},{"duration":100,"event":"None","height":96,"width":80,"x_sheet":0,"y_sheet":672},{"duration":100,"event":"None","height":96,"width":80,"x_sheet":80,"y_sheet":672},{"duration":100,"event":"None","height":96,"width":80,"x_sheet":160,"y_sheet":672},{"duration":100,"event":"None","height":96,"width":80,"x_sheet":240,"y_sheet":672}],"Name":"jump up","Sheet_begin":76,"Sheet_end":94,"animationDuration":"1900 ms","numFrames":19,"repeat":false},
-    {"AnimationDirection":"forward","PivotNorm":{"x":4,"y":3},"AnimationId":"IchiJumpForwardNrml","AnimationType":"Character","FrameSize":{"height":80,"width":96},"Frames":[{"duration":100,"event":"None","height":96,"width":80,"x_sheet":320,"y_sheet":672},{"duration":100,"event":"None","height":96,"width":80,"x_sheet":400,"y_sheet":672},{"duration":100,"event":"None","height":96,"width":80,"x_sheet":480,"y_sheet":672},{"duration":100,"event":"CharacterStartJump","height":96,"width":80,"x_sheet":560,"y_sheet":672},{"duration":100,"event":"None","height":96,"width":80,"x_sheet":640,"y_sheet":672},{"duration":100,"event":"None","height":96,"width":80,"x_sheet":720,"y_sheet":672},{"duration":100,"event":"None","height":96,"width":80,"x_sheet":800,"y_sheet":672},{"duration":100,"event":"None","height":96,"width":80,"x_sheet":880,"y_sheet":672},{"duration":100,"event":"None","height":96,"width":80,"x_sheet":960,"y_sheet":672},{"duration":100,"event":"None","height":96,"width":80,"x_sheet":0,"y_sheet":768},{"duration":100,"event":"None","height":96,"width":80,"x_sheet":80,"y_sheet":768},{"duration":100,"event":"None","height":96,"width":80,"x_sheet":160,"y_sheet":768},{"duration":100,"event":"None","height":96,"width":80,"x_sheet":240,"y_sheet":768}],"Name":"Jump_nrml","Sheet_begin":95,"Sheet_end":107,"animationDuration":"1300 ms","numFrames":13,"repeat":false},
-    {"AnimationDirection":"forward","PivotNorm":{"x":4,"y":3},"AnimationId":"IchiSword1Idle","AnimationType":"Character","FrameSize":{"height":80,"width":96},"Frames":[{"duration":100,"event":"None","height":96,"width":80,"x_sheet":320,"y_sheet":768}],"Name":"sword_idle","Sheet_begin":108,"Sheet_end":108,"animationDuration":"100 ms","numFrames":1,"repeat":true},
-    {"AnimationDirection":"forward","PivotNorm":{"x":4,"y":3}, "AnimationId":"IchiSword1Walk","AnimationType":"Character","FrameSize":{"height":80,"width":96},"Frames":[{"duration":100,"event":"None","height":96,"width":80,"x_sheet":400,"y_sheet":768},{"duration":100,"event":"None","height":96,"width":80,"x_sheet":480,"y_sheet":768},{"duration":100,"event":"None","height":96,"width":80,"x_sheet":560,"y_sheet":768},{"duration":100,"event":"None","height":96,"width":80,"x_sheet":640,"y_sheet":768},{"duration":100,"event":"None","height":96,"width":80,"x_sheet":720,"y_sheet":768},{"duration":100,"event":"None","height":96,"width":80,"x_sheet":800,"y_sheet":768}],"Name":"sword_walk","Sheet_begin":109,"Sheet_end":114,"animationDuration":"600 ms","numFrames":6,"repeat":true},
-    {"AnimationDirection":"forward","PivotNorm":{"x":4,"y":3}, "AnimationId":"IchiWalk","AnimationType":"Character","FrameSize":{"height":80,"width":96},"Frames":[{"duration":100,"event":"None","height":96,"width":80,"x_sheet":880,"y_sheet":768},{"duration":100,"event":"None","height":96,"width":80,"x_sheet":960,"y_sheet":768},{"duration":100,"event":"None","height":96,"width":80,"x_sheet":0,"y_sheet":864},{"duration":100,"event":"None","height":96,"width":80,"x_sheet":80,"y_sheet":864},{"duration":100,"event":"None","height":96,"width":80,"x_sheet":160,"y_sheet":864},{"duration":100,"event":"None","height":96,"width":80,"x_sheet":240,"y_sheet":864}],"Name":"walk","Sheet_begin":115,"Sheet_end":120,"animationDuration":"600 ms","numFrames":6,"repeat":true}
-    ]
+ "Name": "ichi",
+ "Spritesheet": "Ichi64x64",
+ "Level": "Level1",
+ "Path": "assets/spritesheets/ichi/ichi_spritesheet_level1_64x64.png",
+ "Animations": [
+  {
+   "Name": "idle",
+   "Sheet_begin": 0,
+   "Sheet_end": 0,
+   "AnimationDirection": "forward",
+   "numFrames": 1,
+   "Frames": [
+    {
+     "duration": 100,
+     "event": "None",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 0,
+     "y_sheet": 0
+    }
+   ],
+   "FrameSize": {
+    "height": 64,
+    "width": 64
+   },
+   "animationDuration": "100 ms",
+   "repeat": true,
+   "AnimationType": "Character",
+   "AnimationId": "IchiIdle",
+   "PivotNorm": {
+    "x": 4,
+    "y": 3
+   }
+  },
+  {
+   "Name": "run",
+   "Sheet_begin": 1,
+   "Sheet_end": 8,
+   "AnimationDirection": "forward",
+   "numFrames": 8,
+   "Frames": [
+    {
+     "duration": 60,
+     "event": "None",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 64,
+     "y_sheet": 0
+    },
+    {
+     "duration": 100,
+     "event": "None",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 128,
+     "y_sheet": 0
+    },
+    {
+     "duration": 100,
+     "event": "None",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 192,
+     "y_sheet": 0
+    },
+    {
+     "duration": 100,
+     "event": "None",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 256,
+     "y_sheet": 0
+    },
+    {
+     "duration": 100,
+     "event": "None",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 320,
+     "y_sheet": 0
+    },
+    {
+     "duration": 100,
+     "event": "None",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 384,
+     "y_sheet": 0
+    },
+    {
+     "duration": 100,
+     "event": "None",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 448,
+     "y_sheet": 0
+    },
+    {
+     "duration": 60,
+     "event": "None",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 512,
+     "y_sheet": 0
+    }
+   ],
+   "FrameSize": {
+    "height": 64,
+    "width": 64
+   },
+   "animationDuration": "720 ms",
+   "repeat": true,
+   "AnimationType": "Character",
+   "AnimationId": "IchiRun",
+   "PivotNorm": {
+    "x": 4,
+    "y": 3
+   }
+  },
+  {
+   "Name": "falling_enter",
+   "Sheet_begin": 9,
+   "Sheet_end": 12,
+   "AnimationDirection": "forward",
+   "numFrames": 4,
+   "Frames": [
+    {
+     "duration": 200,
+     "event": "None",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 576,
+     "y_sheet": 0
+    },
+    {
+     "duration": 200,
+     "event": "None",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 640,
+     "y_sheet": 0
+    },
+    {
+     "duration": 200,
+     "event": "None",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 0,
+     "y_sheet": 64
+    },
+    {
+     "duration": 200,
+     "event": "None",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 64,
+     "y_sheet": 64
+    }
+   ],
+   "FrameSize": {
+    "height": 64,
+    "width": 64
+   },
+   "animationDuration": "800 ms",
+   "repeat": false,
+   "AnimationType": "Character",
+   "AnimationId": "IchiStartFalling",
+   "PivotNorm": {
+    "x": 4,
+    "y": 3
+   }
+  },
+  {
+   "Name": "fallng_loop",
+   "Sheet_begin": 13,
+   "Sheet_end": 17,
+   "AnimationDirection": "forward",
+   "numFrames": 5,
+   "Frames": [
+    {
+     "duration": 200,
+     "event": "None",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 128,
+     "y_sheet": 64
+    },
+    {
+     "duration": 200,
+     "event": "None",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 192,
+     "y_sheet": 64
+    },
+    {
+     "duration": 200,
+     "event": "None",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 256,
+     "y_sheet": 64
+    },
+    {
+     "duration": 200,
+     "event": "None",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 320,
+     "y_sheet": 64
+    },
+    {
+     "duration": 200,
+     "event": "None",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 384,
+     "y_sheet": 64
+    }
+   ],
+   "FrameSize": {
+    "height": 64,
+    "width": 64
+   },
+   "animationDuration": "1000 ms",
+   "repeat": true,
+   "AnimationType": "Character",
+   "AnimationId": "IchiFallingLoop",
+   "PivotNorm": {
+    "x": 4,
+    "y": 3
+   }
+  },
+  {
+   "Name": "falling_land_enter",
+   "Sheet_begin": 18,
+   "Sheet_end": 19,
+   "AnimationDirection": "forward",
+   "numFrames": 2,
+   "Frames": [
+    {
+     "duration": 200,
+     "event": "None",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 448,
+     "y_sheet": 64
+    },
+    {
+     "duration": 100,
+     "event": "None",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 512,
+     "y_sheet": 64
+    }
+   ],
+   "FrameSize": {
+    "height": 64,
+    "width": 64
+   },
+   "animationDuration": "300 ms",
+   "repeat": false,
+   "AnimationType": "Character",
+   "AnimationId": "IchiLandEnter",
+   "PivotNorm": {
+    "x": 4,
+    "y": 3
+   }
+  },
+  {
+   "Name": "land_low",
+   "Sheet_begin": 20,
+   "Sheet_end": 31,
+   "AnimationDirection": "forward",
+   "numFrames": 12,
+   "Frames": [
+    {
+     "duration": 100,
+     "event": "None",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 576,
+     "y_sheet": 64
+    },
+    {
+     "duration": 100,
+     "event": "None",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 640,
+     "y_sheet": 64
+    },
+    {
+     "duration": 100,
+     "event": "None",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 0,
+     "y_sheet": 128
+    },
+    {
+     "duration": 100,
+     "event": "None",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 64,
+     "y_sheet": 128
+    },
+    {
+     "duration": 100,
+     "event": "None",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 128,
+     "y_sheet": 128
+    },
+    {
+     "duration": 100,
+     "event": "None",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 192,
+     "y_sheet": 128
+    },
+    {
+     "duration": 100,
+     "event": "None",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 256,
+     "y_sheet": 128
+    },
+    {
+     "duration": 1000,
+     "event": "None",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 320,
+     "y_sheet": 128
+    },
+    {
+     "duration": 100,
+     "event": "None",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 384,
+     "y_sheet": 128
+    },
+    {
+     "duration": 100,
+     "event": "None",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 448,
+     "y_sheet": 128
+    },
+    {
+     "duration": 100,
+     "event": "None",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 512,
+     "y_sheet": 128
+    },
+    {
+     "duration": 100,
+     "event": "None",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 576,
+     "y_sheet": 128
+    }
+   ],
+   "FrameSize": {
+    "height": 64,
+    "width": 64
+   },
+   "animationDuration": "2100 ms",
+   "repeat": false,
+   "AnimationType": "Character",
+   "AnimationId": "IchiLandLow",
+   "PivotNorm": {
+    "x": 4,
+    "y": 3
+   }
+  },
+  {
+   "Name": "land_hard",
+   "Sheet_begin": 32,
+   "Sheet_end": 45,
+   "AnimationDirection": "forward",
+   "numFrames": 14,
+   "Frames": [
+    {
+     "duration": 100,
+     "event": "None",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 640,
+     "y_sheet": 128
+    },
+    {
+     "duration": 80,
+     "event": "None",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 0,
+     "y_sheet": 192
+    },
+    {
+     "duration": 100,
+     "event": "None",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 64,
+     "y_sheet": 192
+    },
+    {
+     "duration": 100,
+     "event": "None",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 128,
+     "y_sheet": 192
+    },
+    {
+     "duration": 100,
+     "event": "None",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 192,
+     "y_sheet": 192
+    },
+    {
+     "duration": 100,
+     "event": "None",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 256,
+     "y_sheet": 192
+    },
+    {
+     "duration": 100,
+     "event": "None",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 320,
+     "y_sheet": 192
+    },
+    {
+     "duration": 100,
+     "event": "None",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 384,
+     "y_sheet": 192
+    },
+    {
+     "duration": 100,
+     "event": "None",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 448,
+     "y_sheet": 192
+    },
+    {
+     "duration": 1500,
+     "event": "None",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 512,
+     "y_sheet": 192
+    },
+    {
+     "duration": 100,
+     "event": "None",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 576,
+     "y_sheet": 192
+    },
+    {
+     "duration": 100,
+     "event": "None",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 640,
+     "y_sheet": 192
+    },
+    {
+     "duration": 100,
+     "event": "None",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 0,
+     "y_sheet": 256
+    },
+    {
+     "duration": 100,
+     "event": "None",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 64,
+     "y_sheet": 256
+    }
+   ],
+   "FrameSize": {
+    "height": 64,
+    "width": 64
+   },
+   "animationDuration": "2780 ms",
+   "repeat": false,
+   "AnimationType": "Character",
+   "AnimationId": "IchiLandHigh",
+   "PivotNorm": {
+    "x": 4,
+    "y": 3
+   }
+  },
+  {
+   "Name": "duck_enter",
+   "Sheet_begin": 46,
+   "Sheet_end": 48,
+   "AnimationDirection": "forward",
+   "numFrames": 3,
+   "Frames": [
+    {
+     "duration": 100,
+     "event": "None",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 128,
+     "y_sheet": 256
+    },
+    {
+     "duration": 100,
+     "event": "None",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 192,
+     "y_sheet": 256
+    },
+    {
+     "duration": 100,
+     "event": "None",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 256,
+     "y_sheet": 256
+    }
+   ],
+   "FrameSize": {
+    "height": 64,
+    "width": 64
+   },
+   "animationDuration": "300 ms",
+   "repeat": false,
+   "AnimationType": "Character",
+   "AnimationId": "IchiDuckEnter",
+   "PivotNorm": {
+    "x": 4,
+    "y": 3
+   }
+  },
+  {
+   "Name": "duck_idle",
+   "Sheet_begin": 49,
+   "Sheet_end": 49,
+   "AnimationDirection": "forward",
+   "numFrames": 1,
+   "Frames": [
+    {
+     "duration": 100,
+     "event": "None",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 320,
+     "y_sheet": 256
+    }
+   ],
+   "FrameSize": {
+    "height": 64,
+    "width": 64
+   },
+   "animationDuration": "100 ms",
+   "repeat": true,
+   "AnimationType": "Character",
+   "AnimationId": "IchiDuckIdle",
+   "PivotNorm": {
+    "x": 4,
+    "y": 3
+   }
+  },
+  {
+   "Name": "duck_walk",
+   "Sheet_begin": 50,
+   "Sheet_end": 56,
+   "AnimationDirection": "forward",
+   "numFrames": 7,
+   "Frames": [
+    {
+     "duration": 100,
+     "event": "None",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 384,
+     "y_sheet": 256
+    },
+    {
+     "duration": 100,
+     "event": "None",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 448,
+     "y_sheet": 256
+    },
+    {
+     "duration": 100,
+     "event": "None",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 512,
+     "y_sheet": 256
+    },
+    {
+     "duration": 100,
+     "event": "None",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 576,
+     "y_sheet": 256
+    },
+    {
+     "duration": 100,
+     "event": "None",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 640,
+     "y_sheet": 256
+    },
+    {
+     "duration": 100,
+     "event": "None",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 0,
+     "y_sheet": 320
+    },
+    {
+     "duration": 100,
+     "event": "None",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 64,
+     "y_sheet": 320
+    }
+   ],
+   "FrameSize": {
+    "height": 64,
+    "width": 64
+   },
+   "animationDuration": "700 ms",
+   "repeat": true,
+   "AnimationType": "Character",
+   "AnimationId": "IchiDuckWalk",
+   "PivotNorm": {
+    "x": 4,
+    "y": 3
+   }
+  },
+  {
+   "Name": "ladder_back",
+   "Sheet_begin": 57,
+   "Sheet_end": 57,
+   "AnimationDirection": "forward",
+   "numFrames": 1,
+   "Frames": [
+    {
+     "duration": 100,
+     "event": "None",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 128,
+     "y_sheet": 320
+    }
+   ],
+   "FrameSize": {
+    "height": 64,
+    "width": 64
+   },
+   "animationDuration": "100 ms",
+   "repeat": true,
+   "AnimationType": "Character",
+   "AnimationId": "IchiLadderBack",
+   "PivotNorm": {
+    "x": 4,
+    "y": 3
+   }
+  },
+  {
+   "Name": "ladder_enter",
+   "Sheet_begin": 58,
+   "Sheet_end": 62,
+   "AnimationDirection": "forward",
+   "numFrames": 5,
+   "Frames": [
+    {
+     "duration": 100,
+     "event": "None",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 192,
+     "y_sheet": 320
+    },
+    {
+     "duration": 100,
+     "event": "None",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 256,
+     "y_sheet": 320
+    },
+    {
+     "duration": 100,
+     "event": "None",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 320,
+     "y_sheet": 320
+    },
+    {
+     "duration": 100,
+     "event": "None",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 384,
+     "y_sheet": 320
+    },
+    {
+     "duration": 100,
+     "event": "None",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 448,
+     "y_sheet": 320
+    }
+   ],
+   "FrameSize": {
+    "height": 64,
+    "width": 64
+   },
+   "animationDuration": "500 ms",
+   "repeat": false,
+   "AnimationType": "Character",
+   "AnimationId": "IchiLadderEnter",
+   "PivotNorm": {
+    "x": 4,
+    "y": 3
+   }
+  },
+  {
+   "Name": "ladder_climb_loop",
+   "Sheet_begin": 63,
+   "Sheet_end": 75,
+   "AnimationDirection": "forward",
+   "numFrames": 13,
+   "Frames": [
+    {
+     "duration": 100,
+     "event": "None",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 512,
+     "y_sheet": 320
+    },
+    {
+     "duration": 100,
+     "event": "None",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 576,
+     "y_sheet": 320
+    },
+    {
+     "duration": 100,
+     "event": "None",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 640,
+     "y_sheet": 320
+    },
+    {
+     "duration": 100,
+     "event": "None",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 0,
+     "y_sheet": 384
+    },
+    {
+     "duration": 100,
+     "event": "None",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 64,
+     "y_sheet": 384
+    },
+    {
+     "duration": 100,
+     "event": "None",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 128,
+     "y_sheet": 384
+    },
+    {
+     "duration": 100,
+     "event": "None",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 192,
+     "y_sheet": 384
+    },
+    {
+     "duration": 100,
+     "event": "None",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 256,
+     "y_sheet": 384
+    },
+    {
+     "duration": 100,
+     "event": "None",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 320,
+     "y_sheet": 384
+    },
+    {
+     "duration": 100,
+     "event": "None",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 384,
+     "y_sheet": 384
+    },
+    {
+     "duration": 100,
+     "event": "None",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 448,
+     "y_sheet": 384
+    },
+    {
+     "duration": 100,
+     "event": "None",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 448,
+     "y_sheet": 320
+    },
+    {
+     "duration": 100,
+     "event": "None",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 512,
+     "y_sheet": 384
+    }
+   ],
+   "FrameSize": {
+    "height": 64,
+    "width": 64
+   },
+   "animationDuration": "1300 ms",
+   "repeat": true,
+   "AnimationType": "Character",
+   "AnimationId": "IchiLadderClimbLoop",
+   "PivotNorm": {
+    "x": 4,
+    "y": 3
+   }
+  },
+  {
+   "Name": "jump up",
+   "Sheet_begin": 76,
+   "Sheet_end": 94,
+   "AnimationDirection": "forward",
+   "numFrames": 19,
+   "Frames": [
+    {
+     "duration": 100,
+     "event": "None",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 576,
+     "y_sheet": 384
+    },
+    {
+     "duration": 100,
+     "event": "None",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 640,
+     "y_sheet": 384
+    },
+    {
+     "duration": 100,
+     "event": "None",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 0,
+     "y_sheet": 448
+    },
+    {
+     "duration": 100,
+     "event": "None",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 64,
+     "y_sheet": 448
+    },
+    {
+     "duration": 100,
+     "event": "None",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 128,
+     "y_sheet": 448
+    },
+    {
+     "duration": 100,
+     "event": "None",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 192,
+     "y_sheet": 448
+    },
+    {
+     "duration": 100,
+     "event": "None",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 256,
+     "y_sheet": 448
+    },
+    {
+     "duration": 100,
+     "event": "None",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 320,
+     "y_sheet": 448
+    },
+    {
+     "duration": 100,
+     "event": "None",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 384,
+     "y_sheet": 448
+    },
+    {
+     "duration": 100,
+     "event": "None",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 448,
+     "y_sheet": 448
+    },
+    {
+     "duration": 100,
+     "event": "CharacterStartJump",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 512,
+     "y_sheet": 448
+    },
+    {
+     "duration": 100,
+     "event": "None",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 576,
+     "y_sheet": 448
+    },
+    {
+     "duration": 100,
+     "event": "None",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 640,
+     "y_sheet": 448
+    },
+    {
+     "duration": 100,
+     "event": "None",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 512,
+     "y_sheet": 448
+    },
+    {
+     "duration": 100,
+     "event": "None",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 0,
+     "y_sheet": 512
+    },
+    {
+     "duration": 100,
+     "event": "None",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 64,
+     "y_sheet": 512
+    },
+    {
+     "duration": 100,
+     "event": "None",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 128,
+     "y_sheet": 512
+    },
+    {
+     "duration": 100,
+     "event": "None",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 192,
+     "y_sheet": 512
+    },
+    {
+     "duration": 100,
+     "event": "None",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 256,
+     "y_sheet": 512
+    }
+   ],
+   "FrameSize": {
+    "height": 64,
+    "width": 64
+   },
+   "animationDuration": "1900 ms",
+   "repeat": false,
+   "AnimationType": "Character",
+   "AnimationId": "IchiJumpUp",
+   "PivotNorm": {
+    "x": 4,
+    "y": 3
+   }
+  },
+  {
+   "Name": "Jump_nrml",
+   "Sheet_begin": 95,
+   "Sheet_end": 107,
+   "AnimationDirection": "forward",
+   "numFrames": 13,
+   "Frames": [
+    {
+     "duration": 100,
+     "event": "None",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 320,
+     "y_sheet": 512
+    },
+    {
+     "duration": 100,
+     "event": "None",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 384,
+     "y_sheet": 512
+    },
+    {
+     "duration": 100,
+     "event": "None",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 448,
+     "y_sheet": 512
+    },
+    {
+     "duration": 100,
+     "event": "CharacterStartJump",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 512,
+     "y_sheet": 512
+    },
+    {
+     "duration": 100,
+     "event": "None",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 576,
+     "y_sheet": 512
+    },
+    {
+     "duration": 100,
+     "event": "None",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 640,
+     "y_sheet": 512
+    },
+    {
+     "duration": 100,
+     "event": "None",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 0,
+     "y_sheet": 576
+    },
+    {
+     "duration": 100,
+     "event": "None",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 64,
+     "y_sheet": 576
+    },
+    {
+     "duration": 100,
+     "event": "None",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 128,
+     "y_sheet": 576
+    },
+    {
+     "duration": 100,
+     "event": "None",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 192,
+     "y_sheet": 576
+    },
+    {
+     "duration": 100,
+     "event": "None",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 256,
+     "y_sheet": 576
+    },
+    {
+     "duration": 100,
+     "event": "None",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 320,
+     "y_sheet": 576
+    },
+    {
+     "duration": 100,
+     "event": "None",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 384,
+     "y_sheet": 576
+    }
+   ],
+   "FrameSize": {
+    "height": 64,
+    "width": 64
+   },
+   "animationDuration": "1300 ms",
+   "repeat": false,
+   "AnimationType": "Character",
+   "AnimationId": "IchiJumpForwardNrml",
+   "PivotNorm": {
+    "x": 4,
+    "y": 3
+   }
+  },
+  {
+   "Name": "sword_idle",
+   "Sheet_begin": 108,
+   "Sheet_end": 108,
+   "AnimationDirection": "forward",
+   "numFrames": 1,
+   "Frames": [
+    {
+     "duration": 100,
+     "event": "None",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 448,
+     "y_sheet": 576
+    }
+   ],
+   "FrameSize": {
+    "height": 64,
+    "width": 64
+   },
+   "animationDuration": "100 ms",
+   "repeat": true,
+   "AnimationType": "Character",
+   "AnimationId": "IchiSword1Idle",
+   "PivotNorm": {
+    "x": 4,
+    "y": 3
+   }
+  },
+  {
+   "Name": "sword_walk",
+   "Sheet_begin": 109,
+   "Sheet_end": 114,
+   "AnimationDirection": "forward",
+   "numFrames": 6,
+   "Frames": [
+    {
+     "duration": 100,
+     "event": "None",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 512,
+     "y_sheet": 576
+    },
+    {
+     "duration": 100,
+     "event": "None",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 576,
+     "y_sheet": 576
+    },
+    {
+     "duration": 100,
+     "event": "None",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 640,
+     "y_sheet": 576
+    },
+    {
+     "duration": 100,
+     "event": "None",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 0,
+     "y_sheet": 640
+    },
+    {
+     "duration": 100,
+     "event": "None",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 64,
+     "y_sheet": 640
+    },
+    {
+     "duration": 100,
+     "event": "None",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 128,
+     "y_sheet": 640
+    }
+   ],
+   "FrameSize": {
+    "height": 64,
+    "width": 64
+   },
+   "animationDuration": "600 ms",
+   "repeat": true,
+   "AnimationType": "Character",
+   "AnimationId": "IchiSword1Walk",
+   "PivotNorm": {
+    "x": 4,
+    "y": 3
+   }
+  },
+  {
+   "Name": "walk",
+   "Sheet_begin": 115,
+   "Sheet_end": 120,
+   "AnimationDirection": "forward",
+   "numFrames": 6,
+   "Frames": [
+    {
+     "duration": 100,
+     "event": "None",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 192,
+     "y_sheet": 640
+    },
+    {
+     "duration": 100,
+     "event": "None",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 256,
+     "y_sheet": 640
+    },
+    {
+     "duration": 100,
+     "event": "None",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 320,
+     "y_sheet": 640
+    },
+    {
+     "duration": 100,
+     "event": "None",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 384,
+     "y_sheet": 640
+    },
+    {
+     "duration": 100,
+     "event": "None",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 448,
+     "y_sheet": 640
+    },
+    {
+     "duration": 100,
+     "event": "None",
+     "height": 64,
+     "width": 64,
+     "x_sheet": 512,
+     "y_sheet": 640
+    }
+   ],
+   "FrameSize": {
+    "height": 64,
+    "width": 64
+   },
+   "animationDuration": "600 ms",
+   "repeat": true,
+   "AnimationType": "Character",
+   "AnimationId": "IchiWalk",
+   "PivotNorm": {
+    "x": 4,
+    "y": 3
+   }
+  }
+ ]
 }
