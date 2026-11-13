@@ -1,0 +1,173 @@
+{ "frames": {
+   "ichi_climb_up_ledge_64pcx 0.aseprite": {
+    "frame": { "x": 0, "y": 0, "w": 80, "h": 128 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 80, "h": 128 },
+    "sourceSize": { "w": 80, "h": 128 },
+    "duration": 100
+   },
+   "ichi_climb_up_ledge_64pcx 1.aseprite": {
+    "frame": { "x": 80, "y": 0, "w": 80, "h": 128 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 80, "h": 128 },
+    "sourceSize": { "w": 80, "h": 128 },
+    "duration": 100
+   },
+   "ichi_climb_up_ledge_64pcx 2.aseprite": {
+    "frame": { "x": 160, "y": 0, "w": 80, "h": 128 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 80, "h": 128 },
+    "sourceSize": { "w": 80, "h": 128 },
+    "duration": 100
+   },
+   "ichi_climb_up_ledge_64pcx 3.aseprite": {
+    "frame": { "x": 240, "y": 0, "w": 80, "h": 128 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 80, "h": 128 },
+    "sourceSize": { "w": 80, "h": 128 },
+    "duration": 100
+   },
+   "ichi_climb_up_ledge_64pcx 4.aseprite": {
+    "frame": { "x": 320, "y": 0, "w": 80, "h": 128 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 80, "h": 128 },
+    "sourceSize": { "w": 80, "h": 128 },
+    "duration": 100
+   },
+   "ichi_climb_up_ledge_64pcx 5.aseprite": {
+    "frame": { "x": 0, "y": 128, "w": 80, "h": 128 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 80, "h": 128 },
+    "sourceSize": { "w": 80, "h": 128 },
+    "duration": 100
+   },
+   "ichi_climb_up_ledge_64pcx 6.aseprite": {
+    "frame": { "x": 80, "y": 128, "w": 80, "h": 128 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 80, "h": 128 },
+    "sourceSize": { "w": 80, "h": 128 },
+    "duration": 100
+   },
+   "ichi_climb_up_ledge_64pcx 7.aseprite": {
+    "frame": { "x": 160, "y": 128, "w": 80, "h": 128 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 80, "h": 128 },
+    "sourceSize": { "w": 80, "h": 128 },
+    "duration": 100
+   },
+   "ichi_climb_up_ledge_64pcx 8.aseprite": {
+    "frame": { "x": 240, "y": 128, "w": 80, "h": 128 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 80, "h": 128 },
+    "sourceSize": { "w": 80, "h": 128 },
+    "duration": 100
+   },
+   "ichi_climb_up_ledge_64pcx 9.aseprite": {
+    "frame": { "x": 320, "y": 128, "w": 80, "h": 128 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 80, "h": 128 },
+    "sourceSize": { "w": 80, "h": 128 },
+    "duration": 100
+   },
+   "ichi_climb_up_ledge_64pcx 10.aseprite": {
+    "frame": { "x": 0, "y": 256, "w": 80, "h": 128 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 80, "h": 128 },
+    "sourceSize": { "w": 80, "h": 128 },
+    "duration": 100
+   },
+   "ichi_climb_up_ledge_64pcx 11.aseprite": {
+    "frame": { "x": 80, "y": 256, "w": 80, "h": 128 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 80, "h": 128 },
+    "sourceSize": { "w": 80, "h": 128 },
+    "duration": 100
+   },
+   "ichi_climb_up_ledge_64pcx 12.aseprite": {
+    "frame": { "x": 160, "y": 256, "w": 80, "h": 128 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 80, "h": 128 },
+    "sourceSize": { "w": 80, "h": 128 },
+    "duration": 100
+   },
+   "ichi_climb_up_ledge_64pcx 13.aseprite": {
+    "frame": { "x": 240, "y": 256, "w": 80, "h": 128 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 80, "h": 128 },
+    "sourceSize": { "w": 80, "h": 128 },
+    "duration": 100
+   },
+   "ichi_climb_up_ledge_64pcx 14.aseprite": {
+    "frame": { "x": 320, "y": 256, "w": 80, "h": 128 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 80, "h": 128 },
+    "sourceSize": { "w": 80, "h": 128 },
+    "duration": 100
+   },
+   "ichi_climb_up_ledge_64pcx 15.aseprite": {
+    "frame": { "x": 0, "y": 384, "w": 80, "h": 128 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 80, "h": 128 },
+    "sourceSize": { "w": 80, "h": 128 },
+    "duration": 100
+   },
+   "ichi_climb_up_ledge_64pcx 16.aseprite": {
+    "frame": { "x": 80, "y": 384, "w": 80, "h": 128 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 80, "h": 128 },
+    "sourceSize": { "w": 80, "h": 128 },
+    "duration": 100
+   },
+   "ichi_climb_up_ledge_64pcx 17.aseprite": {
+    "frame": { "x": 160, "y": 384, "w": 80, "h": 128 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 80, "h": 128 },
+    "sourceSize": { "w": 80, "h": 128 },
+    "duration": 100
+   },
+   "ichi_climb_up_ledge_64pcx 18.aseprite": {
+    "frame": { "x": 240, "y": 384, "w": 80, "h": 128 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 80, "h": 128 },
+    "sourceSize": { "w": 80, "h": 128 },
+    "duration": 100
+   }
+ },
+ "meta": {
+  "app": "http://www.aseprite.org/",
+  "version": "1.3.18.6-dev",
+  "image": "ichi_spritesheet_climbup_ledge_80x128.png",
+  "format": "RGBA8888",
+  "size": { "w": 400, "h": 512 },
+  "scale": "1",
+  "frameTags": [
+   { "name": "stand", "from": 0, "to": 1, "direction": "forward", "color": "#000000ff" },
+   { "name": "hang", "from": 3, "to": 3, "direction": "forward", "color": "#000000ff" },
+   { "name": "climbup", "from": 4, "to": 18, "direction": "forward", "color": "#000000ff" }
+  ],
+  "layers": [
+   { "name": "df", "opacity": 255, "blendMode": "normal" }
+  ],
+  "slices": [
+  ]
+ }
+}
