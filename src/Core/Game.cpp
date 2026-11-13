@@ -318,10 +318,9 @@ void Game::update(sf::Time deltaTime)
 	mWorld.setPhysicsActive(not mLevelEditor.transformModeActive());
 	mWorld.update(deltaTime);
 
-	if(mAnimator.fileBrowserState != RyuAnimator::EFileBrowserState::None || (mAnimator.parsedSpritesheet && mAnimator.textureSet))
-	{
-		mAnimator.update(deltaTime);
-	}
+	// the animator preview must be advanced with the simulation; the
+	// ImGui-filebrowser is handled inside the ImGui-frame (createEditorWidgets)
+	mAnimator.update(deltaTime);
 	setDebugValues();
 }
 

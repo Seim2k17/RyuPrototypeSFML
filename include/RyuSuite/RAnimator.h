@@ -79,12 +79,20 @@ using TaggedSheetAnimation = std::pair<const std::string, std::vector<RyuParser:
       void setFrameDetails(int selectedAni, TaggedSheetAnimation& sheet, int frameNumber, RyuParser::AnimationEditor& ani);
       
       void setAnimationPreferences(std::string sheetName);
-  
+
       void createAnimationDetails(int selectedAni, TaggedSheetAnimation& sheet );
+
+      // add a new animation built from the frames of the currently parsed
+      // spritesheet (frame indices from..to, aseprite frame numbering)
+      void addAnimation(const std::string& name, int fromFrame, int toFrame);
+      void deleteAnimation(int index);
       void setSpritesheetAnimationDetails(const AnimationConfig& config, sf::Time aniDuration, std::vector<RyuParser::FrameEditor>& frames);
       // map with all spritesheets loaded and according animations
       // key: spritesheetname, value: vector of animationsN
       std::map<std::string, std::vector<RyuParser::AnimationEditor> > animations;
+      // per spritesheet: frames parsed from the arttool-json, indexed by
+      // frame number (needed to create new animations from a frame range)
+      std::map<std::string, std::vector<RyuParser::FrameEditor> > parsedFrames;
       bool parsedSpritesheet;
       bool textureSet;
       std::string selectedSpritesheet;
@@ -96,6 +104,7 @@ using TaggedSheetAnimation = std::pair<const std::string, std::vector<RyuParser:
 
   private:
 
+      void handleFileBrowser();
       void setTooltipText(const char * tooltip);
       void initTextures();
       void editFrame(RyuParser::AnimationEditor& ani, size_t frame);

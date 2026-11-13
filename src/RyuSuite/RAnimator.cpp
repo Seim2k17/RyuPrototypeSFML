@@ -123,7 +123,7 @@ namespace RyuParser {
                {"numFrames", ani.numFrames},
                {"Frames", jFrames},
                {"FrameSize",
-                {{"height", ani.frameSize.x}, {"width", ani.frameSize.y}}},
+                {{"height", ani.frameSize.y}, {"width", ani.frameSize.x}}},
                {"animationDuration", timeInMs},
                {"repeat", ani.repeat},
                {"AnimationType", ani.animationType._to_string()},
@@ -177,12 +177,13 @@ RyuParser::AnimationEditor selectedAnimation;
 // standard is a cycled animation
 static bool repeatAnimation = true;
 
-// TODO: dynamically initialize array ? -> here elements needs to be iniatilized manually ^^
-const char* eventItems[8] = {""};
-const char* levelItems[3] = {""};
-const char* spritesheetItems[3] = {""};
-const char* animationTypes[3] = {""};
-const char* animationIds[22] = {""};
+// combo items, sized according to the enum values (fixed size arrays could
+// overflow when the enums grow)
+static std::vector<const char*> eventItems;
+static std::vector<const char*> levelItems;
+static std::vector<const char*> spritesheetItems;
+static std::vector<const char*> animationTypes;
+static std::vector<const char*> animationIds;
 
 // TODO set huge amount of character IDs in the array -> how to improve this ???
 // Textures::CharacterID::
@@ -193,103 +194,90 @@ static sf::Vector2i sheetPosition{};
 void
 Editor::initData()
 {
-    // TODO: use templates and lambdas for initialization !
-    int i = 0;
+    eventItems.clear();
     for (RyuEvent evt : RyuEvent::_values())
     {
-        eventItems[i] = evt._to_string();
-        ++i;
+        eventItems.push_back(evt._to_string());
     }
     // LevelIds for spritesheets
-    i = 0;
+    levelItems.clear();
     for (Textures::LevelID level : Textures::LevelID::_values())
     {
-        levelItems[i] = level._to_string();
-        ++i;
+        levelItems.push_back(level._to_string());
     }
     // spritesheet ids
-    i = 0;
+    spritesheetItems.clear();
     for (Textures::SpritesheetID spritesheet : Textures::SpritesheetID::_values())
     {
-        spritesheetItems[i] = spritesheet._to_string();
-        ++i;
+        spritesheetItems.push_back(spritesheet._to_string());
     }
-    // LevelIds for spritesheets
-    i = 0;
+    // animation types
+    animationTypes.clear();
     for (Textures::AnimationType aType : Textures::AnimationType::_values())
     {
-        animationTypes[i] = aType._to_string();
-        ++i;
+        animationTypes.push_back(aType._to_string());
     }
 
-    i = 0;
+    animationIds.clear();
     for (Textures::CharacterID cID : Textures::CharacterID::_values())
     {
-        animationIds[i] = cID._to_string();
-        ++i;
+        animationIds.push_back(cID._to_string());
     }
 }
 
 void
 Editor::update(sf::Time dt)
 {
-        //fmt::print("update editor");
-
-    if (fileBrowserState != EFileBrowserState::None)
-    {
-                // mainloop
-                //while(continueRendering)
-                {
-                //...do other stuff like ImGui::NewFrame();
-                /*
-                if((_fileBrowser != nullptr )&& ImGui::Begin("dummy window"))
-                {
-                    // open file dialog when user clicks this button
-                    if(ImGui::Button("open file dialog"))
-                        _fileBrowser->Open();
-                }
-                ImGui::End();
-                */
-                _fileBrowser->Display();
-
-                if(_fileBrowser->HasSelected())
-                {
-
-                    std::cout << "Selected filename" << _fileBrowser->GetSelected().string() << std::endl;
-
-                    switch (fileBrowserState)
-                    {
-                        case EFileBrowserState::SpriteSheetJson:
-                        {
-                            fmt::print("Path: {}\n", _fileBrowser->GetSelected().string());
-                            parseJsonData(_fileBrowser->GetSelected().string());
-                            break;
-                        }
-                        case EFileBrowserState::AnimationConfigJson:
-                        {
-                            fmt::print("Configure {}\n","Animation");
-                            parseConfiguration(_fileBrowser->GetSelected().string());
-                            break;
-
-                        }
-
-                        default:
-                            fileBrowserState = EFileBrowserState::None;
-                    }
-
-                    _fileBrowser->ClearSelected();
-                    fileBrowserState = EFileBrowserState::None;
-                }
-
-                //...do other stuff like ImGui::Render();
-                }
-                /*END imbrowser example*/
-    }
-
-
     if(parsedSpritesheet && aniIsPlaying)
     {
         spritesheetAnimation.update(dt);
+    }
+}
+
+// the filebrowser is an ImGui-popup, so it must be displayed while an
+// ImGui-frame is active (i.e. from within createEditorWidgets, not from
+// within update() which runs outside the ImGui-frame)
+void
+Editor::handleFileBrowser()
+{
+    if (fileBrowserState == EFileBrowserState::None)
+    {
+        return;
+    }
+
+    if(!_fileBrowser)
+    {
+        fileBrowserState = EFileBrowserState::None;
+        return;
+    }
+
+    _fileBrowser->Display();
+
+    if(_fileBrowser->HasSelected())
+    {
+        std::cout << "Selected filename" << _fileBrowser->GetSelected().string() << std::endl;
+
+        switch (fileBrowserState)
+        {
+            case EFileBrowserState::SpriteSheetJson:
+            {
+                fmt::print("Path: {}\n", _fileBrowser->GetSelected().string());
+                parseJsonData(_fileBrowser->GetSelected().string());
+                break;
+            }
+            case EFileBrowserState::AnimationConfigJson:
+            {
+                fmt::print("Configure {}\n","Animation");
+                parseConfiguration(_fileBrowser->GetSelected().string());
+                break;
+            }
+
+            default:
+                fileBrowserState = EFileBrowserState::None;
+        }
+
+        _fileBrowser->ClearSelected();
+        fileBrowserState = EFileBrowserState::None;
     }
 }
 
@@ -317,32 +305,85 @@ Editor::addAnimationsFromJson(std::string spriteSheet, ImportFormat appFormat, j
 
        animations.emplace(spriteSheet, aniVector);
 
-        // read framespecific data due aseprite-json spec
-        if (data.contains("frames"))
-        {
-            for(auto& ani : animations[selectedSpritesheet])
-            {
-                for(int i = ani.fromFrame;i<=ani.toFrame;i++)
-                {
-                    RyuParser::FrameEditor frame;
-                    std::string framePosition = selectedSpritesheet+" "+std::to_string(i)+".aseprite";
-                    try {
-                        frame.duration = data["frames"][framePosition]["duration"];
-                        frame.height = data["frames"][framePosition]["frame"]["h"];
-                        frame.width = data["frames"][framePosition]["frame"]["w"];
-                        frame.x = data["frames"][framePosition]["frame"]["x"];
-                        frame.y = data["frames"][framePosition]["frame"]["y"];
-                        frame.event = RyuEvent::None;
+       // read framespecific data due aseprite-json spec.
+       // the frames of an aseprite-json are keyed "<documentname> <frame>.aseprite",
+       // the documentname is the name of the .ase-file (meta:image without
+       // extension) and can differ from the name of the exported .json/.png !
+       if (data.contains("frames"))
+       {
+           std::string framePrefix{spriteSheet};
+           if (data["meta"].contains("image"))
+           {
+               std::string image = data["meta"]["image"];
+               auto lastDot = image.find_last_of('.');
+               if (lastDot != std::string::npos)
+               {
+                   framePrefix = image.substr(0, lastDot);
+               }
+           }
 
-                    ani.frames.push_back(frame);
-                    } catch (std::exception) {
-                        fmt::print("Exception thrown: do filenames of .json, .png and .aseprite match: frameposition: {}, spritesheetname: {}?\nse check all filenames.",framePosition, selectedSpritesheet);
-                    }
-                }
-                ani.animationType = Textures::AnimationType::Character;
-            }
+           // collect the frames of the sheet, indexed by their frame-number
+           std::vector<RyuParser::FrameEditor> sheetFrames;
+           for (auto& it : data["frames"].items())
+           {
+               const std::string& key = it.key();
+               auto lastSpace = key.find_last_of(' ');
+               if (lastSpace == std::string::npos)
+               {
+                   continue;
+               }
+               int frameNumber = -1;
+               try
+               {
+                   frameNumber = std::stoi(key.substr(lastSpace + 1));
+               }
+               catch(const std::exception&)
+               {
+                   continue;
+               }
+               if (frameNumber < 0)
+               {
+                   continue;
+               }
 
-            setAnimationPreferences(selectedSpritesheet);
+               RyuParser::FrameEditor frame;
+               frame.duration = it.value()["duration"];
+               frame.height = it.value()["frame"]["h"];
+               frame.width = it.value()["frame"]["w"];
+               frame.x = it.value()["frame"]["x"];
+               frame.y = it.value()["frame"]["y"];
+               frame.event = RyuEvent::None;
+
+               if (static_cast<int>(sheetFrames.size()) <= frameNumber)
+               {
+                   sheetFrames.resize(frameNumber + 1);
+               }
+               sheetFrames[frameNumber] = frame;
+           }
+           parsedFrames[spriteSheet] = sheetFrames;
+
+           const auto& frames = parsedFrames[spriteSheet];
+           for(auto& ani : animations[spriteSheet])
+           {
+               for(int i = ani.fromFrame; i <= ani.toFrame; i++)
+               {
+                   if(i >= 0 && i < static_cast<int>(frames.size())
+                      && frames.at(i).width > 0)
+                   {
+                       ani.frames.push_back(frames.at(i));
+                   }
+               }
+               ani.animationType = Textures::AnimationType::Character;
+
+               if(ani.frames.empty())
+               {
+                   fmt::print("Animation {} has no frames, check the frametags "
+                              "(from {} to {}) against the frames in the json !\n",
+                              ani.name, ani.fromFrame, ani.toFrame);
+               }
+           }
+
+            setAnimationPreferences(spriteSheet);
 
         }
 
@@ -478,13 +519,19 @@ Editor::parseJsonData(std::string path)
     fmt::print("Opening {} to read spritesheet.", path);
     // avoid appending animations of multiple spritesheets
     animations.clear();
+    parsedFrames.clear();
+    preferences.clear();
     
     auto found = path.find_last_of("/\\");
 
     std::string spriteSheet = path.substr(found+1);  // name of the spritesheet should be st like "ichi_spritesheet_level1");
-    auto foundExt = spriteSheet.find_last_of(".json");
-    spriteSheet = spriteSheet.substr(0, foundExt-4);
-    guiCharTextureManager.load(Textures::LevelID::Level1,"assets/spritesheets/ichi/"+spriteSheet+".png");
+    auto foundExt = spriteSheet.find_last_of('.');
+    if (foundExt != std::string::npos)
+    {
+        spriteSheet = spriteSheet.substr(0, foundExt);
+    }
+    // the png sits next to the json (aseprite exports it that way)
+    std::string pngPath = path.substr(0, found+1) + spriteSheet + ".png";
 
     std::ifstream f(path);
     std::cout << "Open JSON...\n";
@@ -492,8 +539,6 @@ Editor::parseJsonData(std::string path)
     {
         json data = json::parse(f);  
         std::cout << "Parsing JSON...\n";
-        std::string jsonString = data.dump();
-        std::cout << jsonString << "\n";
         // build-up metadata
         if (data.contains("meta"))
         {
@@ -514,6 +559,27 @@ Editor::parseJsonData(std::string path)
                 }
 
             }
+
+            // prefer the png which aseprite/texturepacker reference in meta.image
+            if (data["meta"].contains("image"))
+            {
+                std::string image = data["meta"]["image"];
+                if (not image.empty())
+                {
+                    pngPath = path.substr(0, found+1) + image;
+                }
+            }
+
+            try
+            {
+                guiCharTextureManager.load(Textures::LevelID::Level1, pngPath);
+            }
+            catch(const std::exception& e)
+            {
+                fmt::print("Could not load the spritesheet-image {}: {}\n",
+                           pngPath, e.what());
+            }
+
             selectedSpritesheet = spriteSheet;
 
             addAnimationsFromJson(spriteSheet, appFormat, data);
@@ -521,7 +587,7 @@ Editor::parseJsonData(std::string path)
         }            
         parsedSpritesheet = true;
     }
-    catch(json::exception e)
+    catch(const json::exception& e)
     {
         std::cout << e.id << ": " << e.what() << "\n";
         std::cout << "Can't parse file, probably filestream-error. Filename correct ?\n";
@@ -558,6 +624,11 @@ Editor::parseConfiguration(std::string configFile)
 void
 Editor::updateAnimations(RyuParser::JsonAnimations& aniSource)
 {
+    if(not animations.contains(selectedSpritesheet))
+    {
+        fmt::print("No spritesheet loaded, open a spritesheet-json first !\n");
+        return;
+    }
     auto& anims = animations.at(selectedSpritesheet);
     fmt::print("check anis from selected spritesheet: {}\n",selectedSpritesheet);
     // ca this: assert(selectedSpritesheet == aniSource.spritesheetPath);
@@ -616,6 +687,7 @@ Editor::parseJsonFile()
     std::unique_ptr<ImGui::FileBrowser> fileDialog;
     fileDialog = std::make_unique<ImGui::FileBrowser>();
     fileDialog->SetTitle("Open Configuration Json");
+    fileDialog->SetWindowSize(600, 300);
     fileDialog->SetTypeFilters({ ".json"});
 
      _fileBrowser = std::move(fileDialog);
@@ -630,14 +702,21 @@ Editor::createEditorWidgets(bool* p_open)
     ZoneScopedN("createEdWidgets_RA");
 
     ImGuiWindowFlags window_flags = ImGuiWindowFlags_MenuBar;
-    
+
     if(showAnimationEditor)
     {
+        // make the editor fill most of the game-window on first use
+        ImGui::SetNextWindowSize(ImVec2(630, 350), ImGuiCond_FirstUseEver);
 
         if(ImGui::Begin("Ryu Animation Editor",p_open, window_flags))
         {
 
           static int selected = 0;
+
+          // the filebrowser-popup must be displayed from within a window
+          // (PushID needs a current window), so this cannot be called from
+          // within update() which runs outside the ImGui-frame/window
+          handleFileBrowser();
 
           if (ImGui::BeginMenuBar()) {
             if (ImGui::BeginMenu("File")) {
@@ -649,6 +728,8 @@ Editor::createEditorWidgets(bool* p_open)
                 fileDialog = std::make_unique<ImGui::FileBrowser>();
                 // (optional) set browser properties
                 fileDialog->SetTitle("Open Spritesheet Json");
+                // the dialog must fit into the (small) game-window
+                fileDialog->SetWindowSize(600, 300);
                 fileDialog->SetTypeFilters({ ".json"});
                 fileBrowserState = EFileBrowserState::SpriteSheetJson;
                 _fileBrowser = std::move(fileDialog);
@@ -669,14 +750,14 @@ Editor::createEditorWidgets(bool* p_open)
           }
 
           // Left
-          ImGui::BeginChild("left_section",ImVec2(150,0),true, ImGuiWindowFlags_HorizontalScrollbar | ImGuiWindowFlags_AlwaysVerticalScrollbar);
+          ImGui::BeginChild("left_section",ImVec2(190,0),true, ImGuiWindowFlags_HorizontalScrollbar | ImGuiWindowFlags_AlwaysVerticalScrollbar);
 
           int i = 0;
-                                
+
           for(auto& ani : animations[selectedSpritesheet])
           {
             char label[128];
-            sprintf(label,"%d_%s", i,ani.name.c_str());
+            snprintf(label, sizeof(label), "%d_%s", i,ani.name.c_str());
             if(ImGui::Selectable(label, selected == i)) 
             {
                 try
@@ -687,20 +768,48 @@ Editor::createEditorWidgets(bool* p_open)
                         ani.animationId);
                     currentAnimationId = aniId;
                     selected = i;
-                    // intDuration = 0;
                     selectedFrame = 1;
-                    // currentEventItem = 0;
                     selectedAnimation = ani;
+                    aniIsPlaying = false;
                     editFrame(ani,selectedFrame);
                 }
-                catch(std::exception e)
+                catch(const std::exception& e)
                 {
                     fmt::print("Exception thrown when selecting animation {}: {}",ani.name,e.what());
                 }
             }
             i++;
           }
-      
+
+          // create new animations out of the frames of the parsed spritesheet
+          ImGui::Separator();
+          ImGui::TextUnformatted("Add Animation");
+          static char newAniName[64] = "new_animation";
+          static int newFromFrame = 0;
+          static int newToFrame = 1;
+          auto parsed = parsedFrames.find(selectedSpritesheet);
+          int numSheetFrames = (parsed != parsedFrames.end())
+              ? static_cast<int>(parsed->second.size()) : 0;
+          ImGui::InputText("Name##newAni", newAniName, IM_ARRAYSIZE(newAniName));
+          ImGui::InputInt("From##newAni", &newFromFrame);
+          ImGui::InputInt("To##newAni", &newToFrame);
+          ImGui::Text("frames available: %d", numSheetFrames);
+          if (ImGui::Button("+ Add Animation"))
+          {
+              addAnimation(std::string(newAniName), newFromFrame, newToFrame);
+              selected = std::max(0,
+                      static_cast<int>(animations[selectedSpritesheet].size()) - 1);
+          }
+          setTooltipText("creates a new animation from the frame-range of "
+                         "the parsed spritesheet");
+          ImGui::SameLine();
+          if (ImGui::Button("- Delete Selected"))
+          {
+              deleteAnimation(selected);
+              selected = 0;
+          }
+          setTooltipText("deletes the selected animation");
+
           ImGui::EndChild();
         
 
@@ -752,10 +861,14 @@ Editor::setAnimationPreferences(std::string sheetName)
 
     preferences["animationDurationSet_"+sheetName] = true;
     
-    std::cout << "SHEET: " << sheetName << "\n";
-    // std::cout << sheetName << ": " << aniName << ": duration " << std::to_string(duration) << "\n";
     for(auto& ani : animations[sheetName])
     {
+        if(ani.frames.empty())
+        {
+            fmt::print("setAnimationPreferences: animation {} of sheet {} has no "
+                       "frames, skipping\n", ani.name, sheetName);
+            continue;
+        }
         size_t i = 0;
         uint16_t durationAni = 0;
         for(const auto& frame : ani.frames)
@@ -794,8 +907,13 @@ Editor::calculateAnimationDuration(RyuParser::AnimationEditor& ani)
 void 
 Editor::createAnimationDetails(int selectedAni, TaggedSheetAnimation& sheet)
 {
+    if(selectedAni < 0 || static_cast<size_t>(selectedAni) >= sheet.second.size())
+    {
+        ImGui::TextUnformatted("No animation selected.");
+        return;
+    }
 
-    auto ani = sheet.second.at(selectedAni);
+    auto& ani = sheet.second.at(selectedAni);
     ImGui::Text((std::to_string(selectedAni)+": "+ani.name+", ").c_str());
     ImGui::SameLine();
     ImGui::Text("Frames : %s, ", (std::to_string(ani.frames.size()).c_str()));
@@ -804,34 +922,54 @@ Editor::createAnimationDetails(int selectedAni, TaggedSheetAnimation& sheet)
     ImGui::Text("Ani-Duration: %d ms", ani.animationDuration.asMilliseconds());    
     ImGui::SameLine();
     ImGui::Text("CurrentFrame: %s / %s", std::to_string(currentActiveFrame).c_str(),std::to_string(ani.frames.size()).c_str());
-    
+
+    if(ani.frames.empty())
+    {
+        ImGui::TextUnformatted("This animation has no frames (nothing parsed "
+                               "for its frame-range).");
+        return;
+    }
+
     uint16_t frameWidth = ani.frames.at(0).width;
     uint16_t frameHeight = ani.frames.at(0).height;
-    
+
+    // playback controls for the preview
+    if(ImGui::Button(aniIsPlaying ? "Pause" : "Play"))
+    {
+        aniIsPlaying = !aniIsPlaying;
+    }
+    setTooltipText("play/pause the preview of the animation");
+    ImGui::SameLine();
+    if(ImGui::Button("Restart"))
+    {
+        spritesheetAnimation.restart();
+    }
+    setTooltipText("restart the preview from the first frame");
+    ImGui::SameLine();
+    ImGui::Checkbox("Repeat", &ani.repeat);
+
     ImGui::BeginChild("Animation",ImVec2(aniAreaSize.first,aniAreaSize.second),true,ImGuiWindowFlags_NoScrollbar);
 
     int16_t startX = ani.frames.at(0).x / frameWidth; // for the spritesheetAnimationDetails
     int16_t startY = ani.frames.at(0).y / frameHeight;// for the spritesheetAnimationDetails
 
-    // TODO: here dynamic anis due selection from the right side
-    RyuParser::Frame f;
     setSpritesheetAnimationDetails({
                 .frameSize={frameWidth,frameHeight}
                ,.startFrame={startX,startY}
                ,.numFrames= ani.numFrames
                ,.duration = ani.animationDuration
-               ,.repeat = true ///  TODO from editor ui: entered by user
+               ,.repeat = ani.repeat
                ,.animationId = Textures::CharacterID::_from_integral(currentAnimationId)}
         , ani.animationDuration
-        ,  ani.frames);///  TODO from editor ui: entered by user
-    ImGui::Image(spritesheetAnimation.getSprite()/*guiCharTextureManager.getResource(Textures::LevelID::Level1)*/);
+        ,  ani.frames);
+    if(textureSet)
+    {
+        ImGui::Image(spritesheetAnimation.getSprite());
+    }
     currentActiveFrame =  spritesheetAnimation.getCurrentFrame()+1;
-    // std::cout << currentActiveFrame << " set AniPrefs(dur in ms):" << spritesheetAnimation.getDuration().asMilliseconds() << "\n" ;
-    // ImGui::ShowMetricsWindow();
-    
-    setFrameDetails(selectedAni,sheet,selectedFrame,sheet.second.at(selectedAni));
 
-    // exc start
+    setFrameDetails(selectedAni,sheet,selectedFrame,ani);
+
     ImGui::EndChild();
 
     
@@ -840,92 +978,61 @@ Editor::createAnimationDetails(int selectedAni, TaggedSheetAnimation& sheet)
     // TODO: adjust values due Spritesheetsize and FrameSize
     ImGui::BeginChild("SpriteSheet", ImVec2(650,400),true,ImGuiWindowFlags_HorizontalScrollbar ); /// orig. 1040x960
 
-    // sf::Texture* texture = &(guiTextureManager.getResource(Textures::GuiID::FrameBorder));
-    ImVec2 pos = ImGui::GetCursorScreenPos();//ImVec2(100,200);//
+    ImVec2 pos = ImGui::GetCursorScreenPos();
 
-    // std::cout << "Pos_ori: " << pos.x << "|" << pos.y << "\n";
-
-    try {
-    if(currentActiveFrame-1 < ani.frames.size())
+    if(guiCharTextureManager.isLoaded(Textures::LevelID::Level1))
     {
-        pos.x = pos.x + ani.frames.at(currentActiveFrame-1).x;
-        pos.y = pos.y + ani.frames.at(currentActiveFrame-1).y;
+        const auto& texture = guiCharTextureManager.getResource(Textures::LevelID::Level1);
+        ImVec2 texSize(static_cast<float>(texture.getSize().x),
+                       static_cast<float>(texture.getSize().y));
+        ImGui::Image(texture);
+
+        // highlight the currently displayed frame in the sheet
+        size_t highlightFrame = (currentActiveFrame > 0)
+            ? static_cast<size_t>(currentActiveFrame - 1) : 0;
+        if(highlightFrame < ani.frames.size())
+        {
+            const auto& frame = ani.frames.at(highlightFrame);
+            ImVec2 framePos(pos.x + frame.x, pos.y + frame.y);
+            ImVec2 frameEnd(framePos.x + frame.width, framePos.y + frame.height);
+            ImDrawList* drawList = ImGui::GetWindowDrawList();
+            drawList->AddRectFilled(framePos, frameEnd, IM_COL32(200, 60, 60, 90));
+            drawList->AddRect(framePos, frameEnd, IM_COL32(255, 120, 120, 230), 0.f, 0, 2.f);
+        }
     }
-    // exception end
 
-    // std::cout << "Pos_new: " << pos.x << "|" << pos.y << "\n";
-
-    // TODO: values according to selectedSpritesheet !
-    // ImGui::GetWindowDrawList()->AddImage((void*)texture, pos,ImVec2(pos.x+80,pos.y+96)/* ImVec2(800, 600),ImVec2(880, 696)*/, ImVec2(0,0), ImVec2(1,1),IM_COL32_A_MASK);
-    ImGui::GetWindowDrawList()->AddRectFilled(pos,ImVec2(pos.x+80,pos.y+96),IM_COL32(127,0,0,255));//L32_WHITE);
-
-    ImGui::Image(guiCharTextureManager.getResource(Textures::LevelID::Level1));
-    // hm how to add image oveer another with SFML?
-    
-     // std::cout << "whygetcursoscreenpos???\n";
     ImGui::EndChild();
-    ImGui::BeginChild("PlayButton");
-    // TODO: make nice etc. ImGui needs an id for bnuttons sinc update xyz
-    const char *btId = new char('0');
-
-    ImGuiComboFlags flags = 0;
-    // TODO us real play/stop etc button .... tmp play button is a arrowbutton
-
-    /*
-    ** TODO: rethink the following lines, sinc update bla the ImageButtons doesnt wirk this way
-     */
-    /*
-    //if(ImGui::ArrowButton("Play",ImGuiDir_Right)) {aniIsPlaying = ! aniIsPlaying;}
-    if(ImGui::ImageButton(guiTextureManager.getResource(Textures::GuiID::StartFrame)))
-    {
-    }
-    setTooltipText();
-    ImGui::SameLine();
-    if(ImGui::ImageButton(guiTextureManager.getResource(Textures::GuiID::BackwardFrame)))
-    {}
-    setTooltipText();
-    ImGui::SameLine();
-    if(!aniIsPlaying)
-    {
-        if(ImGui::ImageButton(guiTextureManager.getResource(Textures::GuiID::Play)))
-        {
-            aniIsPlaying = true;         
-        }
-    }
-    else{
-        if(ImGui::ImageButton(guiTextureManager.getResource(Textures::GuiID::Stop)))
-        {
-            aniIsPlaying = false;         
-        }
-    }
-    ImGui::SameLine();
-    if(ImGui::ImageButton(guiTextureManager.getResource(Textures::GuiID::ForwardFrame)))
-    {}
-    setTooltipText();
-    ImGui::SameLine();
-    if(ImGui::ImageButton(guiTextureManager.getResource(Textures::GuiID::EndFrame)))
-    {
-    }
-    */
-    setTooltipText();
 
     // show frames as a timeline
-    ImGui::BeginChild("TimeLine",ImVec2(frameAreaSize.first,frameAreaSize.second),ImGuiWindowFlags_AlwaysVerticalScrollbar);
+    ImGui::BeginChild("TimeLine",ImVec2(frameAreaSize.first,frameAreaSize.second),ImGuiChildFlags_None,ImGuiWindowFlags_AlwaysVerticalScrollbar);
         size_t j = 1;
         float currentFrameAreaX = 0;
         for (auto& f : ani.frames)
         {
-            //if(ImGui::ImageButton(guiTextureManager.getResource(Textures::GuiID::Frame)))
-            if(ImGui::Button(std::to_string(j).c_str(),ImVec2(frameSize.first,frameSize.second)))
+            // frames which carry an event get an asterisk
+            std::string label = std::to_string(j);
+            if(f.event != +RyuEvent::None)
+            {
+                label += "*";
+            }
+            if(selectedFrame == static_cast<int>(j))
+            {
+                ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.26f, 0.59f, 0.98f, 0.80f));
+                ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.f, 1.f, 1.f, 1.f));
+            }
+            if(ImGui::Button(label.c_str(),ImVec2(frameSize.first,frameSize.second)))
             {
                 selectedFrame = j;
                 editFrame(ani,selectedFrame);
             }
-            setTooltipText("click for details");
+            if(selectedFrame == static_cast<int>(j))
+            {
+                ImGui::PopStyleColor(2);
+            }
+            setTooltipText("click for details, * = frame has an event");
             if(currentFrameAreaX < frameAreaSize.first)
             {
                 currentFrameAreaX += (frameSize.first+10.f);
-                //std::cout << currentFrameAreaX << "\n";
                 ImGui::SameLine();
             }
             else
@@ -942,15 +1049,13 @@ Editor::createAnimationDetails(int selectedAni, TaggedSheetAnimation& sheet)
     {
         // to use with std::string or own datatype we need a wrapper for InputTextXXX)
         static char JsonFilename[128] = "jsonFile.json";
-        // TODO: how to add automatically ?in C-style
-        // static char extension[6] = ".json";
         ImGui::InputTextWithHint("Filename","put Json filename here",JsonFilename,IM_ARRAYSIZE(JsonFilename));
-        ImGui::InputTextWithHint("Path","put Json filename here",selectedSpriteSheetPath,IM_ARRAYSIZE(selectedSpriteSheetPath));
-        if(ImGui::Combo("Spritesheet-Id",&currentSpritesheetItem, spritesheetItems, IM_ARRAYSIZE(spritesheetItems))) //;
+        ImGui::InputTextWithHint("Path","put spritesheet path here",selectedSpriteSheetPath,IM_ARRAYSIZE(selectedSpriteSheetPath));
+        if(ImGui::Combo("Spritesheet-Id",&currentSpritesheetItem, spritesheetItems.data(), static_cast<int>(spritesheetItems.size())))
         {
             selectedSpritesheetId = Textures::SpritesheetID::_from_integral(currentSpritesheetItem)._to_string();
         }
-        if(ImGui::Combo("Level-Id",&currentLevelItem, levelItems, IM_ARRAYSIZE(levelItems))) //;
+        if(ImGui::Combo("Level-Id",&currentLevelItem, levelItems.data(), static_cast<int>(levelItems.size())))
         {
             selectedLevelId = Textures::LevelID::_from_integral(currentLevelItem)._to_string();
         }
@@ -961,13 +1066,6 @@ Editor::createAnimationDetails(int selectedAni, TaggedSheetAnimation& sheet)
 
      }
      ImGui::EndChild();
-
-    ImGui::EndChild();
-    }
-    catch(std::exception e)
-         {
-             fmt::print("createEditorWidgets exception: {}", e.what());
-         }
 }
 
 void
@@ -975,7 +1073,7 @@ Editor::setFrameDetails(int selectedAni, TaggedSheetAnimation& sheet, int frameN
 {
     if(frameDetailsVisible)
     {
-        if(ImGui::Combo("AnimationId:", &currentAnimationId, animationIds, IM_ARRAYSIZE(animationIds)))
+        if(ImGui::Combo("AnimationId:", &currentAnimationId, animationIds.data(), static_cast<int>(animationIds.size())))
         {
             ani.animationId = Textures::CharacterID::_from_integral(currentAnimationId);
         }
@@ -984,27 +1082,25 @@ Editor::setFrameDetails(int selectedAni, TaggedSheetAnimation& sheet, int frameN
         ImGui::Text("Frame: %d", frameNumber);
         ImGui::Checkbox("Repeat", &repeatAnimation);
         ani.repeat = repeatAnimation;
-        if(ImGui::Combo("AnimationType",&currentAnimationType, animationTypes, IM_ARRAYSIZE(animationTypes))) //;
+        if(ImGui::Combo("AnimationType",&currentAnimationType, animationTypes.data(), static_cast<int>(animationTypes.size())))
         {
             ani.animationType = Textures::AnimationType::_from_integral(currentAnimationType);
         }
         if(ImGui::InputInt("Duration",&intDuration))
         {
-            if(selectedFrame != 0)
+            if(frameNumber > 0 && static_cast<size_t>(frameNumber) <= ani.frames.size())
             {
-                std::cout << "DurationPress: " << intDuration << "\n";    
                 ani.frames.at(frameNumber-1).duration = intDuration ;
             }
         }
         setTooltipText("set duration in ms");
-        if(ImGui::Combo("Event",&currentEventItem, eventItems, IM_ARRAYSIZE(eventItems))) //;
+        if(ImGui::Combo("Event",&currentEventItem, eventItems.data(), static_cast<int>(eventItems.size())))
         {
-            if(selectedFrame != 0)
+            if(frameNumber > 0 && static_cast<size_t>(frameNumber) <= ani.frames.size())
             {
-               std::cout << "Event : " << std::to_string(currentEventItem) << "(" << RyuEvent::_from_integral(currentEventItem)._to_string()  << ") saved to Frame: " << std::to_string(frameNumber) <<" \n";
-               //auto ani = sheet.second.at(selectedAni);
                ani.frames.at(frameNumber-1).event = RyuEvent::_from_integral(currentEventItem);
-               std::cout << "From ani-map: " << ani.frames.at(frameNumber-1).event._to_string() << "\n";
+               std::cout << "Event " << RyuEvent::_from_integral(currentEventItem)._to_string()
+                         << " saved to Frame: " << std::to_string(frameNumber) << "\n";
             }
         }
 
@@ -1016,13 +1112,15 @@ Editor::setFrameDetails(int selectedAni, TaggedSheetAnimation& sheet, int frameN
 void
 Editor::editFrame(RyuParser::AnimationEditor& ani, size_t frame )
 {
-    // std::cout << ani.name << "," << std::to_string(frame) << "\n";
+    if(frame == 0 || frame > ani.frames.size())
+    {
+        return;
+    }
     intDuration = ani.frames.at(frame-1).duration;
-    currentEventItem = (ani.frames.at(frame-1).event)._to_integral(); 
-    // std::cout << "FrameDetail(event): " << currentEventItem << ", ani-map: " << ani.frames.at(frame-1).event._to_string() << "\n";
-    //frameDetailsVisible =! frameDetailsVisible;
-    ani.frameSize.x = (ani.frames.at(frame-1)).height;
-    ani.frameSize.y = (ani.frames.at(frame-1)).width;
+    currentEventItem = (ani.frames.at(frame-1).event)._to_integral();
+    // frameSize.x holds the width, frameSize.y the height
+    ani.frameSize.x = (ani.frames.at(frame-1)).width;
+    ani.frameSize.y = (ani.frames.at(frame-1)).height;
     repeatAnimation = ani.repeat;
 }
 
@@ -1066,15 +1164,23 @@ void
 Editor::exportAnimationDetailsToFile(char* JsonFilename)
 {
     std::vector<RyuParser::AnimationEditor> aniSpecs;
-    // TODO: no filename entered ? what then -> standard name but: HOW 
-    std::ofstream oJson(sizeof(JsonFilename) == 0 ? "output.txt" : JsonFilename);
-    
+    std::string filename{JsonFilename != nullptr ? JsonFilename : ""};
+    if(filename.empty())
+    {
+        filename = "output.json";
+    }
+    std::ofstream oJson(filename);
+    if(not oJson.is_open())
+    {
+        fmt::print("Could not open {} for writing !\n", filename);
+        return;
+    }
+
     for(auto& ani : animations[selectedSpritesheet])
     {
           aniSpecs.push_back(ani);
     }
 
-    // TODO: use variables for charcter name etc.
     oJson << "{\n" << R"(  "Name" : "ichi",)" << "\n";
     oJson << R"(  "Spritesheet" : ")" << selectedSpritesheetId << R"(",)" << "\n";
     oJson << R"(  "Level" : ")" << selectedLevelId << R"(",)" << "\n";
@@ -1095,8 +1201,7 @@ Editor::exportAnimationDetailsToFile(char* JsonFilename)
     }
 
     oJson << R"(])" << "\n}";
-    std::string pathName(/*selectedSpriteSheetPath); pathName.append(*/JsonFilename);
-    fmt::print("saved to {}\n", (sizeof(JsonFilename) == 0 ? "output.txt" : pathName ));
+    fmt::print("saved {} animation(s) to {}\n", aniSpecs.size(), filename);
 
     // json j()
     /* 
@@ -1134,6 +1239,86 @@ Editor::exportAnimationDetailsToFile(char* JsonFilename)
    .repeat = true ///  TODO from editor ui: entered by user
    .animationId = Textures::CharacterID::IchiIdleRun});///  TODO from editor ui: entered by user    
    ^*/
+}
+
+// creates a new animation out of the frames of the parsed spritesheet,
+// the framenumbering is the one of the arttool (aseprite)
+void
+Editor::addAnimation(const std::string& name, int fromFrame, int toFrame)
+{
+    auto parsed = parsedFrames.find(selectedSpritesheet);
+    if(parsed == parsedFrames.end() || parsed->second.empty())
+    {
+        fmt::print("addAnimation: no parsed spritesheet-frames available, "
+                   "open a spritesheet-json first !\n");
+        return;
+    }
+    const auto& sheetFrames = parsed->second;
+
+    if(name.empty())
+    {
+        fmt::print("addAnimation: please enter a name for the animation !\n");
+        return;
+    }
+    if(fromFrame < 0 || toFrame < fromFrame
+       || toFrame >= static_cast<int>(sheetFrames.size()))
+    {
+        fmt::print("addAnimation: invalid framerange {} - {}, the parsed "
+                   "spritesheet has frames 0 - {}\n",
+                   fromFrame, toFrame, static_cast<int>(sheetFrames.size()) - 1);
+        return;
+    }
+
+    RyuParser::AnimationEditor ani;
+    ani.name = name;
+    ani.fromFrame = fromFrame;
+    ani.toFrame = toFrame;
+    ani.direction = "forward";
+    ani.animationType = Textures::AnimationType::Character;
+    ani.repeat = false;
+    for(int i = fromFrame; i <= toFrame; i++)
+    {
+        if(sheetFrames.at(i).width > 0)
+        {
+            ani.frames.push_back(sheetFrames.at(i));
+        }
+    }
+
+    if(ani.frames.empty())
+    {
+        fmt::print("addAnimation: no frames found in range {} - {}\n",
+                   fromFrame, toFrame);
+        return;
+    }
+
+    uint16_t duration = 0;
+    for(const auto& frame : ani.frames)
+    {
+        duration += frame.duration;
+    }
+    ani.numFrames = ani.frames.size();
+    ani.animationDuration = sf::milliseconds(duration);
+    ani.frameSize.x = ani.frames.at(0).width;
+    ani.frameSize.y = ani.frames.at(0).height;
+
+    animations[selectedSpritesheet].push_back(ani);
+    fmt::print("addAnimation: added {} (frames {} - {}, {} frames, {} ms)\n",
+               ani.name, fromFrame, toFrame, ani.numFrames, duration);
+}
+
+void
+Editor::deleteAnimation(int index)
+{
+    auto& anis = animations[selectedSpritesheet];
+    if(index < 0 || static_cast<size_t>(index) >= anis.size())
+    {
+        return;
+    }
+    fmt::print("deleteAnimation: removed {}\n", anis.at(index).name);
+    anis.erase(anis.begin() + index);
+    selectedFrame = 1;
+    aniIsPlaying = false;
+    spritesheetAnimation.restart();
 }
 
 } // namespace RyuAnimator

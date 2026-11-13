@@ -15,6 +15,7 @@ class AssetManager
         void load(Identifier id, const std::string& filename);
         template <typename Parameter>
         void load(Identifier id, const std::string& filename, const Parameter& secondParam);
+        bool isLoaded(Identifier id) const { return mResourceMap.find(id) != mResourceMap.end(); }
         Resource& getResource(Identifier id);
         const Resource& getResource(Identifier id) const;
 

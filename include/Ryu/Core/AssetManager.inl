@@ -29,9 +29,9 @@ AssetManager<Resource, Identifier>::load(Identifier id, const std::string& filen
         throw std::runtime_error("AssetManager:load - Failed to load " + filename);
     }
 
-    // give ownership to ResourceMap
-    auto inserted = mResourceMap.insert(std::make_pair(id,std::move(resource)));
-    assert(inserted.second);
+    // give ownership to ResourceMap; a reload (e.g. the animation editor
+    // opens another spritesheet for the same id) replaces the resource
+    mResourceMap.insert_or_assign(id, std::move(resource));
 }
 
 // esp. for the loading of shaders this overloaded method is used
@@ -45,7 +45,6 @@ void AssetManager<Resource, Identifier>::load(Identifier id, const std::string& 
         throw std::runtime_error("ResourceHolder:load - Failed to load " + filename);
     }
 
-    // give ownership to TextureMap
-    auto inserted = mResourceMap.insert(std::make_pair(id,std::move(resource)));
-    assert(inserted.second);
+    // give ownership to TextureMap; a reload replaces the resource
+    mResourceMap.insert_or_assign(id, std::move(resource));
 }
