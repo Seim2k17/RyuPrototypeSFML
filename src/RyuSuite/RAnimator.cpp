@@ -174,8 +174,6 @@ static int currentAnimationType = 1;
 static int currentAnimationId = 0;
 static int currentActiveFrame = 0;
 RyuParser::AnimationEditor selectedAnimation;
-// standard is a cycled animation
-static bool repeatAnimation = true;
 
 // combo items, sized according to the enum values (fixed size arrays could
 // overflow when the enums grow)
@@ -581,6 +579,7 @@ Editor::parseJsonData(std::string path)
             }
 
             selectedSpritesheet = spriteSheet;
+            previewedAnimation.clear();
 
             addAnimationsFromJson(spriteSheet, appFormat, data);
 
@@ -945,8 +944,6 @@ Editor::createAnimationDetails(int selectedAni, TaggedSheetAnimation& sheet)
         spritesheetAnimation.restart();
     }
     setTooltipText("restart the preview from the first frame");
-    ImGui::SameLine();
-    ImGui::Checkbox("Repeat", &ani.repeat);
 
     ImGui::BeginChild("Animation",ImVec2(aniAreaSize.first,aniAreaSize.second),true,ImGuiWindowFlags_NoScrollbar);
 
@@ -962,6 +959,14 @@ Editor::createAnimationDetails(int selectedAni, TaggedSheetAnimation& sheet)
                ,.animationId = Textures::CharacterID::_from_integral(currentAnimationId)}
         , ani.animationDuration
         ,  ani.frames);
+    // when the selection changed: reset the preview to the first frame of
+    // the newly selected animation (also while paused)
+    std::string previewKey = selectedSpritesheet + "/" + ani.name;
+    if(previewKey != previewedAnimation)
+    {
+        previewedAnimation = previewKey;
+        spritesheetAnimation.restart();
+    }
     if(textureSet)
     {
         ImGui::Image(spritesheetAnimation.getSprite());
@@ -1080,8 +1085,9 @@ Editor::setFrameDetails(int selectedAni, TaggedSheetAnimation& sheet, int frameN
         ImGui::Separator();
         //auto ani = sheet.second.at(selectedAni);
         ImGui::Text("Frame: %d", frameNumber);
-        ImGui::Checkbox("Repeat", &repeatAnimation);
-        ani.repeat = repeatAnimation;
+        // bound directly to the animation so the change is not overwritten
+        // by other widgets and the preview takes it over immediately
+        ImGui::Checkbox("Repeat", &ani.repeat);
         if(ImGui::Combo("AnimationType",&currentAnimationType, animationTypes.data(), static_cast<int>(animationTypes.size())))
         {
             ani.animationType = Textures::AnimationType::_from_integral(currentAnimationType);
@@ -1121,7 +1127,6 @@ Editor::editFrame(RyuParser::AnimationEditor& ani, size_t frame )
     // frameSize.x holds the width, frameSize.y the height
     ani.frameSize.x = (ani.frames.at(frame-1)).width;
     ani.frameSize.y = (ani.frames.at(frame-1)).height;
-    repeatAnimation = ani.repeat;
 }
 
 void

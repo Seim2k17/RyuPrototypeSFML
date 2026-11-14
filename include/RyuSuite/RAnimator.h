@@ -124,5 +124,8 @@ using TaggedSheetAnimation = std::pair<const std::string, std::vector<RyuParser:
 
       std::unique_ptr<ImGui::FileBrowser> _fileBrowser;
       bool aniIsPlaying;
+      // sheet + name of the animation currently shown in the preview,
+      // to reset the preview when the selection changes
+      std::string previewedAnimation;
   };
 }

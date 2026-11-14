@@ -174,7 +174,21 @@ void SpritesheetAnimation::setRepeating(bool flag) { mRepeat = flag; }
 
 bool SpritesheetAnimation::isRepeating() const { return mRepeat; }
 
-void SpritesheetAnimation::restart() { mCurrentFrame = 0; }
+void SpritesheetAnimation::restart() {
+    mCurrentFrame = 0;
+    mElapsedTime = sf::Time::Zero;
+    // show the first frame right away (also while the animation is paused),
+    // otherwise the sprite keeps the texture-rect of the previously
+    // displayed frame until the next update()
+    if (mFrameSize.x > 0 && mFrameSize.y > 0) {
+        sf::Vector2i pos(mStartFrame);
+        if (not mFrames.empty()) {
+            pos = {mFrames.front().x, mFrames.front().y};
+        }
+        mSprite.setTextureRect(
+            sf::IntRect(pos, {mFrameSize.x, mFrameSize.y}));
+    }
+}
 
 bool SpritesheetAnimation::isFinished() const {
     //return mCurrentFrame >= mNumFrames;
@@ -256,12 +270,23 @@ void SpritesheetAnimation::update(sf::Time dt) {
         }
 
 
-        auto& texturePos = textureRect.position;
-        auto textureSize = textureRect.size;
-        texturePos.x += textureSize.x;
-        if (texturePos.x + textureSize.x > textureBounds.x) {
-            texturePos.x = 0;
-            texturePos.y += textureSize.y;
+        // the next frame's position comes from the frame-data
+        // (x/y in the spritesheet); fall back to grid-stepping if the
+        // frame-data carries no position
+        std::size_t nextFrame =
+            (mRepeat) ? (mCurrentFrame + 1) % mNumFrames : mCurrentFrame + 1;
+        if (nextFrame < mFrames.size()) {
+            const auto& next = mFrames.at(nextFrame);
+            textureRect = sf::IntRect({next.x, next.y},
+                                       {mFrameSize.x, mFrameSize.y});
+        } else {
+            auto& texturePos = textureRect.position;
+            auto textureSize = textureRect.size;
+            texturePos.x += textureSize.x;
+            if (texturePos.x + textureSize.x > textureBounds.x) {
+                texturePos.x = 0;
+                texturePos.y += textureSize.y;
+            }
         }
         mElapsedTime -= timePerFrame;
         // fire event / find it be carefully not to create it !!!!
@@ -280,10 +305,6 @@ void SpritesheetAnimation::update(sf::Time dt) {
             }
             if (mRepeat) {
                 mCurrentFrame = (mCurrentFrame + 1) % mNumFrames;
-                if (mCurrentFrame == 0) {
-                    textureRect = sf::IntRect({mStartFrame.x, mStartFrame.y},
-                                              {mFrameSize.x, mFrameSize.y});
-                }
             } else {
                 mCurrentFrame++;
                 fmt::print("CurrentFrame is now: {}\n", mCurrentFrame);
