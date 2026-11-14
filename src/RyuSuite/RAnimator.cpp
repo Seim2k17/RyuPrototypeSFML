@@ -153,11 +153,14 @@ Editor::Editor():
     ,frameAreaSize{620.f,60.f}
     ,pendingPreviewFrame(-1)
     ,textureSet(false)
+    ,selectedSpritesheetId((+Textures::SpritesheetID::Ichi64x64)._to_string())
+    ,selectedLevelId((+Textures::LevelID::Level1)._to_string())
     ,preferences()
     ,fileBrowserState(EFileBrowserState::None)
 {
     initTextures();
     initData();
+    loadEditorSettings();
 }
 
 Editor::~Editor()
@@ -171,13 +174,18 @@ static float previewZoom = 1.0f;
 // step the frame-position by the spritesize and snap to the grid (true)
 // or adjust the position freely in 1px steps (false)
 static bool gridSnap = true;
+// where the editor-settings are saved permanently
+static char editorSettingsPath[128] = "assets/editorSettings.json";
+
 // content of the selected Frame
 /* FrameDetails-Section */
 static int intDuration;
 static int selectedFrame;
 static int currentEventItem = 0;
-static int currentLevelItem = 0;
-static int currentSpritesheetItem = 0;
+// defaults match the game-config of ichi (Level1 / Ichi64x64) so the
+// exported config-json is valid for the game without manual selection
+static int currentLevelItem = 1;
+static int currentSpritesheetItem = 1;
 // standard is a character animation
 static int currentAnimationType = 1;
 static int currentAnimationId = 0;
@@ -883,8 +891,8 @@ Editor::createEditorWidgets(bool* p_open)
 
     if (showAnimationEditor && showEditorSettings)
     {
-        ImGui::SetNextWindowPos(ImVec2(180, 130), ImGuiCond_FirstUseEver);
-        ImGui::SetNextWindowSize(ImVec2(330, 210), ImGuiCond_FirstUseEver);
+        ImGui::SetNextWindowPos(ImVec2(185, 105), ImGuiCond_FirstUseEver);
+        ImGui::SetNextWindowSize(ImVec2(340, 345), ImGuiCond_FirstUseEver);
         if (ImGui::Begin("Editor Settings", &showEditorSettings))
         {
             ImGui::TextUnformatted("Sizes are applied live.");
@@ -905,6 +913,18 @@ Editor::createEditorWidgets(bool* p_open)
                 aniAreaSize = {140.f, 150.f};
                 frameAreaSize = {620.f, 60.f};
             }
+            ImGui::Separator();
+            ImGui::SetNextItemWidth(215);
+            ImGui::InputText("Settings file", editorSettingsPath, IM_ARRAYSIZE(editorSettingsPath));
+            setTooltipText("editor-settings are loaded from this file "
+                           "on startup");
+            ImGui::SameLine();
+            if (ImGui::Button("Save as default"))
+            {
+                saveEditorSettings();
+            }
+            setTooltipText("writes the current editor-settings to the "
+                           "settings-file");
         }
         ImGui::End();
     }
@@ -916,6 +936,66 @@ Editor::setTooltipText(const char * tooltip="- not implemented -")
     if(ImGui::IsItemHovered())
     {
         ImGui::SetTooltip(tooltip);
+    }
+}
+
+void
+Editor::saveEditorSettings()
+{
+    std::ofstream oSet(editorSettingsPath);
+    if(not oSet.is_open())
+    {
+        fmt::print("Could not open {} for writing !\n", editorSettingsPath);
+        return;
+    }
+    json settings = {
+        {"sheetView", {{"width", sheetViewSize.first}, {"height", sheetViewSize.second}}},
+        {"preview", {{"width", aniAreaSize.first}, {"height", aniAreaSize.second}}},
+        {"timeline", {{"width", frameAreaSize.first}, {"height", frameAreaSize.second}}},
+        {"previewZoom", previewZoom},
+        {"gridSnap", gridSnap},
+    };
+    oSet << settings.dump(2) << "\n";
+    fmt::print("saved editor-settings to {}\n", editorSettingsPath);
+}
+
+void
+Editor::loadEditorSettings()
+{
+    std::ifstream iSet(editorSettingsPath);
+    if(not iSet.is_open())
+    {
+        return;
+    }
+    try
+    {
+        json settings = json::parse(iSet);
+        if(settings.contains("sheetView"))
+        {
+            sheetViewSize = {settings["sheetView"]["width"], settings["sheetView"]["height"]};
+        }
+        if(settings.contains("preview"))
+        {
+            aniAreaSize = {settings["preview"]["width"], settings["preview"]["height"]};
+        }
+        if(settings.contains("timeline"))
+        {
+            frameAreaSize = {settings["timeline"]["width"], settings["timeline"]["height"]};
+        }
+        if(settings.contains("previewZoom"))
+        {
+            previewZoom = settings["previewZoom"];
+        }
+        if(settings.contains("gridSnap"))
+        {
+            gridSnap = settings["gridSnap"];
+        }
+        fmt::print("loaded editor-settings from {}\n", editorSettingsPath);
+    }
+    catch(const json::exception& e)
+    {
+        fmt::print("could not read editor-settings {}: {}\n",
+                   editorSettingsPath, e.what());
     }
 }
 
@@ -1464,6 +1544,15 @@ Editor::exportAnimationDetailsToFile(char* JsonFilename)
 
     for(auto& ani : animations[selectedSpritesheet])
     {
+          // keep the derived values consistent with the frame-list so
+          // the exported config is valid even if a widget did not run
+          ani.numFrames = ani.frames.size();
+          uint16_t durationAni = 0;
+          for(const auto& frame : ani.frames)
+          {
+              durationAni += frame.duration;
+          }
+          ani.animationDuration = sf::milliseconds(durationAni);
           aniSpecs.push_back(ani);
     }
 

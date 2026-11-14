@@ -75,6 +75,8 @@ using TaggedSheetAnimation = std::pair<const std::string, std::vector<RyuParser:
       bool showAnimationEditor;
   
       void exportAnimationDetailsToFile(char* JsonFilename);
+      void saveEditorSettings();
+      void loadEditorSettings();
       
       void setFrameDetails(int selectedAni, TaggedSheetAnimation& sheet, int frameNumber, RyuParser::AnimationEditor& ani);
       
