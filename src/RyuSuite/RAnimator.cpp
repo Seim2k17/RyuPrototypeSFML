@@ -166,6 +166,11 @@ Editor::~Editor()
 // GUI variables
 constexpr std::pair<float,float> frameSize{20.f,35.f}; 
 static bool frameDetailsVisible=true;
+// preview zoom (1.0 - 4.0)
+static float previewZoom = 1.0f;
+// step the frame-position by the spritesize and snap to the grid (true)
+// or adjust the position freely in 1px steps (false)
+static bool gridSnap = true;
 // content of the selected Frame
 /* FrameDetails-Section */
 static int intDuration;
@@ -973,6 +978,20 @@ Editor::createAnimationDetails(int selectedAni, TaggedSheetAnimation& sheet)
     ImGui::Text("CurrentFrame: %s / %s", std::to_string(currentActiveFrame).c_str(),std::to_string(ani.frames.size()).c_str());
     ImGui::SameLine();
     ImGui::Text("Spritesize: %dx%d", frameWidth, frameHeight);
+    ImGui::SameLine();
+    // rename the selected animation directly in the header
+    static char renameBuf[64] = "";
+    ImGui::SetNextItemWidth(110);
+    ImGui::InputTextWithHint("##renameAni", "new name", renameBuf, IM_ARRAYSIZE(renameBuf));
+    ImGui::SameLine();
+    if (ImGui::Button("Rename"))
+    {
+        if (renameBuf[0] != '\0')
+        {
+            ani.name = renameBuf;
+        }
+    }
+    setTooltipText("renames the selected animation in the list");
 
     // playback controls for the preview
     if(ImGui::Button(aniIsPlaying ? "Pause" : "Play"))
@@ -992,10 +1011,18 @@ Editor::createAnimationDetails(int selectedAni, TaggedSheetAnimation& sheet)
     setTooltipText("loop the preview only, this flag is not saved "
                    "with the animation");
 
-    ImGui::BeginChild("Animation",ImVec2(aniAreaSize.first,aniAreaSize.second),true,ImGuiWindowFlags_NoScrollbar);
+    // the preview is zoomable; the child grows with the zoom so the
+    // frame stays fully visible (capped so the frame-details keep room)
+    float previewW = std::min(std::max(aniAreaSize.first,
+                         static_cast<float>(frameWidth) * previewZoom + 16.f), 340.f);
+    float previewH = std::min(std::max(aniAreaSize.second,
+                         static_cast<float>(frameHeight) * previewZoom + 46.f), 420.f);
+    ImGui::BeginChild("Animation",ImVec2(previewW,previewH),true,ImGuiWindowFlags_NoScrollbar);
 
-    int16_t startX = ani.frames.at(0).x / frameWidth; // for the spritesheetAnimationDetails
-    int16_t startY = ani.frames.at(0).y / frameHeight;// for the spritesheetAnimationDetails
+    // pixel-position of the first frame (no grid-math: sheets can mix
+    // different spritesizes, e.g. 64x64 and 80x128 frames)
+    int16_t startX = ani.frames.at(0).x;
+    int16_t startY = ani.frames.at(0).y;
 
     setSpritesheetAnimationDetails({
                 .frameSize={frameWidth,frameHeight}
@@ -1028,16 +1055,21 @@ Editor::createAnimationDetails(int selectedAni, TaggedSheetAnimation& sheet)
     }
     if(textureSet)
     {
-        ImGui::Image(spritesheetAnimation.getSprite());
+        ImGui::Image(spritesheetAnimation.getSprite(),
+            ImVec2(static_cast<float>(frameWidth) * previewZoom,
+                   static_cast<float>(frameHeight) * previewZoom));
     }
     currentActiveFrame =  spritesheetAnimation.getCurrentFrame()+1;
+
+    ImGui::SliderFloat("Zoom", &previewZoom, 1.0f, 4.0f, "%.1fx");
+    setTooltipText("zoom the animation-preview");
 
     ImGui::EndChild();
 
     ImGui::SameLine();
 
     // frame-details get their own roomy section next to the preview
-    ImGui::BeginChild("FrameDetails", ImVec2(0,aniAreaSize.second),true);
+    ImGui::BeginChild("FrameDetails", ImVec2(0,previewH),true);
     setFrameDetails(selectedAni,sheet,selectedFrame,ani);
     ImGui::EndChild();
 
@@ -1139,8 +1171,8 @@ Editor::createAnimationDetails(int selectedAni, TaggedSheetAnimation& sheet)
         }
     ImGui::EndChild();
     
-    // Save Json-Data
-    ImGui::SameLine();
+    // Save Json-Data (own section below the frame-timeline)
+    ImGui::Separator();
     if(ImGui::BeginChild("Preferences", ImVec2(0,0), false))
     {
         // to use with std::string or own datatype we need a wrapper for InputTextXXX)
@@ -1211,15 +1243,22 @@ Editor::setFrameDetails(int selectedAni, TaggedSheetAnimation& sheet, int frameN
             }
         }
 
-        // position of the selected frame inside the spritesheet; the +/-
-        // buttons step by the spritesize so the frame stays on the grid
+        // position of the selected frame inside the spritesheet; with
+        // "Grid" the +/- buttons step by the spritesize and the value is
+        // snapped to the frame-grid, unchecked the position can be set
+        // freely (needed for sheets with mixed spritesizes where e.g. a
+        // 80px frame starts at x=704, right after a 64px-grid)
         if(frameNumber > 0 && static_cast<size_t>(frameNumber) <= ani.frames.size())
         {
             auto& frame = ani.frames.at(frameNumber-1);
-            int stepX = ani.frameSize.x > 0 ? ani.frameSize.x : frame.width;
-            int stepY = ani.frameSize.y > 0 ? ani.frameSize.y : frame.height;
+            int stepX = gridSnap ? (ani.frameSize.x > 0 ? ani.frameSize.x : frame.width) : 1;
+            int stepY = gridSnap ? (ani.frameSize.y > 0 ? ani.frameSize.y : frame.height) : 1;
             int xPos = frame.x;
             int yPos = frame.y;
+            ImGui::Checkbox("Grid", &gridSnap);
+            setTooltipText("step by the spritesize and snap to the "
+                           "frame-grid, uncheck for custom positions");
+            ImGui::SameLine();
             ImGui::SetNextItemWidth(70);
             ImGui::InputInt("X in Sheet", &xPos, stepX);
             setTooltipText("x-position of the frame in the spritesheet, "
@@ -1230,8 +1269,12 @@ Editor::setFrameDetails(int selectedAni, TaggedSheetAnimation& sheet, int frameN
             setTooltipText("y-position of the frame in the spritesheet, "
                            "steps by the frameheight");
             // snap to the frame-grid so no frame ends up between frames
-            xPos = (xPos / stepX) * stepX;
-            yPos = (yPos / stepY) * stepY;
+            // (only in grid-mode; in custom-mode any position is allowed)
+            if(gridSnap)
+            {
+                xPos = (xPos / stepX) * stepX;
+                yPos = (yPos / stepY) * stepY;
+            }
             if(xPos != frame.x || yPos != frame.y)
             {
                 frame.x = static_cast<int16_t>(xPos);
@@ -1352,7 +1395,7 @@ Editor::setSpritesheetAnimationDetails(const AnimationConfig& config, sf::Time a
 {   
     // std::cout << "OverallDuration: " << aniDuration.asMilliseconds() << " ms, config-dur: " << config.duration.asMilliseconds() << "ms\n";
     spritesheetAnimation.setFrameSize(config.frameSize);
-    spritesheetAnimation.setStartFrame({config.frameSize.x * config.startFrame.x, config.frameSize.y * config.startFrame.y});
+    spritesheetAnimation.setStartFrame({config.startFrame.x, config.startFrame.y});
     spritesheetAnimation.setNumFrames(aniDuration, frames);
     spritesheetAnimation.setDuration(config.duration);
     spritesheetAnimation.setRepeating(config.repeat);
