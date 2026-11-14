@@ -147,6 +147,10 @@ Editor::Editor():
     ,guiTextureManager()
     ,aniIsPlaying(false)
     ,previewRepeat(true)
+    ,showEditorSettings(false)
+    ,sheetViewSize{320.f,320.f}
+    ,aniAreaSize{140.f,150.f}
+    ,frameAreaSize{290.f,60.f}
     ,pendingPreviewFrame(-1)
     ,textureSet(false)
     ,preferences()
@@ -161,10 +165,6 @@ Editor::~Editor()
 
 // GUI variables
 constexpr std::pair<float,float> frameSize{20.f,35.f}; 
-// heights are kept small so preview, spritesheet-view and the frame-timeline
-// all fit into the editor-window next to each other
-constexpr std::pair<float,float> frameAreaSize{290.f,46.f};
-constexpr std::pair<float,float> aniAreaSize{140.f,100.f};
 static bool frameDetailsVisible=true;
 // content of the selected Frame
 /* FrameDetails-Section */
@@ -751,6 +751,12 @@ Editor::createEditorWidgets(bool* p_open)
               }
               ImGui::EndMenu();
             }
+            if (ImGui::BeginMenu("Preferences")) {
+              if (ImGui::MenuItem("Editor Settings ...")) {
+                showEditorSettings = true;
+              }
+              ImGui::EndMenu();
+            }
             ImGui::EndMenuBar();
           }
 
@@ -842,6 +848,33 @@ Editor::createEditorWidgets(bool* p_open)
         ImGui::EndGroup();
       }
     ImGui::End();
+    }
+
+    if (showAnimationEditor && showEditorSettings)
+    {
+        ImGui::SetNextWindowPos(ImVec2(180, 130), ImGuiCond_FirstUseEver);
+        ImGui::SetNextWindowSize(ImVec2(330, 210), ImGuiCond_FirstUseEver);
+        if (ImGui::Begin("Editor Settings", &showEditorSettings))
+        {
+            ImGui::TextUnformatted("Sizes are applied live.");
+            ImGui::Separator();
+            ImGui::SliderFloat("Sheet-View Width", &sheetViewSize.first, 140.f, 600.f, "%.0f");
+            ImGui::SliderFloat("Sheet-View Height", &sheetViewSize.second, 100.f, 600.f, "%.0f");
+            setTooltipText("size of the spritesheet-view");
+            ImGui::SliderFloat("Preview Width", &aniAreaSize.first, 100.f, 300.f, "%.0f");
+            ImGui::SliderFloat("Preview Height", &aniAreaSize.second, 80.f, 300.f, "%.0f");
+            setTooltipText("size of the animation-preview");
+            ImGui::SliderFloat("Timeline Height", &frameAreaSize.second, 40.f, 120.f, "%.0f");
+            setTooltipText("height of the frame-timeline");
+            ImGui::Separator();
+            if (ImGui::Button("Reset to defaults"))
+            {
+                sheetViewSize = {320.f, 320.f};
+                aniAreaSize = {140.f, 150.f};
+                frameAreaSize = {290.f, 60.f};
+            }
+        }
+        ImGui::End();
     }
 }
 
@@ -980,6 +1013,12 @@ Editor::createAnimationDetails(int selectedAni, TaggedSheetAnimation& sheet)
     {
         previewedAnimation = previewKey;
         spritesheetAnimation.restart();
+        // remember the frames as they were parsed so frame-changes
+        // can be reset later
+        if(originalFrames.find(previewKey) == originalFrames.end())
+        {
+            originalFrames[previewKey] = ani.frames;
+        }
     }
     if(pendingPreviewFrame >= 0)
     {
@@ -997,8 +1036,13 @@ Editor::createAnimationDetails(int selectedAni, TaggedSheetAnimation& sheet)
 
     ImGui::SameLine();
 
+    // frame-details get their own roomy section next to the preview
+    ImGui::BeginChild("FrameDetails", ImVec2(0,aniAreaSize.second),true);
+    setFrameDetails(selectedAni,sheet,selectedFrame,ani);
+    ImGui::EndChild();
+
     // TODO: adjust values due Spritesheetsize and FrameSize
-    ImGui::BeginChild("SpriteSheet", ImVec2(280,100),true,ImGuiWindowFlags_HorizontalScrollbar );
+    ImGui::BeginChild("SpriteSheet", ImVec2(sheetViewSize.first,sheetViewSize.second),true,ImGuiWindowFlags_HorizontalScrollbar );
 
     ImVec2 pos = ImGui::GetCursorScreenPos();
 
@@ -1047,10 +1091,6 @@ Editor::createAnimationDetails(int selectedAni, TaggedSheetAnimation& sheet)
     }
 
     ImGui::EndChild();
-
-    // frame-details (add/remove frames, position in the spritesheet, event)
-    // are shown below the preview-area so they stay visible
-    setFrameDetails(selectedAni,sheet,selectedFrame,ani);
 
     // show frames as a timeline
     ImGui::BeginChild("TimeLine",ImVec2(frameAreaSize.first,frameAreaSize.second),ImGuiChildFlags_None,ImGuiWindowFlags_HorizontalScrollbar);
@@ -1200,8 +1240,8 @@ Editor::setFrameDetails(int selectedAni, TaggedSheetAnimation& sheet, int frameN
                 pendingPreviewFrame = frameNumber - 1;
             }
 
-            // add / remove frames of the animation
-            ImGui::SameLine();
+            // add / remove frames of the animation (own row: the X/Y
+            // inputs already fill the width of the frame-details section)
             if(ImGui::Button("+ Frame"))
             {
                 // insert a copy of the selected frame after itself
@@ -1228,6 +1268,38 @@ Editor::setFrameDetails(int selectedAni, TaggedSheetAnimation& sheet, int frameN
             }
             setTooltipText("removes the selected frame (one frame must remain)");
         }
+
+        // undo frame-changes: restore the parsed values (own row so the
+        // buttons are not clipped at the right window-edge)
+        if(ImGui::Button("Reset Frame"))
+        {
+            auto it = originalFrames.find(selectedSpritesheet + "/" + ani.name);
+            if(it != originalFrames.end()
+               && frameNumber > 0
+               && static_cast<size_t>(frameNumber) <= it->second.size())
+            {
+                ani.frames.at(frameNumber-1) = it->second.at(frameNumber-1);
+                editFrame(ani, selectedFrame);
+                pendingPreviewFrame = frameNumber - 1;
+            }
+        }
+        setTooltipText("restores the selected frame to its parsed values");
+        ImGui::SameLine();
+        if(ImGui::Button("Reset Animation"))
+        {
+            auto it = originalFrames.find(selectedSpritesheet + "/" + ani.name);
+            if(it != originalFrames.end() && not it->second.empty())
+            {
+                ani.frames = it->second;
+                if(selectedFrame > static_cast<int>(ani.frames.size()))
+                {
+                    selectedFrame = static_cast<int>(ani.frames.size());
+                }
+                editFrame(ani, selectedFrame);
+                pendingPreviewFrame = selectedFrame - 1;
+            }
+        }
+        setTooltipText("restores all frames of the animation to the parsed values");
 
         // keep the derived values in sync with the frame-list
         ani.numFrames = ani.frames.size();

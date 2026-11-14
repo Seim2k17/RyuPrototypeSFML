@@ -133,5 +133,15 @@ using TaggedSheetAnimation = std::pair<const std::string, std::vector<RyuParser:
       // sheet + name of the animation currently shown in the preview,
       // to reset the preview when the selection changes
       std::string previewedAnimation;
+      // editor-settings dialogue (Preferences->Editor Settings)
+      bool showEditorSettings;
+      // size of the spritesheet-view, the animation-preview and the
+      // frame-timeline; adjustable at runtime in the settings-dialogue
+      std::pair<float,float> sheetViewSize;
+      std::pair<float,float> aniAreaSize;
+      std::pair<float,float> frameAreaSize;
+      // per animation (key: sheet/name): the frames as they were parsed,
+      // so frame-changes can be reset
+      std::map<std::string, std::vector<RyuParser::FrameEditor> > originalFrames;
   };
 }
