@@ -143,5 +143,11 @@ using TaggedSheetAnimation = std::pair<const std::string, std::vector<RyuParser:
       // per animation (key: sheet/name): the frames as they were parsed,
       // so frame-changes can be reset
       std::map<std::string, std::vector<RyuParser::FrameEditor> > originalFrames;
+      // per opened spritesheet (key: sheetname): its texture, so every
+      // tab shows its own spritesheet
+      std::map<std::string, sf::Texture> sheetTextures;
+      // spritesheet whose tab shall become active on the next render
+      // (set when a new file was opened)
+      std::string pendingTabSelect;
   };
 }

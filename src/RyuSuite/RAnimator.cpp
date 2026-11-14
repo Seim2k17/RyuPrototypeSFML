@@ -150,7 +150,7 @@ Editor::Editor():
     ,showEditorSettings(false)
     ,sheetViewSize{320.f,320.f}
     ,aniAreaSize{140.f,150.f}
-    ,frameAreaSize{290.f,60.f}
+    ,frameAreaSize{620.f,60.f}
     ,pendingPreviewFrame(-1)
     ,textureSet(false)
     ,preferences()
@@ -310,7 +310,9 @@ Editor::addAnimationsFromJson(std::string spriteSheet, ImportFormat appFormat, j
          aniVector.emplace_back(ani);
        }
 
-       animations.emplace(spriteSheet, aniVector);
+       // assign (not emplace): re-opening a spritesheet replaces its
+       // animations instead of silently doing nothing
+       animations[spriteSheet] = aniVector;
 
        // read framespecific data due aseprite-json spec.
        // the frames of an aseprite-json are keyed "<documentname> <frame>.aseprite",
@@ -461,7 +463,9 @@ Editor::addAnimationsFromJson(std::string spriteSheet, ImportFormat appFormat, j
             aniVector.emplace_back(a.second);
         }
 
-        animations.emplace(spriteSheet, aniVector);
+        // assign (not emplace): re-opening a spritesheet replaces its
+       // animations instead of silently doing nothing
+       animations[spriteSheet] = aniVector;
 
         bool test = true;
 
@@ -524,11 +528,6 @@ void
 Editor::parseJsonData(std::string path)
 {
     fmt::print("Opening {} to read spritesheet.", path);
-    // avoid appending animations of multiple spritesheets
-    animations.clear();
-    parsedFrames.clear();
-    preferences.clear();
-    
     auto found = path.find_last_of("/\\");
 
     std::string spriteSheet = path.substr(found+1);  // name of the spritesheet should be st like "ichi_spritesheet_level1");
@@ -537,6 +536,11 @@ Editor::parseJsonData(std::string path)
     {
         spriteSheet = spriteSheet.substr(0, foundExt);
     }
+    // each opened file gets its own tab; only re-opening the same
+    // spritesheet replaces its animations (no appending)
+    animations[spriteSheet].clear();
+    parsedFrames[spriteSheet].clear();
+
     // the png sits next to the json (aseprite exports it that way)
     std::string pngPath = path.substr(0, found+1) + spriteSheet + ".png";
 
@@ -579,7 +583,12 @@ Editor::parseJsonData(std::string path)
 
             try
             {
-                guiCharTextureManager.load(Textures::LevelID::Level1, pngPath);
+                sf::Texture sheetTex;
+                if(not sheetTex.loadFromFile(pngPath))
+                {
+                    throw std::runtime_error("loadFromFile failed");
+                }
+                sheetTextures[spriteSheet] = std::move(sheetTex);
             }
             catch(const std::exception& e)
             {
@@ -588,6 +597,8 @@ Editor::parseJsonData(std::string path)
             }
 
             selectedSpritesheet = spriteSheet;
+            // make the tab of the newly opened file the active one
+            pendingTabSelect = spriteSheet;
             previewedAnimation.clear();
 
             addAnimationsFromJson(spriteSheet, appFormat, data);
@@ -722,6 +733,7 @@ Editor::createEditorWidgets(bool* p_open)
         {
 
           static int selected = 0;
+          static std::string prevSheet;
 
           // the filebrowser-popup must be displayed from within a window
           // (PushID needs a current window), so this cannot be called from
@@ -839,8 +851,22 @@ Editor::createEditorWidgets(bool* p_open)
             for (auto& sheet : animations)
             {
                  if(sheet.first == "") continue; /// otherwise we create an empty tab
-                 if(ImGui::BeginTabItem(sheet.first.c_str()))
+                 ImGuiTabItemFlags tabFlags = 0;
+                 if(not pendingTabSelect.empty() && sheet.first == pendingTabSelect)
                  {
+                     tabFlags = ImGuiTabItemFlags_SetSelected;
+                 }
+                 if(ImGui::BeginTabItem(sheet.first.c_str(), nullptr, tabFlags))
+                 {
+                     if(prevSheet != sheet.first)
+                     {
+                         // every tab has its own animations and frames:
+                         // start with the first of each
+                         selected = 0;
+                         selectedFrame = 1;
+                         prevSheet = sheet.first;
+                     }
+                     pendingTabSelect.clear();
                      selectedSpritesheet=sheet.first;
                      setAnimationPreferences(sheet.first);
                      createAnimationDetails(selected, sheet);   
@@ -869,14 +895,15 @@ Editor::createEditorWidgets(bool* p_open)
             ImGui::SliderFloat("Preview Width", &aniAreaSize.first, 100.f, 300.f, "%.0f");
             ImGui::SliderFloat("Preview Height", &aniAreaSize.second, 80.f, 300.f, "%.0f");
             setTooltipText("size of the animation-preview");
+            ImGui::SliderFloat("Timeline Width", &frameAreaSize.first, 200.f, 620.f, "%.0f");
             ImGui::SliderFloat("Timeline Height", &frameAreaSize.second, 40.f, 120.f, "%.0f");
-            setTooltipText("height of the frame-timeline");
+            setTooltipText("size of the frame-timeline (width is clamped to the window)");
             ImGui::Separator();
             if (ImGui::Button("Reset to defaults"))
             {
                 sheetViewSize = {320.f, 320.f};
                 aniAreaSize = {140.f, 150.f};
-                frameAreaSize = {290.f, 60.f};
+                frameAreaSize = {620.f, 60.f};
             }
         }
         ImGui::End();
@@ -1078,9 +1105,10 @@ Editor::createAnimationDetails(int selectedAni, TaggedSheetAnimation& sheet)
 
     ImVec2 pos = ImGui::GetCursorScreenPos();
 
-    if(guiCharTextureManager.isLoaded(Textures::LevelID::Level1))
+    auto sheetTexIt = sheetTextures.find(selectedSpritesheet);
+    if(sheetTexIt != sheetTextures.end())
     {
-        const auto& texture = guiCharTextureManager.getResource(Textures::LevelID::Level1);
+        const auto& texture = sheetTexIt->second;
         ImVec2 texSize(static_cast<float>(texture.getSize().x),
                        static_cast<float>(texture.getSize().y));
         ImGui::Image(texture);
@@ -1125,7 +1153,12 @@ Editor::createAnimationDetails(int selectedAni, TaggedSheetAnimation& sheet)
     ImGui::EndChild();
 
     // show frames as a timeline
-    ImGui::BeginChild("TimeLine",ImVec2(frameAreaSize.first,frameAreaSize.second),ImGuiChildFlags_None,ImGuiWindowFlags_HorizontalScrollbar);
+    // the timeline spans the whole available width so animations with
+    // few frames need no horizontal scrolling
+    // clamp the configured width to the actually available width so the
+    // timeline spans the whole section without being clipped
+    float timelineW = std::min(frameAreaSize.first, ImGui::GetContentRegionAvail().x);
+    ImGui::BeginChild("TimeLine",ImVec2(timelineW,frameAreaSize.second),ImGuiChildFlags_None,ImGuiWindowFlags_HorizontalScrollbar);
         size_t j = 1;
         float currentFrameAreaX = 0;
         for (auto& f : ani.frames)
@@ -1158,7 +1191,7 @@ Editor::createAnimationDetails(int selectedAni, TaggedSheetAnimation& sheet)
                 ImGui::PopStyleColor(2);
             }
             setTooltipText("click for details, * = frame has an event");
-            if(currentFrameAreaX < frameAreaSize.first)
+            if(currentFrameAreaX < ImGui::GetContentRegionAvail().x)
             {
                 currentFrameAreaX += (frameSize.first+10.f);
                 ImGui::SameLine();
@@ -1401,8 +1434,12 @@ Editor::setSpritesheetAnimationDetails(const AnimationConfig& config, sf::Time a
     spritesheetAnimation.setRepeating(config.repeat);
 
     // TODO: check if texture is set for animation ...
-    spritesheetAnimation.setTexture(guiCharTextureManager.getResource(Textures::LevelID::Level1/*config.spritesheetId*/));
-    textureSet = true;
+    auto sheetTexIt = sheetTextures.find(selectedSpritesheet);
+    if(sheetTexIt != sheetTextures.end())
+    {
+        spritesheetAnimation.setTexture(sheetTexIt->second);
+        textureSet = true;
+    }
     // set origin of texture to center
     sf::FloatRect bounds = spritesheetAnimation.getSprite().getLocalBounds();
     spritesheetAnimation.getSprite().setOrigin(bounds.getCenter());
