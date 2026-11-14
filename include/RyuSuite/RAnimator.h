@@ -124,6 +124,12 @@ using TaggedSheetAnimation = std::pair<const std::string, std::vector<RyuParser:
 
       std::unique_ptr<ImGui::FileBrowser> _fileBrowser;
       bool aniIsPlaying;
+      // preview-only repeat (not saved with the animation), the repeat-flag
+      // of the animation itself is edited in the frame-preferences
+      bool previewRepeat;
+      // frame (0-based) the preview shall jump to on the next render,
+      // -1 = no pending jump
+      int pendingPreviewFrame;
       // sheet + name of the animation currently shown in the preview,
       // to reset the preview when the selection changes
       std::string previewedAnimation;

@@ -54,6 +54,9 @@ class SpritesheetAnimation : public sf::Drawable,
     bool isRepeating() const;
 
     void restart();
+    // jump to the given frame (0-based) and show it immediately,
+    // resets the elapsed time of the animation
+    void setCurrentFrame(std::size_t frame);
     bool isFinished() const;
 
     void flipAnimationLeft();

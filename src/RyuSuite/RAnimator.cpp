@@ -146,6 +146,8 @@ Editor::Editor():
     ,guiCharTextureManager()
     ,guiTextureManager()
     ,aniIsPlaying(false)
+    ,previewRepeat(true)
+    ,pendingPreviewFrame(-1)
     ,textureSet(false)
     ,preferences()
     ,fileBrowserState(EFileBrowserState::None)
@@ -159,8 +161,10 @@ Editor::~Editor()
 
 // GUI variables
 constexpr std::pair<float,float> frameSize{20.f,35.f}; 
-constexpr std::pair<float,float> frameAreaSize{705.f,180.f};
-constexpr std::pair<float,float> aniAreaSize{250.f,400.f};
+// heights are kept small so preview, spritesheet-view and the frame-timeline
+// all fit into the editor-window next to each other
+constexpr std::pair<float,float> frameAreaSize{290.f,46.f};
+constexpr std::pair<float,float> aniAreaSize{140.f,100.f};
 static bool frameDetailsVisible=true;
 // content of the selected Frame
 /* FrameDetails-Section */
@@ -704,8 +708,10 @@ Editor::createEditorWidgets(bool* p_open)
 
     if(showAnimationEditor)
     {
-        // make the editor fill most of the game-window on first use
-        ImGui::SetNextWindowSize(ImVec2(630, 350), ImGuiCond_FirstUseEver);
+        // make the editor fill the game-window on first use (anchored
+        // top-left so the lower sections are not clipped by the window)
+        ImGui::SetNextWindowPos(ImVec2(8, 8), ImGuiCond_FirstUseEver);
+        ImGui::SetNextWindowSize(ImVec2(624, 344), ImGuiCond_FirstUseEver);
 
         if(ImGui::Begin("Ryu Animation Editor",p_open, window_flags))
         {
@@ -913,17 +919,10 @@ Editor::createAnimationDetails(int selectedAni, TaggedSheetAnimation& sheet)
     }
 
     auto& ani = sheet.second.at(selectedAni);
-    ImGui::Text((std::to_string(selectedAni)+": "+ani.name+", ").c_str());
-    ImGui::SameLine();
-    ImGui::Text("Frames : %s, ", (std::to_string(ani.frames.size()).c_str()));
-    ImGui::SameLine();
-    calculateAnimationDuration(ani);
-    ImGui::Text("Ani-Duration: %d ms", ani.animationDuration.asMilliseconds());    
-    ImGui::SameLine();
-    ImGui::Text("CurrentFrame: %s / %s", std::to_string(currentActiveFrame).c_str(),std::to_string(ani.frames.size()).c_str());
 
     if(ani.frames.empty())
     {
+        ImGui::Text((std::to_string(selectedAni)+": "+ani.name+", ").c_str());
         ImGui::TextUnformatted("This animation has no frames (nothing parsed "
                                "for its frame-range).");
         return;
@@ -931,6 +930,16 @@ Editor::createAnimationDetails(int selectedAni, TaggedSheetAnimation& sheet)
 
     uint16_t frameWidth = ani.frames.at(0).width;
     uint16_t frameHeight = ani.frames.at(0).height;
+
+    ImGui::Text((std::to_string(selectedAni)+": "+ani.name+", ").c_str());
+    ImGui::SameLine();
+    ImGui::Text("Frames : %s, ", (std::to_string(ani.frames.size()).c_str()));
+    ImGui::SameLine();
+    calculateAnimationDuration(ani);
+    ImGui::Text("Ani-Duration: %d ms", ani.animationDuration.asMilliseconds());
+    ImGui::Text("CurrentFrame: %s / %s", std::to_string(currentActiveFrame).c_str(),std::to_string(ani.frames.size()).c_str());
+    ImGui::SameLine();
+    ImGui::Text("Spritesize: %dx%d", frameWidth, frameHeight);
 
     // playback controls for the preview
     if(ImGui::Button(aniIsPlaying ? "Pause" : "Play"))
@@ -944,6 +953,11 @@ Editor::createAnimationDetails(int selectedAni, TaggedSheetAnimation& sheet)
         spritesheetAnimation.restart();
     }
     setTooltipText("restart the preview from the first frame");
+    ImGui::SameLine();
+    // preview-only repeat, is not saved with the animation
+    ImGui::Checkbox("Repeat (preview)", &previewRepeat);
+    setTooltipText("loop the preview only, this flag is not saved "
+                   "with the animation");
 
     ImGui::BeginChild("Animation",ImVec2(aniAreaSize.first,aniAreaSize.second),true,ImGuiWindowFlags_NoScrollbar);
 
@@ -955,7 +969,7 @@ Editor::createAnimationDetails(int selectedAni, TaggedSheetAnimation& sheet)
                ,.startFrame={startX,startY}
                ,.numFrames= ani.numFrames
                ,.duration = ani.animationDuration
-               ,.repeat = ani.repeat
+               ,.repeat = previewRepeat
                ,.animationId = Textures::CharacterID::_from_integral(currentAnimationId)}
         , ani.animationDuration
         ,  ani.frames);
@@ -967,21 +981,24 @@ Editor::createAnimationDetails(int selectedAni, TaggedSheetAnimation& sheet)
         previewedAnimation = previewKey;
         spritesheetAnimation.restart();
     }
+    if(pendingPreviewFrame >= 0)
+    {
+        spritesheetAnimation.setCurrentFrame(
+            static_cast<std::size_t>(pendingPreviewFrame));
+        pendingPreviewFrame = -1;
+    }
     if(textureSet)
     {
         ImGui::Image(spritesheetAnimation.getSprite());
     }
     currentActiveFrame =  spritesheetAnimation.getCurrentFrame()+1;
 
-    setFrameDetails(selectedAni,sheet,selectedFrame,ani);
-
     ImGui::EndChild();
 
-    
     ImGui::SameLine();
 
     // TODO: adjust values due Spritesheetsize and FrameSize
-    ImGui::BeginChild("SpriteSheet", ImVec2(650,400),true,ImGuiWindowFlags_HorizontalScrollbar ); /// orig. 1040x960
+    ImGui::BeginChild("SpriteSheet", ImVec2(280,100),true,ImGuiWindowFlags_HorizontalScrollbar );
 
     ImVec2 pos = ImGui::GetCursorScreenPos();
 
@@ -1003,13 +1020,40 @@ Editor::createAnimationDetails(int selectedAni, TaggedSheetAnimation& sheet)
             ImDrawList* drawList = ImGui::GetWindowDrawList();
             drawList->AddRectFilled(framePos, frameEnd, IM_COL32(200, 60, 60, 90));
             drawList->AddRect(framePos, frameEnd, IM_COL32(255, 120, 120, 230), 0.f, 0, 2.f);
+
+            // scroll the sheet-view so the highlighted frame is visible even
+            // when it lies outside the (small) visible area of the child
+            float scrollX = ImGui::GetScrollX();
+            float scrollY = ImGui::GetScrollY();
+            float viewW = ImGui::GetWindowWidth();
+            float viewH = ImGui::GetWindowHeight();
+            if(static_cast<float>(frame.x) < scrollX + 8.f)
+            {
+                ImGui::SetScrollX(static_cast<float>(frame.x) - 8.f);
+            }
+            else if(static_cast<float>(frame.x + frame.width) > scrollX + viewW - 20.f)
+            {
+                ImGui::SetScrollX(static_cast<float>(frame.x + frame.width) - viewW + 20.f);
+            }
+            if(static_cast<float>(frame.y) < scrollY + 8.f)
+            {
+                ImGui::SetScrollY(static_cast<float>(frame.y) - 8.f);
+            }
+            else if(static_cast<float>(frame.y + frame.height) > scrollY + viewH - 20.f)
+            {
+                ImGui::SetScrollY(static_cast<float>(frame.y + frame.height) - viewH + 20.f);
+            }
         }
     }
 
     ImGui::EndChild();
 
+    // frame-details (add/remove frames, position in the spritesheet, event)
+    // are shown below the preview-area so they stay visible
+    setFrameDetails(selectedAni,sheet,selectedFrame,ani);
+
     // show frames as a timeline
-    ImGui::BeginChild("TimeLine",ImVec2(frameAreaSize.first,frameAreaSize.second),ImGuiChildFlags_None,ImGuiWindowFlags_AlwaysVerticalScrollbar);
+    ImGui::BeginChild("TimeLine",ImVec2(frameAreaSize.first,frameAreaSize.second),ImGuiChildFlags_None,ImGuiWindowFlags_HorizontalScrollbar);
         size_t j = 1;
         float currentFrameAreaX = 0;
         for (auto& f : ani.frames)
@@ -1020,7 +1064,10 @@ Editor::createAnimationDetails(int selectedAni, TaggedSheetAnimation& sheet)
             {
                 label += "*";
             }
-            if(selectedFrame == static_cast<int>(j))
+            // the flag must be captured before the button: clicking the
+            // button changes selectedFrame and would unbalance the style stack
+            bool frameSelected = (selectedFrame == static_cast<int>(j));
+            if(frameSelected)
             {
                 ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.26f, 0.59f, 0.98f, 0.80f));
                 ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.f, 1.f, 1.f, 1.f));
@@ -1029,8 +1076,12 @@ Editor::createAnimationDetails(int selectedAni, TaggedSheetAnimation& sheet)
             {
                 selectedFrame = j;
                 editFrame(ani,selectedFrame);
+                // show the clicked frame in the preview and mark it in the
+                // spritesheet (pause so the frame stays visible)
+                aniIsPlaying = false;
+                pendingPreviewFrame = static_cast<int>(j) - 1;
             }
-            if(selectedFrame == static_cast<int>(j))
+            if(frameSelected)
             {
                 ImGui::PopStyleColor(2);
             }
@@ -1078,20 +1129,28 @@ Editor::setFrameDetails(int selectedAni, TaggedSheetAnimation& sheet, int frameN
 {
     if(frameDetailsVisible)
     {
+        // keep the section compact so it fits into the small editor-window
+        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(6.f, 3.f));
+        // animation-preferences (saved with the animation)
+        ImGui::SetNextItemWidth(110);
         if(ImGui::Combo("AnimationId:", &currentAnimationId, animationIds.data(), static_cast<int>(animationIds.size())))
         {
             ani.animationId = Textures::CharacterID::_from_integral(currentAnimationId);
         }
-        ImGui::Separator();
-        //auto ani = sheet.second.at(selectedAni);
-        ImGui::Text("Frame: %d", frameNumber);
+        ImGui::SameLine();
         // bound directly to the animation so the change is not overwritten
         // by other widgets and the preview takes it over immediately
         ImGui::Checkbox("Repeat", &ani.repeat);
-        if(ImGui::Combo("AnimationType",&currentAnimationType, animationTypes.data(), static_cast<int>(animationTypes.size())))
+        ImGui::SameLine();
+        ImGui::SetNextItemWidth(90);
+        if(ImGui::Combo("Type",&currentAnimationType, animationTypes.data(), static_cast<int>(animationTypes.size())))
         {
             ani.animationType = Textures::AnimationType::_from_integral(currentAnimationType);
         }
+        setTooltipText("AnimationType");
+        ImGui::Text("Frame: %d", frameNumber);
+        ImGui::SameLine();
+        ImGui::SetNextItemWidth(70);
         if(ImGui::InputInt("Duration",&intDuration))
         {
             if(frameNumber > 0 && static_cast<size_t>(frameNumber) <= ani.frames.size())
@@ -1100,6 +1159,8 @@ Editor::setFrameDetails(int selectedAni, TaggedSheetAnimation& sheet, int frameN
             }
         }
         setTooltipText("set duration in ms");
+        ImGui::SameLine();
+        ImGui::SetNextItemWidth(90);
         if(ImGui::Combo("Event",&currentEventItem, eventItems.data(), static_cast<int>(eventItems.size())))
         {
             if(frameNumber > 0 && static_cast<size_t>(frameNumber) <= ani.frames.size())
@@ -1110,8 +1171,76 @@ Editor::setFrameDetails(int selectedAni, TaggedSheetAnimation& sheet, int frameN
             }
         }
 
-        //ImGui::Combo("Event",&currentEventItem, EEvent::_names(),3 );
-        ImGui::Separator();
+        // position of the selected frame inside the spritesheet; the +/-
+        // buttons step by the spritesize so the frame stays on the grid
+        if(frameNumber > 0 && static_cast<size_t>(frameNumber) <= ani.frames.size())
+        {
+            auto& frame = ani.frames.at(frameNumber-1);
+            int stepX = ani.frameSize.x > 0 ? ani.frameSize.x : frame.width;
+            int stepY = ani.frameSize.y > 0 ? ani.frameSize.y : frame.height;
+            int xPos = frame.x;
+            int yPos = frame.y;
+            ImGui::SetNextItemWidth(70);
+            ImGui::InputInt("X in Sheet", &xPos, stepX);
+            setTooltipText("x-position of the frame in the spritesheet, "
+                           "steps by the framewidth");
+            ImGui::SameLine();
+            ImGui::SetNextItemWidth(70);
+            ImGui::InputInt("Y in Sheet", &yPos, stepY);
+            setTooltipText("y-position of the frame in the spritesheet, "
+                           "steps by the frameheight");
+            // snap to the frame-grid so no frame ends up between frames
+            xPos = (xPos / stepX) * stepX;
+            yPos = (yPos / stepY) * stepY;
+            if(xPos != frame.x || yPos != frame.y)
+            {
+                frame.x = static_cast<int16_t>(xPos);
+                frame.y = static_cast<int16_t>(yPos);
+                // show the adjusted position in preview and spritesheet
+                pendingPreviewFrame = frameNumber - 1;
+            }
+
+            // add / remove frames of the animation
+            ImGui::SameLine();
+            if(ImGui::Button("+ Frame"))
+            {
+                // insert a copy of the selected frame after itself
+                auto insertPos = ani.frames.begin() + frameNumber;
+                ani.frames.insert(insertPos, ani.frames.at(frameNumber-1));
+                selectedFrame = frameNumber + 1;
+                editFrame(ani, selectedFrame);
+                pendingPreviewFrame = selectedFrame - 1;
+            }
+            setTooltipText("adds a copy of the selected frame after it");
+            ImGui::SameLine();
+            if(ImGui::Button("- Frame"))
+            {
+                if(ani.frames.size() > 1)
+                {
+                    ani.frames.erase(ani.frames.begin() + frameNumber - 1);
+                    if(selectedFrame > static_cast<int>(ani.frames.size()))
+                    {
+                        selectedFrame = static_cast<int>(ani.frames.size());
+                    }
+                    editFrame(ani, selectedFrame);
+                    pendingPreviewFrame = selectedFrame - 1;
+                }
+            }
+            setTooltipText("removes the selected frame (one frame must remain)");
+        }
+
+        // keep the derived values in sync with the frame-list
+        ani.numFrames = ani.frames.size();
+        ani.frameSize.x = ani.frames.at(0).width;
+        ani.frameSize.y = ani.frames.at(0).height;
+        uint16_t durationAni = 0;
+        for(const auto& frame : ani.frames)
+        {
+            durationAni += frame.duration;
+        }
+        ani.animationDuration = sf::milliseconds(durationAni);
+
+        ImGui::PopStyleVar();
     }
 }
 

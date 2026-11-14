@@ -175,15 +175,25 @@ void SpritesheetAnimation::setRepeating(bool flag) { mRepeat = flag; }
 bool SpritesheetAnimation::isRepeating() const { return mRepeat; }
 
 void SpritesheetAnimation::restart() {
-    mCurrentFrame = 0;
+    setCurrentFrame(0);
+}
+
+void SpritesheetAnimation::setCurrentFrame(std::size_t frame) {
+    if (mNumFrames == 0) {
+        return;
+    }
+    if (frame >= mNumFrames) {
+        frame = mNumFrames - 1;
+    }
+    mCurrentFrame = frame;
     mElapsedTime = sf::Time::Zero;
-    // show the first frame right away (also while the animation is paused),
+    // show the frame right away (also while the animation is paused),
     // otherwise the sprite keeps the texture-rect of the previously
     // displayed frame until the next update()
     if (mFrameSize.x > 0 && mFrameSize.y > 0) {
         sf::Vector2i pos(mStartFrame);
-        if (not mFrames.empty()) {
-            pos = {mFrames.front().x, mFrames.front().y};
+        if (frame < mFrames.size()) {
+            pos = {mFrames.at(frame).x, mFrames.at(frame).y};
         }
         mSprite.setTextureRect(
             sf::IntRect(pos, {mFrameSize.x, mFrameSize.y}));
