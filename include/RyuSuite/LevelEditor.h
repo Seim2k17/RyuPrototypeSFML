@@ -36,6 +36,9 @@
 #include <box2d/box2d.h>
 #include <SFML/System/Vector2.hpp>
 
+#include <map>
+#include <regex>
+#include <set>
 #include <string>
 
 namespace sf {
@@ -62,7 +65,7 @@ class Editor
 
     /** The editor needs access to the world (physics + renderer); called
         after Game was fully constructed. */
-    void setWorld(World* world) { mWorld = world; }
+    void setWorld(World* world);
 
     void createEditorWidgets(bool* p_open);
 
@@ -92,6 +95,12 @@ class Editor
     void deleteObject();
     void applyEdits();
     void saveLevel();
+    /// Creates a new level with a floor and character
+    void createNewLevel();
+    /// Loads custom level names from JSON files
+    void loadCustomLevelNames();
+    /// Gets the display name for a level (custom name if available, otherwise "LevelN")
+    std::string getLevelDisplayName(ELevel level) const;
     /// edit-buffers from the MAIN CHARACTER physics body (list pseudo-entry)
     void syncCharEditBuffers();
     
@@ -120,8 +129,12 @@ class Editor
     void drawSelectionModeHud();
     void drawToolSidebar();
     void drawGridControls();
+    void drawNewLevelDialog();
     void switchTool(Tool tool);
     void drawObjectDetails(SceneObjectPhysicsParameters *object);
+    
+    // Level name helpers
+    std::string buildLevelDropdownString() const;
 
     World* mWorld;
     ELevel mSelectedLevel;
@@ -183,6 +196,18 @@ class Editor
     /// the "MainCharacter" pseudo-entry of the object list is selected
     /// (moves the character body; mutually exclusive with the object rows)
     bool mMainCharRowSelected;
+
+    // New level creation
+    bool mShowNewLevelDialog = false;
+    char mNewLevelName[64] = {};
+    
+    // Custom level names: maps ELevel to custom display name
+    std::map<ELevel, std::string> mCustomLevelNames;
+    // Track which levels have been loaded (for refreshing)
+    std::set<ELevel> mLoadedLevels;
+    // Cached dropdown string for levels
+    mutable std::string mLevelDropdownCache;
+    mutable bool mLevelDropdownDirty = true;
 };
 
 } // namespace RyuLevel

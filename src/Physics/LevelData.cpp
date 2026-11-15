@@ -140,6 +140,7 @@ loadLevelDataFiles(const std::string &directory)
         return levels;
     }
 
+    // First pass: load standard levelN.json files
     for (const auto &entry : fs::directory_iterator{ directory })
     {
         std::smatch match;
@@ -169,6 +170,63 @@ loadLevelDataFiles(const std::string &directory)
             fmt::print("LevelData: failed to parse {}: {}.\n", filename, e.what());
         }
     }
+    
+    // Second pass: load custom-named .json files (e.g., jumpingLevel.json)
+    for (const auto &entry : fs::directory_iterator{ directory })
+    {
+        const std::string filename = entry.path().filename().string();
+        // Skip standard levelN.json files
+        if (std::regex_match(filename, levelFileRe)) { continue; }
+        // Only process .json files
+        if (entry.path().extension() != ".json") { continue; }
+        
+        try {
+            json data;
+            std::ifstream f(entry.path());
+            f >> data;
+
+            // Check if the file specifies an eLevel
+            int levelId = -1;
+            if (data.contains("eLevel"))
+            {
+                levelId = data["eLevel"].get<int>();
+            }
+            else if (data.contains("level"))
+            {
+                levelId = data["level"].get<int>();
+            }
+            
+            // If no eLevel specified, assign to next available (starting from 4)
+            if (levelId < 1 || levelId > 10 || !ELevel::_is_valid(levelId))
+            {
+                // Find next available levelId starting from 4
+                levelId = 4;
+                while (levelId <= 10 && levels.find(ELevel::_from_integral(levelId)) != levels.end())
+                {
+                    levelId++;
+                }
+                if (levelId > 10)
+                {
+                    fmt::print("LevelData: too many custom levels, skipping {}.\n", filename);
+                    continue;
+                }
+            }
+            
+            SceneObjects objects;
+            for (const auto &obj : data.at("objects")) {
+                objects.push_back(objectFromJson(obj));
+            }
+            const auto objectCount = objects.size();
+            ELevel level = ELevel::_from_integral(levelId);
+            levels.emplace(level, std::move(objects));
+            fmt::print("LevelData: loaded custom level {} with {} objects from {}.\n", 
+                       level._to_string(), objectCount, filename);
+        }
+        catch (const std::exception &e) {
+            fmt::print("LevelData: failed to parse {}: {}.\n", filename, e.what());
+        }
+    }
+    
     return levels;
 }
 
