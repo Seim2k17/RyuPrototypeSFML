@@ -97,15 +97,20 @@ FetchContent_MakeAvailable(ImGuiSFML)
 message(STATUS "ImGuiSFML fetched and built.")
 
 # fetch imnodes (node-graph widget for the script editor); the sources are
-# compiled directly into ryusuitelib (imnodes' own CMake would force -Werror)
+# compiled directly into ryusuitelib, so the imnodes target itself is never
+# built (its CMake would force -Werror). Link its sources against the imgui
+# sources that ImGui-SFML already compiles in.
 include(FetchContent)
 message(STATUS "Fetching imnodes...")
+set(IMNODES_IMGUI_TARGET_NAME ImGui-SFML)
 FetchContent_Declare(imnodes
     GIT_REPOSITORY https://github.com/Nelarius/imnodes.git
     GIT_TAG master
     GIT_SHALLOW ON
+    EXCLUDE_FROM_ALL
+    SYSTEM
 )
-FetchContent_Populate(imnodes)
+FetchContent_MakeAvailable(imnodes)
 message(STATUS "imnodes fetched: ${imnodes_SOURCE_DIR}")
 
 # fetch fmt
