@@ -112,6 +112,11 @@ Game::onNotify(const SceneNode& entity, RyuEvent event)
 				mLevelEditor.showLevelEditor);
 			break;
 		}
+		case RyuEvent::ScriptEditorToggle:
+		{
+			mScriptEditor.showScriptEditor = not mScriptEditor.showScriptEditor;
+			break;
+		}
 		case RyuEvent::DebugValuesChanged:
 		{
 			fmt::print("DebugValues changed, notified in Game\n");
@@ -210,12 +215,14 @@ void Game::run()
 		}//!mAnimator.showAnimationEditor
 		mAnimator.createEditorWidgets(&mAnimator.showAnimationEditor);
 		mLevelEditor.createEditorWidgets(&mLevelEditor.showLevelEditor);
+		mScriptEditor.createEditorWidgets(&mScriptEditor.showScriptEditor);
 
 		// while editors are  open the game only listens to the
 		// mode keys (see PlayerController::handleEvent / handleRealtimeInput)
 		mPlayerController->setUiInputActive(
 			mAnimator.showAnimationEditor
-			|| mLevelEditor.showLevelEditor);
+			|| mLevelEditor.showLevelEditor
+			|| mScriptEditor.showScriptEditor);
 
 		// Render once per frame, outside the fixed-timestep loop: a slow render
 		// must not slow down the simulation.

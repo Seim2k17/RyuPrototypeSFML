@@ -252,6 +252,7 @@ PlayerController::handleEvent(const sf::Event& event, CommandQueue& commands)
             case sf::Keyboard::Scancode::F3:
             {
                  notify(*playerCharacter,RyuEvent::LevelEditorToggle);
+                 notify(*playerCharacter,RyuEvent::ScriptEditorToggle);
                  break;
             }
 

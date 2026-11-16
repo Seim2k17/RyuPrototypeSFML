@@ -15,6 +15,7 @@ namespace Ryu{
         ,TeleportWait
         ,TeleportDo
         ,LevelEditorToggle
+        ,ScriptEditorToggle
     );
 
     
