@@ -234,6 +234,104 @@ exit 0 with no `BOX2D ASSERTION`): send `WM_DELETE_WINDOW` via Xlib
   CPU dominated by the llvmpipe software renderer (~25% in the sandbox;
   near-idle on real hardware).
 
+### 7. Debian trixie sandbox image (2026-06): build issues and deviations
+
+The recipe above was written for the older Ubuntu-24.04 image. On the current
+Debian trixie sandbox image the following issues surfaced (all resolved by
+the steps below):
+
+**Packages: the `$APT download` list needs trixie package names.** A single
+unknown name aborts the whole download, so replace these from the list in
+step 2: `libpng16-16t64` (not libpng16-16), `libelf1t64` (not libelf1),
+`libglib2.0-0t64` (not libglib2.0-0), `libflac14` (not any -t64 variant),
+`libvorbisenc2` (not libvorbisenc3), `libfontenc1` (not libfontenc2),
+`libxcb-sync1` (not libxcb-sync0), `xfonts-encodings` (not
+libxfonts-encodings1). Additionally add these (missing in the old list):
+`libsensors5`, `libxtst6`, `x11-utils` (xdpyinfo), and for synthetic input
+`xdotool libxdo3 libxkbcommon0`. `strace` is NOT available on this image.
+
+**CRITICAL: missing libsensors5 breaks GLX silently.** Without
+`libsensors.so.5`, `libGLX_mesa.so.0` has an unresolved dependency, every
+GLX call returns 0 fbconfigs, `glxinfo -B` reports "couldn't find RGB GLX
+visual or fbconfig" and `ryupt` aborts with `X Error: BadMatch`. Always
+verify, with `LD_LIBRARY_PATH` exported, that
+`ldd .../libGLX_mesa.so.0 | grep "not found"` is empty.
+
+**Xvfb does not work on this image.** The triple binary patch from step 3
+produces an Xvfb that segfaults even on `-version`, and an unpatched Xvfb
+runs but never exposes the GLX extension (`xdpyinfo | grep GLX` is empty)
+- its hardcoded module path does not resolve under an extracted prefix.
+Working alternative: the real **Xorg with the `xserver-xorg-video-dummy`**
+driver (download that deb too and extract it into the X-server prefix):
+
+- extract the X-server packages into one dedicated tree (called
+  `/tmp/prefix-x2` here) so `usr/lib/xorg/Xorg`,
+  `usr/lib/xorg/modules/extensions/libglx.so` and
+  `usr/lib/xorg/modules/drivers/dummy_drv.so` all live together;
+  Xorg additionally needs `libdbus-1-3` and `libssl3t64` in the prefix;
+- patch only **two** files (each string occurs exactly once; pad with NULs,
+  never change the file length):
+  - `/tmp/prefix-x2/usr/lib/xorg/Xorg`: `/usr/bin\0` -> `/tmp/pX\0`
+    (hardcoded xkbcomp lookup);
+  - `/tmp/prefix-x2/usr/lib/xorg/modules/extensions/libglx.so`:
+    `/usr/lib/x86_64-linux-gnu/dri\0` -> `/tmp/dri\x00` (AIGLX swrast);
+- do NOT patch the xkb paths in the binary; pass
+  `-xkbdir /tmp/xkbdata123456` instead;
+- start with
+  `-modulepath /tmp/prefix-x2/usr/lib/xorg/modules,/tmp/prefix-x2/usr/lib/xorg/modules/drivers`
+  (otherwise: "Failed to load module \"glx\" (module does not exist)" and
+  "no screens found");
+- pre-create `/tmp/.X11-unix` (non-root cannot) and never delete
+  `/tmp/.X11-unix/X99` while a server is running;
+- dummy config (`-config /tmp/xorg-dummy.conf`):
+
+```
+Section "Device"
+    Identifier "DummyDevice"
+    Driver "dummy"
+    VideoRam 256000
+EndSection
+Section "Screen"
+    Identifier "DummyScreen"
+    Device "DummyDevice"
+    DefaultDepth 24
+EndSection
+```
+
+Full working command line:
+
+```bash
+Xorg :99 -config /tmp/xorg-dummy.conf -xkbdir /tmp/xkbdata123456 \
+  -modulepath /tmp/prefix-x2/usr/lib/xorg/modules,/tmp/prefix-x2/usr/lib/xorg/modules/drivers \
+  -logfile /tmp/xorg.log
+```
+
+Sanity check as in step 3: `DISPLAY=:99 glxinfo -B` must report
+`direct rendering: Yes` and renderer `llvmpipe`. Confirmed working with this
+setup: full `cmake` configure + build, and `ryupt` running its main loop
+(only benign "Failed to create input context" / vsync warnings).
+
+**Fetching the untracked third-party headers: no direct URL downloads.**
+The usual download tools are blocked in this sandbox. Use the authenticated
+`gh` CLI instead:
+`gh api repos/AirGuanZ/imgui-filebrowser/contents/imfilebrowser.h --jq .content
+| base64 -d > include/Thirdparty/imgui-filebrowser/imfilebrowser.h` and
+`gh release download 1.0.1 -R g-truc/glm -D /tmp/glm-dl` (use the
+`glm-1.0.1-light.zip`). glm layout: put the **contents** of the zip's
+`glm/` directory (`glm.hpp`, `detail/`, `ext/`, ...) directly into
+`include/Thirdparty/glm/`; nesting them one level deeper
+(`include/Thirdparty/glm/glm/glm.hpp`) fails with
+`fatal error: detail/_fixes.hpp: No such file or directory` because
+`glm.hpp` includes `detail/_fixes.hpp` relative to itself.
+
+**Synthetic input via xdotool:** there is no window manager on the dummy
+screen, so `xdotool windowactivate` fails. Use
+`xdotool windowfocus $WID` (find the window via
+`xdotool search --onlyvisible --name ""`; searching by `--pid` does not
+return the game window). Note that XSendEvent-based keys may still not be
+delivered to SFML without a WM - treat scripted keyboard interaction as
+best-effort; verify logic changes via the build, logs and screenshots.
+
 ## Git workflow used in this repo
 
 - Branch: `main`, direct pushes are allowed.
