@@ -21,6 +21,9 @@
 #include <fstream>
 #include <regex>
 #include <set>
+#include <cstring>
+#include <deque>
+#include <fstream>
 #include <string>
 
 namespace RyuLevel
@@ -204,7 +207,18 @@ Editor::Editor()
     , mShowNewLevelDialog(false)
     , mLevelDropdownCache()
     , mLevelDropdownDirty(true)
+    , mMaxUndoSteps(30)
+    , mDragUndoSnapshot()
+    , mDragUndoIndex(-1)
+    , mDragUndoValid(false)
+    , mRenameBuffer{}
+    , mRenameIndex(-1)
+    , mRenameActive(false)
+    , mShowEditorSettings(false)
 {
+    std::snprintf(mSettingsPath, sizeof(mSettingsPath),
+                  "%s", "assets/levelEditorSettings.json");
+    loadEditorSettings();
 }
 
 void
@@ -222,6 +236,10 @@ void
 Editor::switchLevel(ELevel level)
 {
     exitSelectionMode();
+    // the level data is reloaded: undo entries (level + object index) no
+    // longer match the rebuilding scene-object vectors
+    mUndoStack.clear();
+    mRedoStack.clear();
     mSelectedLevel = level;
     mSelectedIndex = -1;
     mMainCharRowSelected = false;
@@ -262,6 +280,10 @@ Editor::deleteObject()
     auto& objects = mWorld->getSceneObjects().at(mSelectedLevel);
     if (mSelectedIndex >= static_cast<int>(objects.size())) { return; }
     exitSelectionMode();
+    // deleting an object shifts the indices of the following rows, so the
+    // recorded undo entries would restore the wrong objects
+    mUndoStack.clear();
+    mRedoStack.clear();
     mWorld->removeSceneObject(objects.at(mSelectedIndex).mPhysicsBodyId);
     if (mSelectedIndex >= static_cast<int>(objects.size()))
     {
@@ -287,6 +309,7 @@ Editor::applyEdits()
     if (mSelectedIndex >= static_cast<int>(objects.size())) { return; }
 
     auto& object = objects.at(mSelectedIndex);
+    const UndoEntry undoEntry{ mSelectedLevel, mSelectedIndex, object, object };
     object.mName = mEditName;
     object.mType = mEditIsDynamic ? b2_dynamicBody : b2_staticBody;
     object.mTextureId = textureIdFromIndex(mEditTextureId);
@@ -302,6 +325,13 @@ Editor::applyEdits()
     // recreate and keep the in-level selection highlight on the new body
     mSelectedBodyId = mWorld->updateSceneObject(object.mPhysicsBodyId);
     mWorld->setSelectedHighlight(mSelectedBodyId);
+
+    UndoEntry entry = undoEntry;
+    entry.after = object;
+    if (objectStatesDiffer(entry.before, entry.after))
+    {
+        pushUndoEntry(entry);
+    }
 }
 
 void
@@ -760,6 +790,22 @@ Editor::beginDrag(DragMode mode, int handle, const sf::Vector2f &mouseWorldPosPx
                              Converter::metersToPixels(object->mSize.y) };
     }
 
+    // undo record: capture the object state at drag start (indices of the
+    // level's object vector stay stable during a drag); committed to the
+    // undo stack in endDrag when the drag actually changed the object
+    mDragUndoIndex = -1;
+    mDragUndoValid = false;
+    if (object != nullptr)
+    {
+        mDragUndoSnapshot = *object;
+        auto& objects = mWorld->getSceneObjects().at(mSelectedLevel);
+        for (int i = 0; i < static_cast<int>(objects.size()); ++i)
+        {
+            if (&objects.at(i) == object) { mDragUndoIndex = i; break; }
+        }
+        mDragUndoValid = mDragUndoIndex >= 0;
+    }
+
     mDragMode = mode;
     mDragHandle = handle;
     mDragStartRotation = mWorld->getSceneObjectRotation(mSelectedBodyId);
@@ -1011,6 +1057,25 @@ Editor::endDrag()
     // orange outline would stay at the last previewed geometry
     mWorld->setResizePreview({}, {}, false);
 
+    // commit the drag to the undo stack when it changed the object (a
+    // click without movement produces no entry); pivot drags only move the
+    // rotate-mode marker and are not undoable object edits
+    if (mDragUndoValid && mDragMode != DragMode::MovePivot && mWorld != nullptr)
+    {
+        auto& objects = mWorld->getSceneObjects().at(mSelectedLevel);
+        if (mDragUndoIndex >= 0
+            && mDragUndoIndex < static_cast<int>(objects.size()))
+        {
+            const auto& after = objects.at(mDragUndoIndex);
+            if (objectStatesDiffer(mDragUndoSnapshot, after))
+            {
+                pushUndoEntry({ mSelectedLevel, mDragUndoIndex,
+                                mDragUndoSnapshot, after });
+            }
+        }
+        mDragUndoValid = false;
+    }
+
     // refresh the edit fields from the committed object (fresh body id)
     if (mMainCharRowSelected)
     {
@@ -1100,10 +1165,27 @@ showMainCharSelection(World *world)
 }
 
 void
-Editor::handleKey(sf::Keyboard::Scancode scancode)
+Editor::handleKey(const sf::Event::KeyPressed& key)
 {
     if (not mWorld) { return; }
 
+    // undo/redo shortcuts: Ctrl+Z = undo, Ctrl+Shift+Z / Ctrl+Y = redo;
+    // ignored while ImGui owns the keyboard (e.g. typing in a text field)
+    if (key.control && not ImGui::GetIO().WantCaptureKeyboard)
+    {
+        if (key.scancode == sf::Keyboard::Scancode::Z)
+        {
+            if (key.shift) { redo(); } else { undo(); }
+            return;
+        }
+        if (key.scancode == sf::Keyboard::Scancode::Y)
+        {
+            redo();
+            return;
+        }
+    }
+
+    const sf::Keyboard::Scancode scancode = key.scancode;
     int step = 0;
     if (scancode == sf::Keyboard::Scancode::Up) { step = -1; }
     else if (scancode == sf::Keyboard::Scancode::Down) { step = 1; }
@@ -1151,6 +1233,242 @@ Editor::handleKey(sf::Keyboard::Scancode scancode)
     }
     updatePivotMarker();
     mWorld->setCharacterSelection({}, {}, false);
+}
+
+/// ---- undo / redo -------------------------------------------------------
+
+bool
+Editor::objectStatesDiffer(const SceneObjectPhysicsParameters& lhs,
+                           const SceneObjectPhysicsParameters& rhs) const
+{
+    return lhs.mPosition.x != rhs.mPosition.x
+        || lhs.mPosition.y != rhs.mPosition.y
+        || lhs.mSize.x != rhs.mSize.x
+        || lhs.mSize.y != rhs.mSize.y
+        || lhs.mRotation != rhs.mRotation
+        || lhs.mName != rhs.mName
+        || lhs.mType != rhs.mType
+        || lhs.mTextureId != rhs.mTextureId
+        || lhs.mEntityType != rhs.mEntityType
+        || lhs.mLayer != rhs.mLayer;
+}
+
+void
+Editor::pushUndoEntry(const UndoEntry& entry)
+{
+    mUndoStack.push_back(entry);
+    while (mMaxUndoSteps > 0
+           && static_cast<int>(mUndoStack.size()) > mMaxUndoSteps)
+    {
+        mUndoStack.pop_front();
+    }
+    mRedoStack.clear();
+}
+
+bool
+Editor::applyUndoState(const UndoEntry& entry, bool redoState)
+{
+    if (mWorld == nullptr) { return false; }
+    auto& objects = mWorld->getSceneObjects().at(entry.level);
+    if (entry.index < 0 || entry.index >= static_cast<int>(objects.size()))
+    {
+        fmt::print("LevelEditor: undo entry no longer matches the level data.\n");
+        return false;
+    }
+    auto& object = objects.at(entry.index);
+    const SceneObjectPhysicsParameters& state
+        = redoState ? entry.after : entry.before;
+    object.mPosition = state.mPosition;
+    object.mSize = state.mSize;
+    object.mRotation = state.mRotation;
+    object.mName = state.mName;
+    object.mType = state.mType;
+    object.mTextureId = state.mTextureId;
+    object.mEntityType = state.mEntityType;
+    object.mLayer = state.mLayer;
+
+    // body recreation keeps physics (and the renderer) in sync; updateSceneObject
+    // writes the fresh body id back into the object
+    const b2BodyId newBodyId = mWorld->updateSceneObject(object.mPhysicsBodyId);
+    if (bodyIdsEqual(mSelectedBodyId, object.mPhysicsBodyId))
+    {
+        mSelectedBodyId = newBodyId;
+        mWorld->setSelectedHighlight(newBodyId);
+        updatePivotMarker();
+    }
+    if (mSelectedLevel == entry.level && mSelectedIndex == entry.index
+        && not mMainCharRowSelected)
+    {
+        syncEditBuffersFromSelection();
+    }
+    return true;
+}
+
+void
+Editor::undo()
+{
+    if (mUndoStack.empty())
+    {
+        fmt::print("LevelEditor: nothing to undo.\n");
+        return;
+    }
+    UndoEntry entry = mUndoStack.back();
+    mUndoStack.pop_back();
+    if (applyUndoState(entry, false))
+    {
+        mRedoStack.push_back(entry);
+        fmt::print("LevelEditor: undo ({} steps left).\n",
+                   mUndoStack.size());
+    }
+}
+
+void
+Editor::redo()
+{
+    if (mRedoStack.empty())
+    {
+        fmt::print("LevelEditor: nothing to redo.\n");
+        return;
+    }
+    UndoEntry entry = mRedoStack.back();
+    mRedoStack.pop_back();
+    if (applyUndoState(entry, true))
+    {
+        mUndoStack.push_back(entry);
+        fmt::print("LevelEditor: redo ({} steps left).\n",
+                   mRedoStack.size());
+    }
+}
+
+/// ---- rename window / editor settings ------------------------------------
+
+void
+Editor::beginRename(int index)
+{
+    if (not mWorld || index < 0) { return; }
+    auto& objects = mWorld->getSceneObjects().at(mSelectedLevel);
+    if (index >= static_cast<int>(objects.size())) { return; }
+    mRenameIndex = index;
+    std::snprintf(mRenameBuffer, sizeof(mRenameBuffer), "%s",
+                  objects.at(index).mName.c_str());
+    mRenameActive = true;
+}
+
+void
+Editor::drawRenameWindow()
+{
+    if (not mRenameActive) { return; }
+    const ImGuiViewport* viewport = ImGui::GetMainViewport();
+    ImGui::SetNextWindowPos(viewport->GetCenter(), ImGuiCond_Appearing,
+                            ImVec2(0.5f, 0.5f));
+    ImGui::SetNextWindowSize(ImVec2(320.f, 0.f), ImGuiCond_Appearing);
+    if (ImGui::Begin("Rename object", &mRenameActive,
+                     ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse))
+    {
+        bool apply = ImGui::InputText("Name##rename", mRenameBuffer,
+                                      sizeof(mRenameBuffer),
+                                      ImGuiInputTextFlags_EnterReturnsTrue);
+        ImGui::SameLine();
+        if (ImGui::Button("Apply")) { apply = true; }
+        ImGui::SameLine();
+        if (ImGui::Button("Cancel")) { mRenameActive = false; }
+        ImGui::TextWrapped("Double-click on an object in the list to rename "
+                           "it; Enter or Apply commits the change.");
+
+        if (apply && mWorld != nullptr)
+        {
+            auto& objects = mWorld->getSceneObjects().at(mSelectedLevel);
+            if (mRenameIndex >= 0
+                && mRenameIndex < static_cast<int>(objects.size()))
+            {
+                auto& object = objects.at(mRenameIndex);
+                UndoEntry entry{ mSelectedLevel, mRenameIndex, object, object };
+                object.mName = mRenameBuffer;
+                entry.after = object;
+                if (mSelectedIndex == mRenameIndex)
+                {
+                    mEditName = mRenameBuffer;
+                    mLastSelectedIndex = -1; // refresh remaining edit buffers
+                }
+                pushUndoEntry(entry);
+            }
+            mRenameActive = false;
+        }
+    }
+    ImGui::End();
+}
+
+void
+Editor::saveEditorSettings()
+{
+    std::ofstream oSet(mSettingsPath);
+    if (not oSet.is_open())
+    {
+        fmt::print("LevelEditor: could not open {} for writing.\n",
+                   mSettingsPath);
+        return;
+    }
+    nlohmann::json settings = { {"undoSteps", mMaxUndoSteps} };
+    oSet << settings.dump(2) << "\n";
+    fmt::print("LevelEditor: saved editor-settings to {}\n",
+               mSettingsPath);
+}
+
+void
+Editor::loadEditorSettings()
+{
+    std::ifstream iSet(mSettingsPath);
+    if (not iSet.is_open()) { return; }
+    try
+    {
+        nlohmann::json settings = nlohmann::json::parse(iSet);
+        if (settings.contains("undoSteps"))
+        {
+            mMaxUndoSteps = std::clamp(settings["undoSteps"].get<int>(), 1, 500);
+        }
+        fmt::print("LevelEditor: loaded editor-settings from {}\n",
+                   mSettingsPath);
+    }
+    catch (const std::exception& e)
+    {
+        fmt::print("LevelEditor: could not read editor-settings {}: {}\n",
+                   mSettingsPath, e.what());
+    }
+}
+
+void
+Editor::drawEditorSettings()
+{
+    if (not mShowEditorSettings) { return; }
+    ImGui::SetNextWindowPos(ImVec2(360.f, 120.f), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(340.f, 0.f), ImGuiCond_Appearing);
+    if (ImGui::Begin("Level Editor Settings", &mShowEditorSettings,
+                     ImGuiWindowFlags_NoCollapse))
+    {
+        // how many edits are kept on the undo stack; applied live
+        if (ImGui::InputInt("Undo steps", &mMaxUndoSteps, 1, 10))
+        {
+            mMaxUndoSteps = std::clamp(mMaxUndoSteps, 1, 500);
+            while (static_cast<int>(mUndoStack.size()) > mMaxUndoSteps)
+            {
+                mUndoStack.pop_front();
+            }
+            while (static_cast<int>(mRedoStack.size()) > mMaxUndoSteps)
+            {
+                mRedoStack.pop_front();
+            }
+        }
+        ImGui::TextWrapped("STRG+Z undoes the last object edit, "
+                           "STRG+SHIFT+Z (or STRG+Y) redoes it. Up to "
+                           "'Undo steps' edits are remembered.");
+        ImGui::Separator();
+        ImGui::SetNextItemWidth(215);
+        ImGui::InputText("Settings file", mSettingsPath,
+                         IM_ARRAYSIZE(mSettingsPath));
+        ImGui::SameLine();
+        if (ImGui::Button("Save as default")) { saveEditorSettings(); }
+    }
+    ImGui::End();
 }
 
 void
@@ -1742,13 +2060,19 @@ Editor::drawSelectionModeHud()
 void
 Editor::drawObjectDetails(SceneObjectPhysicsParameters *object)
 {
+    // Enter in any edit field applies all pending edits at once
+    // (like clicking 'Apply edits')
+    bool applyOnEnter = false;
+    const ImGuiInputTextFlags enterFlags = ImGuiInputTextFlags_EnterReturnsTrue;
+
     // ImGui core InputText needs a char*; keep the std::string as the model
     char nameBuf[64]{};
     std::copy_n(mEditName.c_str(), sizeof(nameBuf) - 1, nameBuf);
-    if (ImGui::InputText("Name", nameBuf, sizeof(nameBuf)))
+    if (ImGui::InputText("Name", nameBuf, sizeof(nameBuf), enterFlags))
     {
-        mEditName = nameBuf;
+        applyOnEnter = true;
     }
+    if (ImGui::IsItemEdited()) { mEditName = nameBuf; }
     int typeItem = mEditIsDynamic ? 1 : 0;
     if (ImGui::Combo("BodyType", &typeItem, kBodyTypeNames, kNumBodyTypes))
     {
@@ -1756,12 +2080,42 @@ Editor::drawObjectDetails(SceneObjectPhysicsParameters *object)
     }
     ImGui::Combo("Texture", &mEditTextureId, kTextureNames, kNumTextures);
     ImGui::Combo("EntityType", &mEditEntityType, kEntityTypeNames, kNumEntityTypes);
-    ImGui::InputInt("Layer (0=BG,1=G1,2=FG)", &mEditLayer);
-    ImGui::DragFloat("PosX", &mEditPositionX, 0.5f, 0.f, 640.f);
-    ImGui::DragFloat("PosY", &mEditPositionY, 0.5f, 0.f, 360.f);
-    ImGui::DragFloat("Angle", &mEditAngle, 1.f, -360.f, 360.f);
-    ImGui::DragFloat("Width", &mEditWidth, 0.5f, 1.f, 640.f);
-    ImGui::DragFloat("Height", &mEditHeight, 0.5f, 1.f, 360.f);
+    if (ImGui::InputInt("Layer (0=BG,1=G1,2=FG)", &mEditLayer, 1, 100,
+                        enterFlags))
+    {
+        applyOnEnter = true;
+    }
+    if (ImGui::DragFloat("PosX", &mEditPositionX, 0.5f, 0.f, 640.f,
+                         "%.3f", enterFlags))
+    {
+        applyOnEnter = true;
+    }
+    if (ImGui::DragFloat("PosY", &mEditPositionY, 0.5f, 0.f, 360.f,
+                         "%.3f", enterFlags))
+    {
+        applyOnEnter = true;
+    }
+    if (ImGui::DragFloat("Angle", &mEditAngle, 1.f, -360.f, 360.f,
+                         "%.3f", enterFlags))
+    {
+        applyOnEnter = true;
+    }
+    if (ImGui::DragFloat("Width", &mEditWidth, 0.5f, 1.f, 640.f,
+                         "%.3f", enterFlags))
+    {
+        applyOnEnter = true;
+    }
+    if (ImGui::DragFloat("Height", &mEditHeight, 0.5f, 1.f, 360.f,
+                         "%.3f", enterFlags))
+    {
+        applyOnEnter = true;
+    }
+
+    if (applyOnEnter && object != nullptr)
+    {
+        mEditName = nameBuf;
+        applyEdits();
+    }
 
     if (ImGui::Button("Apply edits") && object != nullptr)
     {
@@ -1790,6 +2144,8 @@ Editor::createEditorWidgets(bool *p_open)
             mShowGrid = false;
             mWorld->setGridOverlay(false, {32.f, 32.f}, sf::Color::Red);
         }
+        mRenameActive = false;
+        mShowEditorSettings = false;
         return;
     }
     
@@ -1895,6 +2251,14 @@ Editor::createEditorWidgets(bool *p_open)
                     }
                 }
 
+                // double-click on a row renames the object (Enter/Apply
+                // in the rename window commits the new name)
+                if (ImGui::IsItemHovered()
+                    && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
+                {
+                    beginRename(i);
+                }
+
                 // IsItemHovered() refers to the LAST submitted item, so it
                 // must be queried AFTER Selectable (otherwise the hover
                 // highlight lands on the previous row)
@@ -1939,6 +2303,8 @@ Editor::createEditorWidgets(bool *p_open)
         if (ImGui::Button("Reload level")) { switchLevel(mSelectedLevel); }
         ImGui::SameLine();
         if (ImGui::Button("Save level")) { saveLevel(); }
+        ImGui::SameLine();
+        if (ImGui::Button("Editor settings")) { mShowEditorSettings = true; }
 
         ImGui::Separator();
         ImGui::TextWrapped(
@@ -1949,6 +2315,8 @@ Editor::createEditorWidgets(bool *p_open)
     ImGui::End();
 
     drawSelectionModeHud();
+    drawRenameWindow();
+    drawEditorSettings();
 }
 
 } // namespace RyuLevel

@@ -242,16 +242,19 @@ void Game::processEvents(std::optional<sf::Event> event, CommandQueue& commands)
 {
 	ZoneScoped;
 		// Player-related one-time events
-		// arrow keys navigate the level-editor object list while it is open
+		// arrow keys navigate the level-editor object list while it is
+		// open; Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y undo/redo the last edit
 		if (mLevelEditor.showLevelEditor && event->is<sf::Event::KeyPressed>())
 		{
 			const auto* key = event->getIf<sf::Event::KeyPressed>();
 			if (key->scancode == sf::Keyboard::Scancode::Up
 				|| key->scancode == sf::Keyboard::Scancode::Down
 				|| key->scancode == sf::Keyboard::Scancode::Left
-				|| key->scancode == sf::Keyboard::Scancode::Right)
+				|| key->scancode == sf::Keyboard::Scancode::Right
+				|| key->scancode == sf::Keyboard::Scancode::Z
+				|| key->scancode == sf::Keyboard::Scancode::Y)
 			{
-				mLevelEditor.handleKey(key->scancode);
+				mLevelEditor.handleKey(*key);
 			}
 		}
 

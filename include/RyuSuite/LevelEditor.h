@@ -35,10 +35,12 @@
 
 #include <box2d/box2d.h>
 #include <SFML/System/Vector2.hpp>
+#include <SFML/Window/Event.hpp>
 
 #include <map>
 #include <regex>
 #include <set>
+#include <deque>
 #include <string>
 
 namespace sf {
@@ -74,9 +76,15 @@ class Editor
     void handleMouseEvent(const sf::Event& event,
                           const sf::Vector2f& mouseWorldPosPixels);
 
-    /// arrow-key navigation through the object list; called from
+    /// arrow-key navigation through the object list + undo/redo shortcuts
+    /// (Ctrl+Z undo, Ctrl+Shift+Z / Ctrl+Y redo); called from
     /// Game::processEvents while the editor is open
-    void handleKey(sf::Keyboard::Scancode scancode);
+    void handleKey(const sf::Event::KeyPressed& key);
+
+    /// undoes the last recorded object edit (Ctrl+Z)
+    void undo();
+    /// redoes the last undone object edit (Ctrl+Shift+Z / Ctrl+Y)
+    void redo();
 
     bool showLevelEditor = false;
 
@@ -89,6 +97,16 @@ class Editor
 
   private:
     enum class DragMode { None, Move, Resize, Rotate, MovePivot };
+
+    /// undo/redo record: state of one scene object before/after an edit,
+    /// addressed by level + index into the level's sceneObjects vector
+    struct UndoEntry
+    {
+        ELevel level;
+        int index;
+        SceneObjectPhysicsParameters before;
+        SceneObjectPhysicsParameters after;
+    };
 
     void switchLevel(ELevel level);
     void addObject();
@@ -126,6 +144,22 @@ class Editor
     void endDrag();
     void exitSelectionMode();
     void syncEditBuffersFromSelection();
+    /// undo/redo internals
+    void pushUndoEntry(const UndoEntry& entry);
+    /// restores an entry's before/after state and recreates the body;
+    /// returns false when the entry no longer matches the level data
+    bool applyUndoState(const UndoEntry& entry, bool redoState);
+    /// true when the two states differ in any editable field
+    bool objectStatesDiffer(const SceneObjectPhysicsParameters& lhs,
+                            const SceneObjectPhysicsParameters& rhs) const;
+    /// opens the rename window for the object list row \p index
+    void beginRename(int index);
+    /// small modal window: rename the object (double-click in the list)
+    void drawRenameWindow();
+    /// editor-settings window (undo steps, settings file)
+    void drawEditorSettings();
+    void saveEditorSettings();
+    void loadEditorSettings();
     void drawSelectionModeHud();
     void drawToolSidebar();
     void drawGridControls();
@@ -208,6 +242,26 @@ class Editor
     // Cached dropdown string for levels
     mutable std::string mLevelDropdownCache;
     mutable bool mLevelDropdownDirty = true;
+    
+    // undo/redo: at most mMaxUndoSteps recorded edits; every new edit
+    // invalidates the redo stack
+    std::deque<UndoEntry> mUndoStack;
+    std::deque<UndoEntry> mRedoStack;
+    int mMaxUndoSteps;
+    /// object state captured at drag start (pushed on endDrag into the
+    /// undo stack when the drag actually changed the object)
+    SceneObjectPhysicsParameters mDragUndoSnapshot;
+    int mDragUndoIndex;
+    bool mDragUndoValid;
+
+    // rename window (double-click on an object list row)
+    char mRenameBuffer[64];
+    int mRenameIndex;
+    bool mRenameActive;
+
+    // editor settings window + persistent settings file
+    bool mShowEditorSettings;
+    char mSettingsPath[128];
 };
 
 } // namespace RyuLevel
