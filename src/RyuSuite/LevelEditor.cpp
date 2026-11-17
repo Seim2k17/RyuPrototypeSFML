@@ -15,6 +15,7 @@
 #include <SFML/Window/Event.hpp>
 #include <SFML/Window/Mouse.hpp>
 
+#include <algorithm>
 #include <array>
 #include <cmath>
 #include <filesystem>
@@ -265,10 +266,13 @@ Editor::addObject()
         mEditEntityType == 1 ? EntityType::Climbable : EntityType::None,
         mEditLayer
     };
+    auto& objectsBefore = mWorld->getSceneObjects().at(mSelectedLevel);
     auto& added = mWorld->addSceneObject(mSelectedLevel, std::move(object));
-    mSelectedIndex = static_cast<int>(
-        mWorld->getSceneObjects().at(mSelectedLevel).size()) - 1;
+    mSelectedIndex = static_cast<int>(objectsBefore.size()) - 1;
     mLastSelectedIndex = -1; // refresh edit buffers from the new object
+    // record the add so STRG+Z removes the object again
+    pushUndoEntry({ mSelectedLevel, mSelectedIndex, UndoEntry::Kind::Add,
+                    {}, added });
     syncEditBuffersFromSelection();
     fmt::print("LevelEditor: added object '{}'.\n", added.mName);
 }
@@ -279,12 +283,17 @@ Editor::deleteObject()
     if (not mWorld || mSelectedIndex < 0) { return; }
     auto& objects = mWorld->getSceneObjects().at(mSelectedLevel);
     if (mSelectedIndex >= static_cast<int>(objects.size())) { return; }
+    // record the delete so STRG+Z restores the object at its old position;
+    // the pre-removal state (geometry, name, ...) is kept in the entry
+    UndoEntry entry{ mSelectedLevel, mSelectedIndex, UndoEntry::Kind::Delete,
+                     objects.at(mSelectedIndex), {} };
     exitSelectionMode();
-    // deleting an object shifts the indices of the following rows, so the
-    // recorded undo entries would restore the wrong objects
-    mUndoStack.clear();
-    mRedoStack.clear();
-    mWorld->removeSceneObject(objects.at(mSelectedIndex).mPhysicsBodyId);
+    mWorld->removeSceneObject(objects.at(entry.index).mPhysicsBodyId);
+    // rows after the removed one shift up: keep the remaining undo entries
+    // pointing at their objects; older entries on the removed slot die
+    // with the object (the Delete entry restores its pre-delete state)
+    adjustUndoIndicesForRemoval(entry.level, entry.index);
+    pushUndoEntry(entry);
     if (mSelectedIndex >= static_cast<int>(objects.size()))
     {
         mSelectedIndex = static_cast<int>(objects.size()) - 1;
@@ -309,7 +318,8 @@ Editor::applyEdits()
     if (mSelectedIndex >= static_cast<int>(objects.size())) { return; }
 
     auto& object = objects.at(mSelectedIndex);
-    const UndoEntry undoEntry{ mSelectedLevel, mSelectedIndex, object, object };
+    const UndoEntry undoEntry{ mSelectedLevel, mSelectedIndex,
+                               UndoEntry::Kind::Edit, object, object };
     object.mName = mEditName;
     object.mType = mEditIsDynamic ? b2_dynamicBody : b2_staticBody;
     object.mTextureId = textureIdFromIndex(mEditTextureId);
@@ -1070,7 +1080,8 @@ Editor::endDrag()
             if (objectStatesDiffer(mDragUndoSnapshot, after))
             {
                 pushUndoEntry({ mSelectedLevel, mDragUndoIndex,
-                                mDragUndoSnapshot, after });
+                                UndoEntry::Kind::Edit, mDragUndoSnapshot,
+                                after });
             }
         }
         mDragUndoValid = false;
@@ -1170,8 +1181,10 @@ Editor::handleKey(const sf::Event::KeyPressed& key)
     if (not mWorld) { return; }
 
     // undo/redo shortcuts: Ctrl+Z = undo, Ctrl+Shift+Z / Ctrl+Y = redo;
-    // ignored while ImGui owns the keyboard (e.g. typing in a text field)
-    if (key.control && not ImGui::GetIO().WantCaptureKeyboard)
+    // only ignored while a text input is actually active (WantTextInput) -
+    // WantCaptureKeyboard would stay on after ANY ImGui interaction (e.g.
+    // clicking 'Apply edits') and swallow the shortcuts forever
+    if (key.control && not ImGui::GetIO().WantTextInput)
     {
         if (key.scancode == sf::Keyboard::Scancode::Z)
         {
@@ -1269,6 +1282,23 @@ bool
 Editor::applyUndoState(const UndoEntry& entry, bool redoState)
 {
     if (mWorld == nullptr) { return false; }
+
+    // structural steps: undo of a delete re-inserts the object, undo of an
+    // add removes it again (redo inverts each)
+    if (entry.kind == UndoEntry::Kind::Delete)
+    {
+        if (redoState) { return removeSceneObjectAtIndex(entry.level, entry.index); }
+        return reinsertSceneObject(entry.level, entry.index, entry.before);
+    }
+    if (entry.kind == UndoEntry::Kind::Add)
+    {
+        if (redoState)
+        {
+            return reinsertSceneObject(entry.level, entry.index, entry.after);
+        }
+        return removeSceneObjectAtIndex(entry.level, entry.index);
+    }
+
     auto& objects = mWorld->getSceneObjects().at(entry.level);
     if (entry.index < 0 || entry.index >= static_cast<int>(objects.size()))
     {
@@ -1302,6 +1332,101 @@ Editor::applyUndoState(const UndoEntry& entry, bool redoState)
         syncEditBuffersFromSelection();
     }
     return true;
+}
+
+bool
+Editor::removeSceneObjectAtIndex(ELevel level, int index)
+{
+    if (mWorld == nullptr) { return false; }
+    auto& objects = mWorld->getSceneObjects().at(level);
+    if (index < 0 || index >= static_cast<int>(objects.size()))
+    {
+        fmt::print("LevelEditor: no object at index {} to remove.\n", index);
+        return false;
+    }
+    const b2BodyId bodyId = objects.at(index).mPhysicsBodyId;
+    if (bodyIdsEqual(mSelectedBodyId, bodyId))
+    {
+        mSelectedBodyId = b2_nullBodyId;
+        mWorld->setSelectedHighlight(b2_nullBodyId);
+        updatePivotMarker();
+    }
+    if (mSelectedLevel == level && mSelectedIndex == index
+        && not mMainCharRowSelected)
+    {
+        mSelectedIndex = static_cast<int>(objects.size()) - 2;
+        mLastSelectedIndex = -1;
+        syncEditBuffersFromSelection();
+    }
+    mWorld->removeSceneObject(bodyId);
+    adjustUndoIndicesForRemoval(level, index);
+    return true;
+}
+
+bool
+Editor::reinsertSceneObject(ELevel level, int index,
+                            const SceneObjectPhysicsParameters& params)
+{
+    if (mWorld == nullptr) { return false; }
+    auto& objects = mWorld->getSceneObjects().at(level);
+    if (index < 0 || index > static_cast<int>(objects.size()))
+    {
+        fmt::print("LevelEditor: invalid insert index {}.\n", index);
+        return false;
+    }
+    // addSceneObject appends + creates the physics body; afterwards the
+    // row is moved back to its original position in the list
+    SceneObjectPhysicsParameters restored{ params };
+    restored.mPhysicsBodyId = b2_nullBodyId;
+    mWorld->addSceneObject(level, std::move(restored));
+    const int appendedIndex = static_cast<int>(objects.size()) - 1;
+    std::rotate(objects.begin() + index,
+                objects.begin() + appendedIndex, objects.end());
+    adjustUndoIndicesForInsertion(level, index);
+    if (mSelectedLevel == level && mSelectedIndex == index
+        && not mMainCharRowSelected)
+    {
+        mSelectedBodyId = objects.at(index).mPhysicsBodyId;
+        mWorld->setSelectedHighlight(mSelectedBodyId);
+        updatePivotMarker();
+        syncEditBuffersFromSelection();
+    }
+    return true;
+}
+
+void
+Editor::adjustUndoIndicesForRemoval(ELevel level, int index)
+{
+    for (auto* stack : { &mUndoStack, &mRedoStack })
+    {
+        std::deque<UndoEntry> kept;
+        for (auto& entry : *stack)
+        {
+            if (entry.level != level)
+            {
+                kept.push_back(std::move(entry));
+                continue;
+            }
+            // entries of the removed object die with it: after a later
+            // re-insert they would restore fields onto the wrong object
+            if (entry.index == index) { continue; }
+            if (entry.index > index) { --entry.index; }
+            kept.push_back(std::move(entry));
+        }
+        stack->swap(kept);
+    }
+}
+
+void
+Editor::adjustUndoIndicesForInsertion(ELevel level, int index)
+{
+    for (auto* stack : { &mUndoStack, &mRedoStack })
+    {
+        for (auto& entry : *stack)
+        {
+            if (entry.level == level && entry.index >= index) { ++entry.index; }
+        }
+    }
 }
 
 void
@@ -1382,7 +1507,8 @@ Editor::drawRenameWindow()
                 && mRenameIndex < static_cast<int>(objects.size()))
             {
                 auto& object = objects.at(mRenameIndex);
-                UndoEntry entry{ mSelectedLevel, mRenameIndex, object, object };
+                UndoEntry entry{ mSelectedLevel, mRenameIndex,
+                                 UndoEntry::Kind::Edit, object, object };
                 object.mName = mRenameBuffer;
                 entry.after = object;
                 if (mSelectedIndex == mRenameIndex)

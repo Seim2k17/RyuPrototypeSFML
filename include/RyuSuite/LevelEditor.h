@@ -99,11 +99,15 @@ class Editor
     enum class DragMode { None, Move, Resize, Rotate, MovePivot };
 
     /// undo/redo record: state of one scene object before/after an edit,
-    /// addressed by level + index into the level's sceneObjects vector
+    /// addressed by level + index into the level's sceneObjects vector;
+    /// kind == Delete/Add entries use the states to re-insert or remove
+    /// the object itself (STRG+Z also restores deleted objects)
     struct UndoEntry
     {
+        enum class Kind { Edit, Delete, Add };
         ELevel level;
         int index;
+        Kind kind;
         SceneObjectPhysicsParameters before;
         SceneObjectPhysicsParameters after;
     };
@@ -149,6 +153,18 @@ class Editor
     /// restores an entry's before/after state and recreates the body;
     /// returns false when the entry no longer matches the level data
     bool applyUndoState(const UndoEntry& entry, bool redoState);
+    /// removes the object at \p index (structural undo step); keeps the
+    /// remaining undo entries aligned via adjustUndoIndicesForRemoval
+    bool removeSceneObjectAtIndex(ELevel level, int index);
+    /// re-inserts \p params at \p index (undo of a delete / redo of an add)
+    bool reinsertSceneObject(ELevel level, int index,
+                             const SceneObjectPhysicsParameters& params);
+    /// object at \p index is gone: older entries shift up, entries of the
+    /// removed object die with it (its pre-delete state is kept in the
+    /// Delete entry itself)
+    void adjustUndoIndicesForRemoval(ELevel level, int index);
+    /// an object was re-inserted at \p index: entries at/above it shift down
+    void adjustUndoIndicesForInsertion(ELevel level, int index);
     /// true when the two states differ in any editable field
     bool objectStatesDiffer(const SceneObjectPhysicsParameters& lhs,
                             const SceneObjectPhysicsParameters& rhs) const;
