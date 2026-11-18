@@ -1999,9 +1999,9 @@ void
 Editor::selectObjectAt(const sf::Vector2f& mouseWorldPosPx)
 {
     const ELevel activeLevel = mWorld->getActiveLevel();
-    b2Vec2 positionM{ Converter::pixelsToMeters<float>(mouseWorldPosPx.x),
-                      Converter::pixelsToMeters<float>(mouseWorldPosPx.y) };
-    const b2BodyId hit = mWorld->getSceneObjectAt(activeLevel, positionM);
+    // getSceneObjectAt hit-tests the object rects in PIXELS
+    const b2Vec2 positionPx{ mouseWorldPosPx.x, mouseWorldPosPx.y };
+    const b2BodyId hit = mWorld->getSceneObjectAt(activeLevel, positionPx);
 
     mMainCharRowSelected = false;
     mWorld->setCharacterSelection({}, {}, false);
@@ -2207,11 +2207,10 @@ Editor::handleMouseEvent(const sf::Event &event, const sf::Vector2f &mouseWorldP
         if (event.is<sf::Event::MouseMoved>() && mDragMode == DragMode::None)
         {
             const ELevel activeLevel = mWorld->getActiveLevel();
-            b2Vec2 positionM{
-                Converter::pixelsToMeters<float>(mouseWorldPosPx.x),
-                Converter::pixelsToMeters<float>(mouseWorldPosPx.y) };
+            // getSceneObjectAt hit-tests the object rects in PIXELS
+            const b2Vec2 positionPx{ mouseWorldPosPx.x, mouseWorldPosPx.y };
             mWorld->setHoverHighlight(
-                mWorld->getSceneObjectAt(activeLevel, positionM));
+                mWorld->getSceneObjectAt(activeLevel, positionPx));
         }
         return;
     }
@@ -2292,9 +2291,9 @@ Editor::handleMouseEvent(const sf::Event &event, const sf::Vector2f &mouseWorldP
 
         // no object selected yet: select the one under the cursor
         const ELevel activeLevel = mWorld->getActiveLevel();
-        b2Vec2 positionM{ Converter::pixelsToMeters<float>(mouseWorldPosPx.x),
-                          Converter::pixelsToMeters<float>(mouseWorldPosPx.y) };
-        const b2BodyId hit = mWorld->getSceneObjectAt(activeLevel, positionM);
+        // getSceneObjectAt hit-tests the object rects in PIXELS
+        const b2Vec2 positionPx{ mouseWorldPosPx.x, mouseWorldPosPx.y };
+        const b2BodyId hit = mWorld->getSceneObjectAt(activeLevel, positionPx);
         if (B2_IS_NULL(hit)) { return; }
 
         mSelectedBodyId = hit;
@@ -2339,9 +2338,10 @@ Editor::handleMouseEvent(const sf::Event &event, const sf::Vector2f &mouseWorldP
         if (B2_IS_NULL(mSelectedBodyId) && not mMainCharRowSelected)
         {
             const ELevel activeLevel = mWorld->getActiveLevel();
-            b2Vec2 positionM{ Converter::pixelsToMeters<float>(mouseWorldPosPx.x),
-                              Converter::pixelsToMeters<float>(mouseWorldPosPx.y) };
-            const b2BodyId hit = mWorld->getSceneObjectAt(activeLevel, positionM);
+            // getSceneObjectAt hit-tests the object rects in PIXELS
+            const b2Vec2 positionPx{ mouseWorldPosPx.x, mouseWorldPosPx.y };
+            const b2BodyId hit = mWorld->getSceneObjectAt(activeLevel,
+                                                          positionPx);
             mWorld->setHoverHighlight(hit);
         }
         else
