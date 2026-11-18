@@ -516,6 +516,10 @@ Renderer::drawLevelEditorOverlay()
                 {
                     drawRotateMarkers(centerPx, sizePx, angleRad);
                 }
+                else if (mSelectionStyle == SelectionStyle::FillOnly)
+                {
+                    // selected without a transform tool: no handles/markers
+                }
                 else
                 {
                     drawEdgeMarkers(centerPx, sizePx, angleRad);

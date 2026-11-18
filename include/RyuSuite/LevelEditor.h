@@ -85,6 +85,8 @@ class Editor
     void undo();
     /// redoes the last undone object edit (Ctrl+Shift+Z / Ctrl+Y)
     void redo();
+    /// Tab: cycles the tool None -> Resize -> Rotate -> None
+    void cycleTool();
 
     bool showLevelEditor = false;
 
@@ -181,6 +183,13 @@ class Editor
     void drawGridControls();
     void drawNewLevelDialog();
     void switchTool(Tool tool);
+    /// plain click in the game view without a transform tool: selects the
+    /// object under the cursor (list row + edit buffers + fill highlight)
+    void selectObjectAt(const sf::Vector2f& mouseWorldPosPx);
+    /// right click in the game view opens the tools menu at the cursor
+    void openToolContextMenu(const sf::Vector2i& screenPosPx);
+    /// the tools context window (resize/rotate/undo/redo)
+    void drawToolContextMenu();
     void drawObjectDetails(SceneObjectPhysicsParameters *object);
     
     // Level name helpers
@@ -278,6 +287,16 @@ class Editor
     // editor settings window + persistent settings file
     bool mShowEditorSettings;
     char mSettingsPath[128];
+
+    // tools context menu (right click in the game view): screen-space
+    // position + window rect (to keep clicks off the menu from closing it)
+    bool mShowToolContextMenu;
+    int mContextMenuPosX;
+    int mContextMenuPosY;
+    float mContextMenuLeft;
+    float mContextMenuTop;
+    float mContextMenuWidth;
+    float mContextMenuHeight;
 };
 
 } // namespace RyuLevel

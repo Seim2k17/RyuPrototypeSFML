@@ -42,7 +42,8 @@ public:
     /// Marker style of the selected object in the level editor.
     enum class SelectionStyle {
         ResizeHandles,  /// 8 square handles (corners + edge midpoints)
-        RotateMarkers   /// 4 rounded-arrow markers at the corners
+        RotateMarkers,  /// 4 rounded-arrow markers at the corners
+        FillOnly /// plain selection: orange fill + outline, no markers (no transform tool active)
     };
     /// Marks the selected object (drawn with red outline; the markers follow
     /// the current selection style); a null bodyId clears it.

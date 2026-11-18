@@ -216,6 +216,13 @@ Editor::Editor()
     , mRenameIndex(-1)
     , mRenameActive(false)
     , mShowEditorSettings(false)
+    , mShowToolContextMenu(false)
+    , mContextMenuPosX(0)
+    , mContextMenuPosY(0)
+    , mContextMenuLeft(0.f)
+    , mContextMenuTop(0.f)
+    , mContextMenuWidth(0.f)
+    , mContextMenuHeight(0.f)
 {
     std::snprintf(mSettingsPath, sizeof(mSettingsPath),
                   "%s", "assets/levelEditorSettings.json");
@@ -1188,6 +1195,15 @@ Editor::handleKey(const sf::Event::KeyPressed& key)
     // virtual key), NOT via scancode: scancodes are physical positions
     // labeled after US-QWERTY, so on a German QWERTZ keyboard the 'Z' key
     // reports scancode Y - matching scancodes made STRG+Z trigger redo
+    // Tab cycles through the tools: None -> Resize -> Rotate -> None
+    if (key.code == sf::Keyboard::Key::Tab
+        && not key.control && not key.alt
+        && not ImGui::GetIO().WantTextInput)
+    {
+        cycleTool();
+        return;
+    }
+
     if (key.control && not ImGui::GetIO().WantTextInput)
     {
         if (key.code == sf::Keyboard::Key::Z)
@@ -1589,8 +1605,9 @@ Editor::drawEditorSettings()
             }
         }
         ImGui::TextWrapped("STRG+Z undoes the last object edit, "
-                           "STRG+SHIFT+Z (or STRG+Y) redoes it. Up to "
-                           "'Undo steps' edits are remembered.");
+                           "STRG+SHIFT+Z (or STRG+Y) redoes it; TAB cycles "
+                           "the tools. Up to 'Undo steps' edits are "
+                           "remembered.");
         ImGui::Separator();
         ImGui::SetNextItemWidth(215);
         ImGui::InputText("Settings file", mSettingsPath,
@@ -1640,19 +1657,6 @@ Editor::drawToolSidebar()
     ImGui::EndDisabled();
     ImGui::Separator();
 
-    if (mActiveTool == Tool::Resize)
-    {
-        ImGui::TextWrapped("Resize-mode: hover to highlight, click to "
-                           "select, drag inside to move, handles to resize. "
-                           "Click the tool again to turn it off.");
-    }
-    else if (mActiveTool == Tool::Rotate)
-    {
-        ImGui::TextWrapped("Rotate-mode: click to select, drag a corner "
-                           "arrow to rotate around the pivot, drag the pivot "
-                           "marker to move it within the object. "
-                           "Click the tool again to turn it off.");
-    }
     ImGui::End();
 }
 
@@ -1979,6 +1983,142 @@ Editor::applySnapping(sf::Vector2f& positionPx, const sf::Vector2f& sizePx) cons
 }
 
 void
+Editor::cycleTool()
+{
+    // Tab cycles the tools; switchTool keeps the selection/highlight state
+    // consistent (selecting the list's object when entering a mode)
+    switch (mActiveTool)
+    {
+    case Tool::None: switchTool(Tool::Resize); break;
+    case Tool::Resize: switchTool(Tool::Rotate); break;
+    default: switchTool(Tool::None); break;
+    }
+}
+
+void
+Editor::selectObjectAt(const sf::Vector2f& mouseWorldPosPx)
+{
+    const ELevel activeLevel = mWorld->getActiveLevel();
+    b2Vec2 positionM{ Converter::pixelsToMeters<float>(mouseWorldPosPx.x),
+                      Converter::pixelsToMeters<float>(mouseWorldPosPx.y) };
+    const b2BodyId hit = mWorld->getSceneObjectAt(activeLevel, positionM);
+
+    mMainCharRowSelected = false;
+    mWorld->setCharacterSelection({}, {}, false);
+
+    if (B2_IS_NULL(hit))
+    {
+        // click on empty space clears the selection
+        mSelectedIndex = -1;
+        mLastSelectedIndex = -1;
+        mSelectedBodyId = b2_nullBodyId;
+        mWorld->setSelectedHighlight(b2_nullBodyId);
+        return;
+    }
+
+    // keep the object list and the edit buffers in sync with the click
+    auto& objects = mWorld->getSceneObjects().at(activeLevel);
+    mSelectedIndex = -1;
+    for (int i = 0; i < static_cast<int>(objects.size()); ++i)
+    {
+        if (bodyIdsEqual(objects.at(i).mPhysicsBodyId, hit))
+        {
+            mSelectedIndex = i;
+            break;
+        }
+    }
+    mLastSelectedIndex = -1;
+    mSelectedBodyId = hit;
+    mPivotOffsetPx = {};
+    mWorld->setSelectedHighlight(hit);
+    // no transform tool active: plain selection look (no handles/markers)
+    mWorld->setSelectionStyle(Renderer::SelectionStyle::FillOnly);
+    syncEditBuffersFromSelection();
+}
+
+void
+Editor::openToolContextMenu(const sf::Vector2i& screenPosPx)
+{
+    mContextMenuPosX = screenPosPx.x;
+    mContextMenuPosY = screenPosPx.y;
+    mShowToolContextMenu = true;
+}
+
+void
+Editor::drawToolContextMenu()
+{
+    if (not mShowToolContextMenu) { return; }
+
+    ImGui::SetNextWindowPos(
+        ImVec2(static_cast<float>(mContextMenuPosX),
+               static_cast<float>(mContextMenuPosY)),
+        ImGuiCond_Appearing);
+    const ImGuiWindowFlags flags = ImGuiWindowFlags_NoTitleBar
+                                   | ImGuiWindowFlags_NoResize
+                                   | ImGuiWindowFlags_NoCollapse
+                                   | ImGuiWindowFlags_NoMove
+                                   | ImGuiWindowFlags_NoSavedSettings
+                                   | ImGuiWindowFlags_AlwaysAutoResize;
+
+    // the menu has no close button: End() is paired unconditionally
+    if (ImGui::Begin("##levelEditorToolMenu", nullptr, flags))
+    {
+        ImGui::TextUnformatted("Tools");
+
+        // mode entries share the look of the sidebar buttons; selecting a
+        // mode switches to it and closes the menu
+        auto modeButton = [this](const char* label, Tool tool)
+        {
+            const bool active = mActiveTool == tool;
+            if (active)
+            {
+                ImGui::PushStyleColor(ImGuiCol_Button,
+                                      ImVec4(1.f, 0.55f, 0.f, 0.85f));
+                ImGui::PushStyleColor(ImGuiCol_Text,
+                                      ImVec4(0.f, 0.f, 0.f, 1.f));
+            }
+            if (ImGui::Button(label, ImVec2(-FLT_MIN, 0.f)))
+            {
+                switchTool(tool);
+                mShowToolContextMenu = false;
+            }
+            if (active) { ImGui::PopStyleColor(2); }
+        };
+
+        modeButton("Resize", Tool::Resize);
+        modeButton("Rotate", Tool::Rotate);
+        ImGui::Separator();
+        modeButton("Deactivate tool", Tool::None);
+        ImGui::Separator();
+
+        ImGui::BeginDisabled(mUndoStack.empty());
+        if (ImGui::Button("Undo (STRG+Z)", ImVec2(-FLT_MIN, 0.f)))
+        {
+            undo();
+            mShowToolContextMenu = false;
+        }
+        ImGui::EndDisabled();
+        ImGui::BeginDisabled(mRedoStack.empty());
+        if (ImGui::Button("Redo (STRG+Y)", ImVec2(-FLT_MIN, 0.f)))
+        {
+            redo();
+            mShowToolContextMenu = false;
+        }
+        ImGui::EndDisabled();
+    }
+
+    // remember where the menu lives so clicks off the menu close it while
+    // clicks on it keep working
+    const ImVec2 pos = ImGui::GetWindowPos();
+    const ImVec2 size = ImGui::GetWindowSize();
+    mContextMenuLeft = pos.x;
+    mContextMenuTop = pos.y;
+    mContextMenuWidth = size.x;
+    mContextMenuHeight = size.y;
+    ImGui::End();
+}
+
+void
 Editor::switchTool(Tool tool)
 {
     if (mActiveTool == tool) { return; }
@@ -2015,17 +2155,64 @@ Editor::handleMouseEvent(const sf::Event &event, const sf::Vector2f &mouseWorldP
 {
     if (mWorld == nullptr) { return; }
 
-    // clicks/motion over the editor widget stay with ImGui
+    // clicks/motion over the editor widgets stay with ImGui; a click on any
+    // ImGui window except an open tools context menu closes that menu
     if (ImGui::GetIO().WantCaptureMouse)
     {
+        if (mShowToolContextMenu
+            && event.is<sf::Event::MouseButtonPressed>())
+        {
+            const auto* pressed = event.getIf<sf::Event::MouseButtonPressed>();
+            const sf::Vector2f pos{ pressed->position };
+            const bool onMenu
+                = pos.x >= mContextMenuLeft
+                  && pos.x <= mContextMenuLeft + mContextMenuWidth
+                  && pos.y >= mContextMenuTop
+                  && pos.y <= mContextMenuTop + mContextMenuHeight;
+            if (not onMenu) { mShowToolContextMenu = false; }
+        }
         mWorld->setHoverHighlight(b2_nullBodyId);
         return;
     }
 
-    // the transform tools (resize/rotate) gate all selection interactions
+    // every click in the game view closes an open tools context menu
+    // (a right click reopens it at the new cursor position)
+    if (event.is<sf::Event::MouseButtonPressed>())
+    {
+        mShowToolContextMenu = false;
+    }
+
+    // right click: context menu with the editor tools at the cursor
+    if (const auto* pressed = event.getIf<sf::Event::MouseButtonPressed>())
+    {
+        if (pressed->button == sf::Mouse::Button::Right)
+        {
+            openToolContextMenu(pressed->position);
+            return;
+        }
+    }
+
     if (mActiveTool != Tool::Resize && mActiveTool != Tool::Rotate)
     {
-        mWorld->setHoverHighlight(b2_nullBodyId);
+        // no transform tool: hover highlights the object, a left click
+        // selects it (orange fill, no handles); no dragging here
+        if (const auto* pressed = event.getIf<sf::Event::MouseButtonPressed>())
+        {
+            if (pressed->button == sf::Mouse::Button::Left)
+            {
+                selectObjectAt(mouseWorldPosPx);
+            }
+            return;
+        }
+        if (event.is<sf::Event::MouseMoved>() && mDragMode == DragMode::None)
+        {
+            const ELevel activeLevel = mWorld->getActiveLevel();
+            b2Vec2 positionM{
+                Converter::pixelsToMeters<float>(mouseWorldPosPx.x),
+                Converter::pixelsToMeters<float>(mouseWorldPosPx.y) };
+            mWorld->setHoverHighlight(
+                mWorld->getSceneObjectAt(activeLevel, positionM));
+        }
         return;
     }
 
@@ -2276,6 +2463,7 @@ Editor::createEditorWidgets(bool *p_open)
         }
         mRenameActive = false;
         mShowEditorSettings = false;
+        mShowToolContextMenu = false;
         return;
     }
     
@@ -2447,6 +2635,7 @@ Editor::createEditorWidgets(bool *p_open)
     drawSelectionModeHud();
     drawRenameWindow();
     drawEditorSettings();
+    drawToolContextMenu();
 }
 
 } // namespace RyuLevel

@@ -254,7 +254,8 @@ void Game::processEvents(std::optional<sf::Event> event, CommandQueue& commands)
 				|| key->scancode == sf::Keyboard::Scancode::Left
 				|| key->scancode == sf::Keyboard::Scancode::Right
 				|| key->code == sf::Keyboard::Key::Z
-				|| key->code == sf::Keyboard::Key::Y)
+				|| key->code == sf::Keyboard::Key::Y
+				|| key->code == sf::Keyboard::Key::Tab)
 			{
 				mLevelEditor.handleKey(*key);
 			}
