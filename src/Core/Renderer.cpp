@@ -7,6 +7,7 @@
 #include "Ryu/Scene/SceneEnums.h"
 #include "Ryu/Core/EventManager.h"
 #include "Ryu/Character/CharacterIchi.h"
+#include <cmath>
 #include <SFML/Graphics/Color.hpp>
 #include <SFML/Graphics/PrimitiveType.hpp>
 #include <SFML/Graphics/RectangleShape.hpp>
@@ -236,16 +237,24 @@ Renderer::getSceneObjectAt(ELevel level, const b2Vec2& position) const
         if (B2_IS_NULL(object.mPhysicsBodyId)) { continue; }
 
         // object rects use center positions; stored in world meters,
-        // hit-test happens in pixels
+        // hit-test happens in pixels and is rotation-aware: the cursor is
+        // rotated into the object's unrotated frame and compared against its
+        // half extents (same math as the editor's insideSelectedObject)
         const sf::Vector2f centerPx{
             Converter::metersToPixels(object.mPosition.x),
             Converter::metersToPixels(object.mPosition.y)};
         const sf::Vector2f sizePx{
             Converter::metersToPixels(object.mSize.x),
             Converter::metersToPixels(object.mSize.y)};
-        const sf::FloatRect rect{centerPx - sizePx / 2.f, sizePx};
+        const float c = std::cos(object.mRotation);
+        const float s = std::sin(object.mRotation);
+        const sf::Vector2f cursorPx{ position.x - centerPx.x,
+                                     position.y - centerPx.y };
+        const sf::Vector2f localPx{ cursorPx.x * c + cursorPx.y * s,
+                                    -cursorPx.x * s + cursorPx.y * c };
 
-        if (rect.contains({position.x, position.y}))
+        if (std::abs(localPx.x) <= sizePx.x / 2.f
+            && std::abs(localPx.y) <= sizePx.y / 2.f)
         {
             return object.mPhysicsBodyId;
         }
