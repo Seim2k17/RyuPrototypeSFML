@@ -1183,15 +1183,19 @@ Editor::handleKey(const sf::Event::KeyPressed& key)
     // undo/redo shortcuts: Ctrl+Z = undo, Ctrl+Shift+Z / Ctrl+Y = redo;
     // only ignored while a text input is actually active (WantTextInput) -
     // WantCaptureKeyboard would stay on after ANY ImGui interaction (e.g.
-    // clicking 'Apply edits') and swallow the shortcuts forever
+    // clicking 'Apply edits') and swallow the shortcuts forever.
+    // NOTE: the letter keys are matched via key.code (layout-localized
+    // virtual key), NOT via scancode: scancodes are physical positions
+    // labeled after US-QWERTY, so on a German QWERTZ keyboard the 'Z' key
+    // reports scancode Y - matching scancodes made STRG+Z trigger redo
     if (key.control && not ImGui::GetIO().WantTextInput)
     {
-        if (key.scancode == sf::Keyboard::Scancode::Z)
+        if (key.code == sf::Keyboard::Key::Z)
         {
             if (key.shift) { redo(); } else { undo(); }
             return;
         }
-        if (key.scancode == sf::Keyboard::Scancode::Y)
+        if (key.code == sf::Keyboard::Key::Y)
         {
             redo();
             return;

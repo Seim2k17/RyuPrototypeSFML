@@ -247,12 +247,14 @@ void Game::processEvents(std::optional<sf::Event> event, CommandQueue& commands)
 		if (mLevelEditor.showLevelEditor && event->is<sf::Event::KeyPressed>())
 		{
 			const auto* key = event->getIf<sf::Event::KeyPressed>();
+			// Z/Y via the layout-localized key code (QWERTZ keyboards
+			// report the 'Z' key as scancode Y)
 			if (key->scancode == sf::Keyboard::Scancode::Up
 				|| key->scancode == sf::Keyboard::Scancode::Down
 				|| key->scancode == sf::Keyboard::Scancode::Left
 				|| key->scancode == sf::Keyboard::Scancode::Right
-				|| key->scancode == sf::Keyboard::Scancode::Z
-				|| key->scancode == sf::Keyboard::Scancode::Y)
+				|| key->code == sf::Keyboard::Key::Z
+				|| key->code == sf::Keyboard::Key::Y)
 			{
 				mLevelEditor.handleKey(*key);
 			}
