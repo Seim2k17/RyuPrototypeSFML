@@ -19,6 +19,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cctype>
 #include <cmath>
 #include <cstring>
 #include <optional>
@@ -1547,11 +1548,35 @@ Editor::placeTileAt(const sf::Vector2f& cellCenterPx)
     auto& registry = mWorld->getTextureRegistry();
     const sf::IntRect rect = registry.textureRect(mEditTextureId,
                                                  mEditTileCol, mEditTileRow);
+
+    // unique, equally wide names: the next free counter suffix of all
+    // tile-placed objects of this level (_0000, _0001, ...); tiles painted
+    // in an earlier session keep counting on from their stored suffixes
+    int maxCounter = -1;
+    const ELevel level = mWorld->getActiveLevel();
+    for (const auto& existing
+         : mWorld->getSceneObjects().at(level))
+    {
+        const std::string& name = existing.mName;
+        const auto lastUnderscore = name.rfind('_');
+        if (lastUnderscore == std::string::npos
+            or name.size() - lastUnderscore - 1 != 4)
+        {
+            continue;
+        }
+        const std::string suffix = name.substr(lastUnderscore + 1);
+        if (not std::all_of(suffix.begin(), suffix.end(), ::isdigit))
+        {
+            continue;
+        }
+        maxCounter = std::max(maxCounter, std::stoi(suffix));
+    }
+
     SceneObjectPhysicsParameters object{
         { cellCenterPx.x, cellCenterPx.y },
         { static_cast<float>(rect.size.x), static_cast<float>(rect.size.y) },
-        fmt::format("tile_{}_{}_{}", mEditTextureId, mEditTileCol,
-                    mEditTileRow),
+        fmt::format("tile_{}_{}_{}_{:04d}", mEditTextureId, mEditTileCol,
+                    mEditTileRow, maxCounter + 1),
         b2BodyType::b2_staticBody,
         mEditTextureId,
         EntityType::None,
@@ -1561,7 +1586,6 @@ Editor::placeTileAt(const sf::Vector2f& cellCenterPx)
         mEditTileCol,
         mEditTileRow
     };
-    const ELevel level = mWorld->getActiveLevel();
     auto& added = mWorld->addSceneObject(level, std::move(object));
     auto& objects = mWorld->getSceneObjects().at(level);
     mTileStrokePlacedParams.push_back(added);
