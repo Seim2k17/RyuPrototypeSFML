@@ -57,10 +57,12 @@ class Editor
   public:
     /// tools of the level editor (sidebar); Resize/Rotate = transform modes
     enum class Tool {
-        None,   /// no tool: plain game view, no selection interactions
-        Resize, /// resize mode: hover/click/drag objects in the game view
-        Rotate, /// rotate mode: rotate objects around a movable pivot point
-        Edit    /// placeholder, not implemented yet
+        None,        /// no tool: plain game view, no selection interactions
+        Resize,      /// resize mode: hover/click/drag objects in the game view
+        Rotate,      /// rotate mode: rotate objects around a movable pivot point
+        Edit,        /// placeholder, not implemented yet
+        TilePlacer,  /// paint grid cells with the selected tileset tile
+        TileRemover  /// erase tile-sized objects from grid cells
     };
 
     Editor();
@@ -92,9 +94,20 @@ class Editor
 
     /// transform mode = the Resize or Rotate tool is turned on (physics is
     /// paused while it is active so dragged bodies don't fall between updates)
-    bool transformModeActive() const
+    bool tileToolActive() const
+    {
+        return mActiveTool == Tool::TilePlacer || mActiveTool == Tool::TileRemover;
+    }
+    bool transformToolActive() const
     {
         return mActiveTool == Tool::Resize || mActiveTool == Tool::Rotate;
+    }
+    /// true while any editor tool interacts with the game view (physics is
+    /// paused during that so painted/dragged bodies don't move between updates)
+    bool transformModeActive() const
+    {
+        return mActiveTool == Tool::Resize || mActiveTool == Tool::Rotate
+            || tileToolActive();
     }
 
   private:
@@ -106,12 +119,26 @@ class Editor
     /// the object itself (STRG+Z also restores deleted objects)
     struct UndoEntry
     {
-        enum class Kind { Edit, Delete, Add };
+        enum class Kind { Edit, Delete, Add, StrokeAdd, StrokeDelete };
         ELevel level;
         int index;
         Kind kind;
         SceneObjectPhysicsParameters before;
         SceneObjectPhysicsParameters after;
+        /// tile strokes: one entry per drag, n objects;
+        /// StrokeAdd: indices ascending = stroke base + k (tail objects);
+        /// StrokeDelete: indices/params in ORIGINAL removal order (descending
+        /// indices, so each index is valid in the list state of its time)
+        std::vector<int> strokeIndices;
+        std::vector<SceneObjectPhysicsParameters> strokeParams;
+    };
+
+    /// one object removed during a tile-erase stroke (its removal-time index
+    /// + its complete state, needed to re-insert it on undo)
+    struct StrokeRemoved
+    {
+        int index;
+        SceneObjectPhysicsParameters params;
     };
 
     void switchLevel(ELevel level);
@@ -194,6 +221,29 @@ class Editor
     
     // Level name helpers
     std::string buildLevelDropdownString() const;
+
+    // tile placement tools (TilePlacer/TileRemover): the active tile brush is
+    // the current texture edit buffer (tileset id + tile coordinates)
+
+    /// world-pixel cell index under the cursor (grid cell coordinates)
+    sf::Vector2i tileCellAt(const sf::Vector2f& posPx) const;
+    /// world-pixel center of a grid cell
+    sf::Vector2f tileCellCenterPx(const sf::Vector2i& cell) const;
+    /// true when any scene object of the active level overlaps \p centerPx
+    bool tileCellOccupied(const sf::Vector2f& centerPx) const;
+    /// syncs the grid overlay cell size to the current brush tile + shows it
+    void syncTileGridToBrush();
+    /// begins a paint/erase stroke (left/right button resp.)
+    void beginTileStroke(bool erase, const sf::Vector2f& posPx);
+    /// paints/erases every grid cell on the line posPx..prevPx (drag)
+    void updateTileStroke(const sf::Vector2f& posPx);
+    /// commits the stroke as ONE undo entry (paint = n appended objects,
+    /// erase = n removed objects; n == 0 pushes nothing)
+    void endTileStroke();
+    /// places one tile object into the cell under \p posPx
+    void placeTileAt(const sf::Vector2f& cellCenterPx);
+    /// erases the tile-sized objects of the cell under \p posPx
+    void eraseTileAt(const sf::Vector2f& cellCenterPx);
     /// texture picker window: registry thumbnails (whole images + tilesets)
     /// with a magnified hover preview; picking applies the edit directly
     void drawTexturePicker();
@@ -296,6 +346,17 @@ class Editor
 
     // texture picker window (open from the object details)
     bool mShowTexturePicker;
+
+    // tile stroke state (TilePlacer left=paint/right=erase, TileRemover erase)
+    bool mTileStrokeActive;
+    bool mTileStrokeErase;
+    sf::Vector2f mTileStrokePrevPosPx;
+    bool mTileStrokePrevValid;
+    std::vector<int> mTileStrokeIndices;
+    std::vector<SceneObjectPhysicsParameters> mTileStrokePlacedParams;
+    std::vector<StrokeRemoved> mTileStrokeRemoved;
+    /// brush-cell preview in the game view (orange overlay, updateTileStroke)
+    bool mShowTileBrushPreview;
 
     // editor settings window + persistent settings file
     bool mShowEditorSettings;

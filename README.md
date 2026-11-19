@@ -87,3 +87,13 @@ the tile coordinates on the scene object and in the level JSON (`"tile":
 [col, row]`, missing/whole-image objects keep rendering the full png).
 The former enum names (Grass, BoxPushable, ...) are seeded as legacy
 registry entries, so existing level files load unchanged.
+
+## painting tiles (level editor)
+With the "Tile paint" tool active, the tile picked in the texture picker is
+the brush: left-drag in the game view paints grid cells with the tile,
+right-drag erases, and "Tile erase" is a dedicated erase tool. Physics
+pause while a tile tool is active; each object takes the "Physics
+(collides)" flag, layer and entity type from the edit buffers. The grid
+cell size snaps to the brush tile automatically. One drag = one undo
+step (Ctrl+Z removes/restores the whole stroke). `test_*.png` in
+assets/scenes/tilesets/ are test tilesets (8/16/32/64 px tiles).

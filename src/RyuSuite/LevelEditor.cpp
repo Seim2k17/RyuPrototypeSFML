@@ -218,6 +218,7 @@ Editor::Editor()
     , mRenameBuffer{}
     , mRenameIndex(-1)
     , mRenameActive(false)
+    , mShowTexturePicker(false)
     , mShowEditorSettings(false)
     , mShowToolContextMenu(false)
     , mContextMenuPosX(0)
@@ -226,6 +227,14 @@ Editor::Editor()
     , mContextMenuTop(0.f)
     , mContextMenuWidth(0.f)
     , mContextMenuHeight(0.f)
+    , mTileStrokeActive(false)
+    , mTileStrokeErase(false)
+    , mTileStrokePrevPosPx()
+    , mTileStrokePrevValid(false)
+    , mTileStrokeIndices()
+    , mTileStrokePlacedParams()
+    , mTileStrokeRemoved()
+    , mShowTileBrushPreview(false)
 {
     std::snprintf(mSettingsPath, sizeof(mSettingsPath),
                   "%s", "assets/levelEditorSettings.json");
@@ -1336,6 +1345,51 @@ Editor::applyUndoState(const UndoEntry& entry, bool redoState)
         return removeSceneObjectAtIndex(entry.level, entry.index);
     }
 
+    // tile strokes: one entry for the whole drag (place n objects / erase
+    // n objects); playback keeps the indices valid in each direction
+    if (entry.kind == UndoEntry::Kind::StrokeAdd)
+    {
+        if (redoState)
+        {
+            for (std::size_t k = 0; k < entry.strokeIndices.size(); ++k)
+            {
+                reinsertSceneObject(entry.level, entry.strokeIndices.at(k),
+                                    entry.strokeParams.at(k));
+            }
+            return true;
+        }
+        // undo: remove the appended objects, tail first (indices stay valid)
+        for (int k = static_cast<int>(entry.strokeIndices.size()) - 1;
+             k >= 0; --k)
+        {
+            removeSceneObjectAtIndex(entry.level, entry.strokeIndices.at(k));
+        }
+        return true;
+    }
+    if (entry.kind == UndoEntry::Kind::StrokeDelete)
+    {
+        if (redoState)
+        {
+            // redo: replay the original removal order (its indices match
+            // the list state of their time step by step)
+            for (std::size_t k = 0; k < entry.strokeIndices.size(); ++k)
+            {
+                removeSceneObjectAtIndex(entry.level,
+                                         entry.strokeIndices.at(k));
+            }
+            return true;
+        }
+        // undo: re-insert in reverse removal order (each index is valid
+        // again in the list state it was recorded in)
+        for (int k = static_cast<int>(entry.strokeIndices.size()) - 1;
+             k >= 0; --k)
+        {
+            reinsertSceneObject(entry.level, entry.strokeIndices.at(k),
+                                entry.strokeParams.at(k));
+        }
+        return true;
+    }
+
     auto& objects = mWorld->getSceneObjects().at(entry.level);
     if (entry.index < 0 || entry.index >= static_cast<int>(objects.size()))
     {
@@ -1635,6 +1689,239 @@ Editor::drawEditorSettings()
     ImGui::End();
 }
 
+/// ---- tile placement tools (TilePlacer / TileRemover) -------------------
+
+sf::Vector2i
+Editor::tileCellAt(const sf::Vector2f& posPx) const
+{
+    const float cellW = static_cast<float>(std::max(mGridCellWidth, 1));
+    const float cellH = static_cast<float>(std::max(mGridCellHeight, 1));
+    return { static_cast<int>(std::floor(posPx.x / cellW)),
+             static_cast<int>(std::floor(posPx.y / cellH)) };
+}
+
+sf::Vector2f
+Editor::tileCellCenterPx(const sf::Vector2i& cell) const
+{
+    const float cellW = static_cast<float>(std::max(mGridCellWidth, 1));
+    const float cellH = static_cast<float>(std::max(mGridCellHeight, 1));
+    return { (static_cast<float>(cell.x) + 0.5f) * cellW,
+             (static_cast<float>(cell.y) + 0.5f) * cellH };
+}
+
+bool
+Editor::tileCellOccupied(const sf::Vector2f& centerPx) const
+{
+    if (mWorld == nullptr) { return false; }
+    const auto& objects =
+        mWorld->getSceneObjects().at(mWorld->getActiveLevel());
+    const float cellW = static_cast<float>(std::max(mGridCellWidth, 1));
+    const float cellH = static_cast<float>(std::max(mGridCellHeight, 1));
+    for (const auto& object : objects)
+    {
+        const float ox = Converter::metersToPixels(object.mPosition.x);
+        const float oy = Converter::metersToPixels(object.mPosition.y);
+        const float hw = Converter::metersToPixels(object.mSize.x) / 2.f;
+        const float hh = Converter::metersToPixels(object.mSize.y) / 2.f;
+        // small negative slack so exact cell adjacency is no overlap
+        if (std::abs(ox - centerPx.x) < hw + cellW / 2.f - 0.5f
+            and std::abs(oy - centerPx.y) < hh + cellH / 2.f - 0.5f)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+void
+Editor::syncTileGridToBrush()
+{
+    if (mWorld == nullptr or mEditTileCol < 0 or mEditTextureId.empty())
+    {
+        return;
+    }
+    // the brush tile dictates the grid: painting snaps to the tile size
+    auto& registry = mWorld->getTextureRegistry();
+    if (registry.tileset(mEditTextureId) == nullptr) { return; }
+    const sf::IntRect rect = registry.textureRect(mEditTextureId,
+                                                 mEditTileCol, mEditTileRow);
+    if (rect.size.x <= 0 or rect.size.y <= 0) { return; }
+    mGridCellWidth = rect.size.x;
+    mGridCellHeight = rect.size.y;
+    mShowGrid = true;
+    // same overlay update as the grid controls (cell size + color + show)
+    const sf::Color color = mGridColorIndex == 1 ? sf::Color(0, 255, 0, 90)
+                                                 : sf::Color(255, 0, 0, 90);
+    mWorld->setGridOverlay(true, { static_cast<float>(mGridCellWidth),
+                                   static_cast<float>(mGridCellHeight) },
+                           color);
+}
+
+void
+Editor::beginTileStroke(bool erase, const sf::Vector2f& posPx)
+{
+    if (mWorld == nullptr) { return; }
+    if (mActiveTool == Tool::TileRemover) { erase = true; }
+    if (not erase)
+    {
+        // painting requires a loaded tileset tile as the brush
+        auto& registry = mWorld->getTextureRegistry();
+        if (mEditTileCol < 0 or registry.texture(mEditTextureId) == nullptr
+            or registry.tileset(mEditTextureId) == nullptr)
+        {
+            fmt::print("LevelEditor: tile placer needs a picked tileset tile "
+                       "as the brush (texture picker).\n");
+            return;
+        }
+        syncTileGridToBrush();
+    }
+    mTileStrokeActive = true;
+    mTileStrokeErase = erase;
+    mTileStrokePrevPosPx = posPx;
+    mTileStrokePrevValid = false;
+    mTileStrokeIndices.clear();
+    mTileStrokePlacedParams.clear();
+    mTileStrokeRemoved.clear();
+    updateTileStroke(posPx);
+}
+
+void
+Editor::updateTileStroke(const sf::Vector2f& posPx)
+{
+    if (not mTileStrokeActive) { return; }
+    const auto paint = [this](const sf::Vector2f& pos)
+    {
+        const sf::Vector2f center = tileCellCenterPx(tileCellAt(pos));
+        if (mTileStrokeErase) { eraseTileAt(center); }
+        else { placeTileAt(center); }
+    };
+    if (not mTileStrokePrevValid)
+    {
+        paint(posPx);
+    }
+    else
+    {
+        // interpolate: a fast drag must not leave gaps between the
+        // sampled positions; walk the line in half-cell steps
+        const sf::Vector2f delta = posPx - mTileStrokePrevPosPx;
+        const float dist = std::sqrt(delta.x * delta.x + delta.y * delta.y);
+        const float step = std::min(
+            static_cast<float>(std::max(mGridCellWidth, 1)),
+            static_cast<float>(std::max(mGridCellHeight, 1))) / 2.f;
+        const int steps = dist > step ? static_cast<int>(dist / step) : 1;
+        for (int k = 1; k <= steps; ++k)
+        {
+            paint(mTileStrokePrevPosPx
+                  + delta * (static_cast<float>(k) / steps));
+        }
+    }
+    mTileStrokePrevPosPx = posPx;
+    mTileStrokePrevValid = true;
+}
+
+void
+Editor::placeTileAt(const sf::Vector2f& cellCenterPx)
+{
+    if (mWorld == nullptr) { return; }
+    if (tileCellOccupied(cellCenterPx)) { return; } // skip occupied cells
+    auto& registry = mWorld->getTextureRegistry();
+    const sf::IntRect rect = registry.textureRect(mEditTextureId,
+                                                 mEditTileCol, mEditTileRow);
+    SceneObjectPhysicsParameters object{
+        { cellCenterPx.x, cellCenterPx.y },
+        { static_cast<float>(rect.size.x), static_cast<float>(rect.size.y) },
+        fmt::format("tile_{}_{}_{}", mEditTextureId, mEditTileCol,
+                    mEditTileRow),
+        b2BodyType::b2_staticBody,
+        mEditTextureId,
+        EntityType::None,
+        mEditLayer,
+        0.f,
+        mEditHasPhysics,
+        mEditTileCol,
+        mEditTileRow
+    };
+    const ELevel level = mWorld->getActiveLevel();
+    auto& added = mWorld->addSceneObject(level, std::move(object));
+    auto& objects = mWorld->getSceneObjects().at(level);
+    mTileStrokePlacedParams.push_back(added);
+    mTileStrokeIndices.push_back(static_cast<int>(objects.size()) - 1);
+}
+
+void
+Editor::eraseTileAt(const sf::Vector2f& cellCenterPx)
+{
+    if (mWorld == nullptr) { return; }
+    const ELevel level = mWorld->getActiveLevel();
+    auto& objects = mWorld->getSceneObjects().at(level);
+    const float cellW = static_cast<float>(std::max(mGridCellWidth, 1));
+    const float cellH = static_cast<float>(std::max(mGridCellHeight, 1));
+    std::vector<int> candidates;
+    for (int i = 0; i < static_cast<int>(objects.size()); ++i)
+    {
+        const auto& object = objects.at(i);
+        const float ox = Converter::metersToPixels(object.mPosition.x);
+        const float oy = Converter::metersToPixels(object.mPosition.y);
+        const float ow = Converter::metersToPixels(object.mSize.x);
+        const float oh = Converter::metersToPixels(object.mSize.y);
+        // only tile-sized objects whose center lies in this cell are
+        // erasable: big manually built geometry (floors, walls) survives
+        const bool inCell = std::abs(ox - cellCenterPx.x) <= cellW / 2.f
+            and std::abs(oy - cellCenterPx.y) <= cellH / 2.f;
+        const bool tileSized = std::abs(ow - cellW) <= 1.f
+            and std::abs(oh - cellH) <= 1.f;
+        if (inCell and tileSized) { candidates.push_back(i); }
+    }
+    // remove descending: earlier recorded indices stay valid
+    for (int k = static_cast<int>(candidates.size()) - 1; k >= 0; --k)
+    {
+        const int index = candidates.at(k);
+        mTileStrokeRemoved.push_back({ index, objects.at(index) });
+        removeSceneObjectAtIndex(level, index);
+    }
+}
+
+void
+Editor::endTileStroke()
+{
+    if (not mTileStrokeActive) { return; }
+    mTileStrokeActive = false;
+    mTileStrokePrevValid = false;
+    if (mWorld == nullptr)
+    {
+        mTileStrokeIndices.clear();
+        mTileStrokePlacedParams.clear();
+        mTileStrokeRemoved.clear();
+        return;
+    }
+
+    UndoEntry entry{ mWorld->getActiveLevel(), -1,
+                     UndoEntry::Kind::StrokeAdd, {}, {} };
+    if (mTileStrokeErase)
+    {
+        if (mTileStrokeRemoved.empty()) { return; }
+        entry.kind = UndoEntry::Kind::StrokeDelete;
+        entry.strokeIndices.reserve(mTileStrokeRemoved.size());
+        entry.strokeParams.reserve(mTileStrokeRemoved.size());
+        for (const auto& removed : mTileStrokeRemoved)
+        {
+            entry.strokeIndices.push_back(removed.index);
+            entry.strokeParams.push_back(removed.params);
+        }
+    }
+    else
+    {
+        if (mTileStrokePlacedParams.empty()) { return; }
+        entry.strokeIndices = mTileStrokeIndices;
+        entry.strokeParams = mTileStrokePlacedParams;
+    }
+    // one entry per stroke: a whole drag is undone with a single Ctrl+Z
+    pushUndoEntry(entry);
+    fmt::print("LevelEditor: tile stroke: {} objects {}.\n",
+               entry.strokeIndices.size(),
+               mTileStrokeErase ? "erased" : "placed");
+}
+
 void
 Editor::drawToolSidebar()
 {
@@ -1668,6 +1955,8 @@ Editor::drawToolSidebar()
 
     toolButton("Resize", Tool::Resize);
     toolButton("Rotate", Tool::Rotate);
+    toolButton("Tile paint", Tool::TilePlacer);
+    toolButton("Tile erase", Tool::TileRemover);
     ImGui::Separator();
     ImGui::BeginDisabled();
     toolButton("Edit", Tool::Edit);
@@ -2008,6 +2297,8 @@ Editor::cycleTool()
     {
     case Tool::None: switchTool(Tool::Resize); break;
     case Tool::Resize: switchTool(Tool::Rotate); break;
+    case Tool::Rotate: switchTool(Tool::TilePlacer); break;
+    case Tool::TilePlacer: switchTool(Tool::TileRemover); break;
     default: switchTool(Tool::None); break;
     }
 }
@@ -2105,6 +2396,9 @@ Editor::drawToolContextMenu()
         modeButton("Resize", Tool::Resize);
         modeButton("Rotate", Tool::Rotate);
         ImGui::Separator();
+        modeButton("Tile paint (LMB place / RMB erase)", Tool::TilePlacer);
+        modeButton("Tile erase", Tool::TileRemover);
+        ImGui::Separator();
         modeButton("Deactivate tool", Tool::None);
         ImGui::Separator();
 
@@ -2160,6 +2454,15 @@ Editor::switchTool(Tool tool)
         }
         updatePivotMarker();
     }
+    else if (tileToolActive())
+    {
+        // tiles are painted free-standing: no persistent object selection
+        exitSelectionMode();
+        mShowTileBrushPreview = false;
+        if (mWorld == nullptr) { return; }
+        mWorld->setResizePreview({}, {}, false);
+        syncTileGridToBrush();
+    }
     else
     {
         // leaving the transform mode: clear the selection highlights
@@ -2197,6 +2500,53 @@ Editor::handleMouseEvent(const sf::Event &event, const sf::Vector2f &mouseWorldP
     if (event.is<sf::Event::MouseButtonPressed>())
     {
         mShowToolContextMenu = false;
+    }
+
+    // tile tools: LMB paints/or erases, RMB erases (no context menu, no
+    // object selection while a tile tool is active)
+    if (tileToolActive())
+    {
+        if (const auto* pressed = event.getIf<sf::Event::MouseButtonPressed>())
+        {
+            if (pressed->button == sf::Mouse::Button::Left)
+            {
+                beginTileStroke(false, mouseWorldPosPx);
+                return;
+            }
+            if (pressed->button == sf::Mouse::Button::Right)
+            {
+                beginTileStroke(true, mouseWorldPosPx);
+                return;
+            }
+        }
+        if (const auto* released = event.getIf<sf::Event::MouseButtonReleased>())
+        {
+            if (released->button == sf::Mouse::Button::Left
+                or released->button == sf::Mouse::Button::Right)
+            {
+                endTileStroke();
+                return;
+            }
+        }
+        if (event.is<sf::Event::MouseMoved>())
+        {
+            if (mTileStrokeActive)
+            {
+                updateTileStroke(mouseWorldPosPx);
+            }
+            else
+            {
+                // idle brush preview: orange overlay on the hovered cell
+                const sf::Vector2i cell = tileCellAt(mouseWorldPosPx);
+                mWorld->setResizePreview(
+                    tileCellCenterPx(cell),
+                    { static_cast<float>(mGridCellWidth),
+                      static_cast<float>(mGridCellHeight) },
+                    true, 0.f);
+            }
+            return;
+        }
+        return;
     }
 
     // right click: context menu with the editor tools at the cursor
@@ -2373,7 +2723,8 @@ void
 Editor::drawSelectionModeHud()
 {
     // the text belongs purely to the active tool state, not to an object
-    if (mActiveTool != Tool::Resize && mActiveTool != Tool::Rotate) { return; }
+    if (mActiveTool != Tool::Resize && mActiveTool != Tool::Rotate
+        && not tileToolActive()) { return; }
 
     const ImGuiViewport *viewport = ImGui::GetMainViewport();
     const ImVec2 pos{ viewport->WorkSize.x - 240.f, viewport->WorkSize.y - 36.f };
@@ -2385,8 +2736,18 @@ Editor::drawSelectionModeHud()
                              | ImGuiWindowFlags_NoNav;
     ImGui::Begin("##selectionModeHud", nullptr, flags);
     ImGui::PushStyleColor(ImGuiCol_Text, {1.f, 0.f, 0.f, 1.f});
-    ImGui::Text("%s", mActiveTool == Tool::Rotate
-                        ? "rotate-mode active" : "resize-mode active");
+    const char* modeText = "tool active";
+    if (mActiveTool == Tool::Rotate) { modeText = "rotate-mode active"; }
+    else if (mActiveTool == Tool::Resize) { modeText = "resize-mode active"; }
+    else if (mActiveTool == Tool::TilePlacer)
+    {
+        modeText = "tile-placer active (LMB place, RMB erase)";
+    }
+    else if (mActiveTool == Tool::TileRemover)
+    {
+        modeText = "tile-remover active (LMB/RMB erase)";
+    }
+    ImGui::Text("%s", modeText);
     ImGui::PopStyleColor();
     ImGui::End();
 }
@@ -2774,7 +3135,7 @@ Editor::createEditorWidgets(bool *p_open)
                     // in a transform mode a list click selects the object
                     // in the level (persistent outline + markers); without
                     // such a tool the list click only fills the edit buffers
-                    if (transformModeActive())
+                    if (transformToolActive())
                     {
                         mSelectedBodyId = object.mPhysicsBodyId;
                         mPivotOffsetPx = {};
@@ -2803,7 +3164,7 @@ Editor::createEditorWidgets(bool *p_open)
                 {
                     mHoveredBodyId = object.mPhysicsBodyId;
                     mWorld->setHoverHighlight(mHoveredBodyId,
-                                              transformModeActive());
+                                              transformToolActive());
                 }
             }
 
