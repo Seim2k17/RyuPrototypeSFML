@@ -43,6 +43,11 @@ class World : public Observer {
     {
         return mPhysics.sceneObjects;
     }
+    /** Data-driven scene texture registry (level editor texture picker). */
+    SceneTextureRegistry &getTextureRegistry()
+    {
+        return mRenderer->getTextureRegistry();
+    }
     SceneObjectPhysicsParameters &addSceneObject(ELevel level,
                                                  SceneObjectPhysicsParameters object)
     {

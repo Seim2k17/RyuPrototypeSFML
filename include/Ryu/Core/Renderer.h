@@ -3,6 +3,7 @@
 #include <Ryu/Core/AssetIdentifiers.h>
 #include <Ryu/Core/AssetManager.h>
 #include <Ryu/Core/CommandQueue.h>
+#include <Ryu/Core/TextureRegistry.h>
 #include <Ryu/Events/PhysicsEvents.h>
 #include <Ryu/Scene/SceneNode.h>
 #include <Ryu/Scene/Box.h>
@@ -27,6 +28,10 @@ public:
     void buildScene();
     void update(sf::Time dt);
     CommandQueue& getActiveCommands();
+
+    /// data-driven scene texture registry (whole images + tilesets);
+    /// used by the renderer scene paths and the level editor picker
+    SceneTextureRegistry& getTextureRegistry() { return mTextureRegistry; }
 
     // Layer management
     enum class Layer { Background, Ground1, Foreground, LayerCount };
@@ -84,6 +89,7 @@ private:
     SceneNode mSceneGraph;
     std::array<std::shared_ptr<SceneNode>, static_cast<size_t>(Layer::LayerCount)> mSceneLayers;
     SceneAssetsManager mSceneAssetsManager;
+    SceneTextureRegistry mTextureRegistry;
     sf::FloatRect mWorldBounds;
     sf::Vector2f mSpawnPosition;
     // TODO: just tempoprarly location to store a Box-ptr (just an example)

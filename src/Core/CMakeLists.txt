@@ -5,6 +5,7 @@ set (SRC
     "Game.cpp"
     "Renderer.cpp"
     "SpriteNode.cpp"
+    "TextureRegistry.cpp"
     "Utilities.cpp"
     "World.cpp"
 )
@@ -20,6 +21,7 @@ set(HEADER
      "${RyuPrototype_SOURCE_DIR}/include/Ryu/Core/Game.h"
      "${RyuPrototype_SOURCE_DIR}/include/Ryu/Core/Renderer.h"
      "${RyuPrototype_SOURCE_DIR}/include/Ryu/Core/SpriteNode.h"
+     "${RyuPrototype_SOURCE_DIR}/include/Ryu/Core/TextureRegistry.h"
      "${RyuPrototype_SOURCE_DIR}/include/Ryu/Core/Utilities.h"
      "${RyuPrototype_SOURCE_DIR}/include/Ryu/Core/World.h"
 )
@@ -39,4 +41,5 @@ target_link_libraries(ryucorelib PUBLIC
 )
 
 target_include_directories(ryucorelib PUBLIC "${RyuPrototype_SOURCE_DIR}/include")
+target_include_directories(ryucorelib PUBLIC "${nlohmann_json_SOURCE_DIR}/include")
 link_sfml_to_target(ryucorelib)

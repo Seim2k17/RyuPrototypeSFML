@@ -57,7 +57,9 @@ SceneObjectPhysicsParameters::SceneObjectPhysicsParameters() :
     mRotation(0.f),
     mName(""),
     mType(b2BodyType::b2_staticBody),
-    mTextureId(Textures::SceneID::Unknown),
+    mTextureId("Unknown"),
+    mTileCol(-1),
+    mTileRow(-1),
     mEntityType(EntityType::None),
     mLayer(1),
     mHasPhysics(true),
@@ -68,14 +70,16 @@ SceneObjectPhysicsParameters::SceneObjectPhysicsParameters() :
 SceneObjectPhysicsParameters::SceneObjectPhysicsParameters(
         b2Vec2 positionInPixel, b2Vec2 sizeInPixel,
         std::string name, b2BodyType type,
-        Textures::SceneID textureId, EntityType entityType, int layer, float rotation,
-        bool hasPhysics) :
+        std::string textureId, EntityType entityType, int layer, float rotation,
+        bool hasPhysics, int tileCol, int tileRow) :
     mPosition(Converter::pixelsToMeters(positionInPixel.x), Converter::pixelsToMeters(positionInPixel.y)),
     mSize(Converter::pixelsToMeters(sizeInPixel.x), Converter::pixelsToMeters(sizeInPixel.y)),
     mRotation(rotation),
     mName(name),
     mType(type),
-    mTextureId(textureId),
+    mTextureId(std::move(textureId)),
+    mTileCol(tileCol),
+    mTileRow(tileRow),
     mEntityType(entityType),
     mLayer(layer),
     mHasPhysics(hasPhysics),
@@ -673,7 +677,8 @@ Physics::createPhysicsBody(SceneObjectPhysicsParameters& sceneObject, int& i)
     shape->setOrigin({(float)(Converter::metersToPixels(objSize.x) / 2.0), (float)(Converter::metersToPixels(objSize.y) / 2.0)});
     shape->setPosition(sf::Vector2f(Converter::metersToPixels(objPosition.x), Converter::metersToPixels(objPosition.y)));
 
-    if (sceneObject.mTextureId != Textures::SceneID::Unknown) {
+    if (not sceneObject.mTextureId.empty()
+        and sceneObject.mTextureId != "Unknown") {
          //shape->setFillColor(sf::Color::Red);
          shape->setOutlineColor(sf::Color::Red);
          shape->setOutlineThickness(2.0f);
@@ -738,7 +743,9 @@ Physics::createPhysicsBody(SceneObjectPhysicsParameters& sceneObject, int& i)
     event.size = sceneObject.mSize;
     event.isDynamic = sceneObject.mHasPhysics
                       && (sceneObject.mType == b2_dynamicBody);
-    event.textureId = sceneObject.mTextureId;  // Pass texture ID for rendering
+    event.textureName = sceneObject.mTextureId;  // registry id for rendering
+    event.tileCol = sceneObject.mTileCol;
+    event.tileRow = sceneObject.mTileRow;
     event.layer = sceneObject.mLayer;
     event.rotation = sceneObject.mRotation;
     

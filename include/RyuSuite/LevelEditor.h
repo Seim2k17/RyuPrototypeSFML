@@ -194,6 +194,11 @@ class Editor
     
     // Level name helpers
     std::string buildLevelDropdownString() const;
+    /// texture picker window: registry thumbnails (whole images + tilesets)
+    /// with a magnified hover preview; picking applies the edit directly
+    void drawTexturePicker();
+    /// thumbnail of the current texture edit buffer (picker button face)
+    void drawTexturePreview(const sf::Vector2f& size);
 
     World* mWorld;
     ELevel mSelectedLevel;
@@ -206,7 +211,11 @@ class Editor
     std::string mEditName;
     bool mEditIsDynamic;
     bool mEditHasPhysics;
-    int mEditTextureId;
+    /// scene-texture registry id of the object (empty = none)
+    std::string mEditTextureId;
+    /// tile of a tileset texture (-1/-1 = whole image)
+    int mEditTileCol;
+    int mEditTileRow;
     int mEditEntityType;
     int mEditLayer;
     float mEditPositionX;
@@ -284,6 +293,9 @@ class Editor
     char mRenameBuffer[64];
     int mRenameIndex;
     bool mRenameActive;
+
+    // texture picker window (open from the object details)
+    bool mShowTexturePicker;
 
     // editor settings window + persistent settings file
     bool mShowEditorSettings;

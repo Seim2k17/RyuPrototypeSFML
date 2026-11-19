@@ -72,3 +72,18 @@ See [License.txt]. in 02_SFML_GD_BOOK.
 # system
 1. Observer/Subject-system to notify and get notified by SceneNodes
 2. Observer-pattern (WIP) for non-sceneNodes-objects (Physics/World...)
+
+# scene textures & tilesets (level editor)
+Scene-object textures are data-driven (no recompile needed to add one):
+- `assets/scenes/objects/`   drop a png here = one whole-image texture
+  (the registry id is the file name without extension)
+- `assets/scenes/tilesets/`  drop a png + optional `<name>.json` sidecar here
+  to use it as a uniform-grid tileset:
+  { "tileSize": [32, 32], "margin": 0, "spacing": 0 }
+  (default tile size: 32x32; id = file name without extension)
+Both are picked in the level editor (object details -> "Pick texture"),
+with a thumbnail grid and a magnified hover preview; picking a tile stores
+the tile coordinates on the scene object and in the level JSON (`"tile":
+[col, row]`, missing/whole-image objects keep rendering the full png).
+The former enum names (Grass, BoxPushable, ...) are seeded as legacy
+registry entries, so existing level files load unchanged.

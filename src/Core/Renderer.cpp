@@ -91,6 +91,8 @@ Renderer::Renderer(sf::RenderWindow& window, EventManager& eventManager, const s
 
 void Renderer::loadTextures()
 {
+    mTextureRegistry.load();
+
     mPhysicsAssetsManager.load(Textures::PhysicAssetsID::Crate,
                             "assets/scenes/99_dummy/box_wood.png");
     
@@ -589,6 +591,41 @@ CommandQueue& Renderer::getActiveCommands()
 void
 Renderer::onPhysicsObjectCreated(const PhysicsObjectCreatedEvent& event)
 {
+    // scene objects render through the data-driven texture registry
+    // (whole image or one tile of a tileset); the legacy variant path
+    // below stays for character/crate assets
+    if (not event.textureName.empty())
+    {
+        const sf::Texture* texture = mTextureRegistry.texture(event.textureName);
+        const sf::IntRect textureRect = mTextureRegistry.textureRect(
+            event.textureName, event.tileCol, event.tileRow);
+        if (texture == nullptr) { texture = &mTextureRegistry.fallbackTexture(); }
+
+        const sf::Vector2f rectSize{ static_cast<float>(textureRect.size.x),
+                                     static_cast<float>(textureRect.size.y) };
+        const sf::Vector2f sizePixels{
+            Converter::metersToPixels(event.size.x),
+            Converter::metersToPixels(event.size.y)
+        };
+
+        auto spriteNode = std::make_unique<SpriteNode>(*texture, textureRect);
+        spriteNode->setScale(sizePixels.componentWiseDiv(rectSize));
+        spriteNode->setOrigin(rectSize / 2.f);
+        spriteNode->setPosition(sf::Vector2f{
+            Converter::metersToPixels(event.position.x),
+            Converter::metersToPixels(event.position.y)
+        });
+        spriteNode->setRotation(sf::radians(event.rotation));
+
+        auto& layerNode = mSceneLayers[static_cast<size_t>(
+            std::clamp(event.layer,
+                       static_cast<int>(Layer::Background),
+                       static_cast<int>(Layer::LayerCount) - 1))];
+        auto nodeShared = layerNode->attachChildReturningPtr(std::move(spriteNode));
+        mPhysicsBodyToNode[event.bodyId] = nodeShared;
+        return;
+    }
+
     // Create a SpriteNode for the physics object
     sf::Texture* texture = nullptr;
     
@@ -702,7 +739,16 @@ void Renderer::createSceneFromConfiguration(ELevel level)
 {
     for (auto& obj : mSceneObjects.at(level))
     {
-        const sf::Texture& texture = mSceneAssetsManager.getResource(obj.mTextureId);
+        const sf::Texture* texturePtr = mTextureRegistry.texture(obj.mTextureId);
+        if (texturePtr == nullptr)
+        {
+            texturePtr = &mTextureRegistry.fallbackTexture();
+        }
+        const sf::Texture& texture = *texturePtr;
+        const sf::IntRect textureRect = mTextureRegistry.textureRect(
+            obj.mTextureId, obj.mTileCol, obj.mTileRow);
+        sf::Vector2f rectSize{ static_cast<float>(textureRect.size.x),
+                               static_cast<float>(textureRect.size.y) };
         
         // Convert size from meters (Box2D) to pixels (SFML)
         sf::Vector2f sizePixels{
@@ -711,16 +757,14 @@ void Renderer::createSceneFromConfiguration(ELevel level)
         };
         
         // Create SpriteNode with texture and scale it to the desired size
-        auto spriteNode = std::make_unique<SpriteNode>(texture);
+        auto spriteNode = std::make_unique<SpriteNode>(texture, textureRect);
         
         // Scale the sprite to match the physics object size
-        sf::Vector2f textureSize(static_cast<float>(texture.getSize().x), 
-                                static_cast<float>(texture.getSize().y));
-        sf::Vector2f scale(sizePixels.x / textureSize.x, sizePixels.y / textureSize.y);
+        sf::Vector2f scale(sizePixels.x / rectSize.x, sizePixels.y / rectSize.y);
         spriteNode->setScale(scale);
         
         // Set origin to center for proper positioning
-        spriteNode->setOrigin(textureSize / 2.0f);
+        spriteNode->setOrigin(rectSize / 2.0f);
         
         // Convert position from meters (Box2D) to pixels (SFML)
         spriteNode->setPosition(sf::Vector2f{

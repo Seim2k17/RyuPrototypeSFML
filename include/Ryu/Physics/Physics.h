@@ -61,9 +61,11 @@ struct SceneObjectPhysicsParameters
     SceneObjectPhysicsParameters(
         b2Vec2 position, b2Vec2 size,
         std::string name, b2BodyType type, /* = b2_staticBody,*/
-        Textures::SceneID textureId, /* = Textures::SceneID::Grass,*/ EntityType entityType, int layer = 1, /*=EntityType::None);*/
+        std::string textureId, /* = registry id, e.g. "Grass" or a tileset id */
+        EntityType entityType, int layer = 1, /*=EntityType::None);*/
         float rotation = 0.f, /* radians, ccw */
-        bool hasPhysics = true); /* false = decorative, collides with nothing */
+        bool hasPhysics = true, /* false = decorative, collides with nothing */
+        int tileCol = -1, int tileRow = -1); /* >= 0: tile of a tileset */
 
     b2Vec2 mPosition;
     b2Vec2 mSize;
@@ -72,7 +74,11 @@ struct SceneObjectPhysicsParameters
     float mRotation;
     std::string mName;
     b2BodyType mType;
-    Textures::SceneID mTextureId;
+    /// scene-texture registry id (replaces the former Textures::SceneID)
+    std::string mTextureId;
+    /// tile of the \p mTextureId tileset (>= 0, else the whole image)
+    int mTileCol;
+    int mTileRow;
     EntityType mEntityType;
     b2BodyId mPhysicsBodyId;
     // TODO: use existing enum for more clarity

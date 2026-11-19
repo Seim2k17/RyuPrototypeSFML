@@ -8,6 +8,7 @@
 #include <filesystem>
 #include <fstream>
 #include <regex>
+#include <vector>
 
 #include <algorithm>
 #include <cctype>
@@ -40,35 +41,8 @@ bodyTypeToString(b2BodyType type)
     }
 }
 
-const std::map<std::string, Textures::SceneID> SceneIdByName = {
-    { "BGMountain", Textures::SceneID::BGMountain },
-    { "BoxPushable", Textures::SceneID::BoxPushable },
-    { "BoxHeavy", Textures::SceneID::BoxHeavy },
-    { "Button", Textures::SceneID::Button },
-    { "Grass", Textures::SceneID::Grass },
-    { "Grate", Textures::SceneID::Grate },
-    { "Ground", Textures::SceneID::Ground },
-    { "Ladder", Textures::SceneID::Ladder },
-    { "Teleport", Textures::SceneID::Teleport },
-    { "Unknown", Textures::SceneID::Unknown },
-};
-
-Textures::SceneID
-sceneIdFromString(const std::string &name)
-{
-    auto it = SceneIdByName.find(name);
-    return it != SceneIdByName.end() ? it->second : Textures::SceneID::Unknown;
-}
-
-std::string
-sceneIdToString(Textures::SceneID id)
-{
-    for (const auto &[name, sceneId] : SceneIdByName)
-    {
-        if (sceneId == id) { return name; }
-    }
-    return "Unknown";
-}
+// texture ids are data-driven now (SceneTextureRegistry ids, stored as
+// plain strings in the level JSONs); the former enum mapping is gone
 
 EntityType
 entityTypeFromString(const std::string &name)
@@ -85,6 +59,7 @@ entityTypeToString(EntityType type)
 SceneObjectPhysicsParameters
 objectFromJson(const json &obj)
 {
+    const auto tile = obj.value("tile", std::vector<int>{ -1, -1 });
     return {
         { obj.at("positionPx").at(0).get<float>(),
           obj.at("positionPx").at(1).get<float>() },
@@ -92,31 +67,38 @@ objectFromJson(const json &obj)
           obj.at("sizePx").at(1).get<float>() },
         obj.at("name").get<std::string>(),
         bodyTypeFromString(obj.at("bodyType").get<std::string>()),
-        sceneIdFromString(obj.at("textureId").get<std::string>()),
+        obj.value("textureId", "Unknown"),
         entityTypeFromString(obj.at("entityType").get<std::string>()),
         obj.value("layer", 1),
         // degrees in the JSON, radians in the physics world
         Converter::degToRad(obj.value("rotationDeg", 0.f)),
-        obj.value("hasPhysics", true)
+        obj.value("hasPhysics", true),
+        // tile of a tileset: [col, row]; missing/negative = whole image
+        tile.at(0), tile.at(1)
     };
 }
 
 json
 objectToJson(const SceneObjectPhysicsParameters &object)
 {
-    return {
+    json out = {
         { "name", object.mName },
         { "positionPx", { Converter::metersToPixels(object.mPosition.x),
                           Converter::metersToPixels(object.mPosition.y) } },
         { "sizePx", { Converter::metersToPixels(object.mSize.x),
                       Converter::metersToPixels(object.mSize.y) } },
         { "bodyType", bodyTypeToString(object.mType) },
-        { "textureId", sceneIdToString(object.mTextureId) },
+        { "textureId", object.mTextureId },
         { "entityType", entityTypeToString(object.mEntityType) },
         { "layer", object.mLayer },
         { "rotationDeg", Converter::radToDeg(object.mRotation) },
         { "hasPhysics", object.mHasPhysics }
     };
+    if (object.mTileCol >= 0 and object.mTileRow >= 0)
+    {
+        out["tile"] = { object.mTileCol, object.mTileRow };
+    }
+    return out;
 }
 
 fs::path

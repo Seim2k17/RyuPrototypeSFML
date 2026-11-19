@@ -8,10 +8,12 @@
 #include <Ryu/Core/Renderer.h>
 
 #include <imgui.h>
+#include <imgui-SFML.h>
 #include <fmt/core.h>
 #include <nlohmann/json.hpp>
 
 #include <SFML/Graphics/RectangleShape.hpp>
+#include <SFML/Graphics/Sprite.hpp>
 #include <SFML/Window/Event.hpp>
 #include <SFML/Window/Mouse.hpp>
 
@@ -23,6 +25,7 @@
 #include <regex>
 #include <set>
 #include <cstring>
+#include <optional>
 #include <deque>
 #include <fstream>
 #include <string>
@@ -72,12 +75,6 @@ std::string entityTypeToString(EntityType type)
 constexpr int kNumBodyTypes = 2;
 const char *kBodyTypeNames[kNumBodyTypes] = { "Static", "Dynamic" };
 
-constexpr int kNumTextures = 10;
-const char *kTextureNames[kNumTextures] = {
-    "BGMountain", "BoxPushable", "BoxHeavy", "Button", "Grass",
-    "Grate", "Ground", "Ladder", "Teleport", "Unknown"
-};
-
 constexpr int kNumEntityTypes = 2;
 const char *kEntityTypeNames[kNumEntityTypes] = { "None", "Climbable" };
 
@@ -124,34 +121,6 @@ vectorAngle(const sf::Vector2f& v)
     return std::atan2(v.y, v.x);
 }
 
-Textures::SceneID
-textureIdFromIndex(int index)
-{
-    switch (index)
-    {
-    case 0: return Textures::SceneID::BGMountain;
-    case 1: return Textures::SceneID::BoxPushable;
-    case 2: return Textures::SceneID::BoxHeavy;
-    case 3: return Textures::SceneID::Button;
-    case 4: return Textures::SceneID::Grass;
-    case 5: return Textures::SceneID::Grate;
-    case 6: return Textures::SceneID::Ground;
-    case 7: return Textures::SceneID::Ladder;
-    case 8: return Textures::SceneID::Teleport;
-    default: return Textures::SceneID::Unknown;
-    }
-}
-
-int
-textureIdToIndex(Textures::SceneID id)
-{
-    for (int i = 0; i < kNumTextures; ++i)
-    {
-        if (textureIdFromIndex(i) == id) { return i; }
-    }
-    return kNumTextures - 1;
-}
-
 } // anonymous namespace
 
 namespace
@@ -174,7 +143,9 @@ Editor::Editor()
     , mEditName("new_object")
     , mEditIsDynamic(false)
     , mEditHasPhysics(true)
-    , mEditTextureId(textureIdToIndex(Textures::SceneID::Grass))
+    , mEditTextureId("Grass")
+    , mEditTileCol(-1)
+    , mEditTileRow(-1)
     , mEditEntityType(0)
     , mEditLayer(1)
     , mEditPositionX(320.f)
@@ -270,11 +241,13 @@ Editor::addObject()
         { mEditWidth, mEditHeight },
         mEditName,
         mEditIsDynamic ? b2_dynamicBody : b2_staticBody,
-        textureIdFromIndex(mEditTextureId),
+        mEditTextureId,
         mEditEntityType == 1 ? EntityType::Climbable : EntityType::None,
         mEditLayer,
         0.f, // rotation: radians in the physics world
-        mEditHasPhysics
+        mEditHasPhysics,
+        mEditTileCol,
+        mEditTileRow
     };
     auto& objectsBefore = mWorld->getSceneObjects().at(mSelectedLevel);
     auto& added = mWorld->addSceneObject(mSelectedLevel, std::move(object));
@@ -333,7 +306,9 @@ Editor::applyEdits()
     object.mName = mEditName;
     object.mType = mEditIsDynamic ? b2_dynamicBody : b2_staticBody;
     object.mHasPhysics = mEditHasPhysics;
-    object.mTextureId = textureIdFromIndex(mEditTextureId);
+    object.mTextureId = mEditTextureId;
+    object.mTileCol = mEditTileCol;
+    object.mTileRow = mEditTileRow;
     object.mEntityType = mEditEntityType == 1 ? EntityType::Climbable
                                               : EntityType::None;
     object.mLayer = mEditLayer;
@@ -1155,7 +1130,9 @@ Editor::syncEditBuffersFromSelection()
     mEditName = object.mName;
     mEditIsDynamic = object.mType == b2_dynamicBody;
     mEditHasPhysics = object.mHasPhysics;
-    mEditTextureId = textureIdToIndex(object.mTextureId);
+    mEditTextureId = object.mTextureId;
+    mEditTileCol = object.mTileCol;
+    mEditTileRow = object.mTileRow;
     mEditEntityType = object.mEntityType == EntityType::Climbable ? 1 : 0;
     mEditLayer = object.mLayer;
     mEditPositionX = Converter::metersToPixels(object.mPosition.x);
@@ -1289,7 +1266,10 @@ Editor::objectStatesDiffer(const SceneObjectPhysicsParameters& lhs,
         || lhs.mTextureId != rhs.mTextureId
         || lhs.mEntityType != rhs.mEntityType
         || lhs.mLayer != rhs.mLayer
-        || lhs.mHasPhysics != rhs.mHasPhysics;
+        || lhs.mHasPhysics != rhs.mHasPhysics
+        || lhs.mTextureId != rhs.mTextureId
+        || lhs.mTileCol != rhs.mTileCol
+        || lhs.mTileRow != rhs.mTileRow;
 }
 
 void
@@ -2410,8 +2390,24 @@ Editor::drawObjectDetails(SceneObjectPhysicsParameters *object)
         ImGui::SameLine();
         ImGui::TextDisabled("(decoration)");
     }
-    ImGui::Combo("Texture", &mEditTextureId, kTextureNames, kNumTextures);
     ImGui::Combo("EntityType", &mEditEntityType, kEntityTypeNames, kNumEntityTypes);
+    // texture: live preview + button that opens the registry picker window
+    // (whole images and tilesets with per-tile selection)
+    drawTexturePreview({ 48.f, 48.f });
+    ImGui::SameLine();
+    ImGui::BeginGroup();
+    const std::string tileLabel =
+        mEditTileCol >= 0
+            ? fmt::format("tile [{},{}]", mEditTileCol, mEditTileRow)
+            : std::string("whole image");
+    if (ImGui::Button(fmt::format("Pick texture: {}\n({})",
+                                  mEditTextureId, tileLabel).c_str(),
+                      { 170.f, 0.f }))
+    {
+        mShowTexturePicker = not mShowTexturePicker;
+    }
+    ImGui::TextDisabled("drop pngs into assets/scenes/objects");
+    ImGui::EndGroup();
     if (ImGui::InputInt("Layer (0=BG,1=G1,2=FG)", &mEditLayer, 1, 100,
                         enterFlags))
     {
@@ -2455,6 +2451,166 @@ Editor::drawObjectDetails(SceneObjectPhysicsParameters *object)
     }
     ImGui::SameLine();
     if (ImGui::Button("Add object")) { addObject(); }
+
+    if (mShowTexturePicker) { drawTexturePicker(); }
+}
+
+void
+Editor::drawTexturePreview(const sf::Vector2f& boxSize)
+{
+    if (not mWorld)
+    {
+        ImGui::Dummy({ boxSize.x, boxSize.y });
+        return;
+    }
+    auto& registry = mWorld->getTextureRegistry();
+    const sf::Texture* texture = registry.texture(mEditTextureId);
+    const sf::Texture& shown =
+        texture != nullptr ? *texture : registry.fallbackTexture();
+    const sf::IntRect rect = registry.textureRect(mEditTextureId,
+                                                  mEditTileCol, mEditTileRow);
+    sf::Sprite sprite(shown, rect);
+    // fit into the preview box, keeping the aspect ratio
+    const float rectW = std::max(1.f, static_cast<float>(rect.size.x));
+    const float rectH = std::max(1.f, static_cast<float>(rect.size.y));
+    const float fit = std::min(boxSize.x / rectW, boxSize.y / rectH);
+    const sf::Vector2f display{ rectW * fit, rectH * fit };
+    ImGui::Image(sprite, display);
+    if (texture == nullptr)
+    {
+        ImGui::SameLine();
+        ImGui::TextDisabled("not found");
+    }
+}
+
+void
+Editor::drawTexturePicker()
+{
+    if (not mWorld) { mShowTexturePicker = false; return; }
+    auto& registry = mWorld->getTextureRegistry();
+
+    ImGui::SetNextWindowSize({ 420.f, 400.f }, ImGuiCond_Appearing);
+    if (not ImGui::Begin("Texture picker", &mShowTexturePicker))
+    {
+        ImGui::End();
+        return;
+    }
+
+    // hovered tile of a tileset, magnified at the bottom of the window
+    bool hasHover = false;
+    std::optional<sf::Sprite> hoverTile;
+    std::string hoverName;
+
+    const float cell = 40.f;
+    if (ImGui::CollapsingHeader("Whole images", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        for (const auto& id : registry.imageIds())
+        {
+            const sf::Texture* texture = registry.texture(id);
+            const sf::Texture& shown =
+                texture != nullptr ? *texture : registry.fallbackTexture();
+            sf::Sprite sprite(shown,
+                              registry.textureRect(id, -1, -1));
+            ImGui::PushID(id.c_str());
+            if (ImGui::ImageButton("whole_image", sprite, { cell, cell }))
+            {
+                mEditTextureId = id;
+                mEditTileCol = -1;
+                mEditTileRow = -1;
+                mShowTexturePicker = false;
+                applyEdits();
+            }
+            ImGui::PopID();
+            if (ImGui::IsItemHovered())
+            {
+                hasHover = true;
+                hoverTile = sprite;
+                hoverName = id;
+            }
+            ImGui::SameLine();
+            ImGui::TextUnformatted(id.c_str());
+            if (mEditTextureId == id and mEditTileCol < 0)
+            {
+                ImGui::SameLine();
+                ImGui::TextColored({ 1.f, 0.6f, 0.f, 1.f }, "(current)");
+            }
+        }
+        ImGui::NewLine();
+    }
+
+    if (ImGui::CollapsingHeader("Tilesets", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        for (const auto& id : registry.tilesetIds())
+        {
+            const auto* info = registry.tileset(id);
+            const sf::Texture* texture = registry.texture(id);
+            if (info == nullptr || texture == nullptr
+                || info->columns <= 0 || info->rows <= 0)
+            {
+                continue;
+            }
+            if (not ImGui::TreeNode(id.c_str()))
+            {
+                continue;
+            }
+            for (int row = 0; row < info->rows; ++row)
+            {
+                for (int col = 0; col < info->columns; ++col)
+                {
+                    sf::Sprite tile(*texture,
+                                    registry.textureRect(id, col, row));
+                    ImGui::PushID(row * info->columns + col);
+                    if (ImGui::ImageButton("tile", tile, { cell, cell }))
+                    {
+                        mEditTextureId = id;
+                        mEditTileCol = col;
+                        mEditTileRow = row;
+                        mShowTexturePicker = false;
+                        applyEdits();
+                    }
+                    ImGui::PopID();
+                    if (ImGui::IsItemHovered())
+                    {
+                        hasHover = true;
+                        hoverTile = tile;
+                        hoverName =
+                            fmt::format("{} [{},{}]", id, col, row);
+                    }
+                    const bool currentTile = mEditTextureId == id
+                        && mEditTileCol == col && mEditTileRow == row;
+                    if (currentTile)
+                    {
+                        ImGui::GetWindowDrawList()->AddRect(
+                            ImGui::GetItemRectMin(), ImGui::GetItemRectMax(),
+                            IM_COL32(255, 160, 0, 255), 2.f);
+                    }
+                    if (col < info->columns - 1)
+                    {
+                        ImGui::SameLine();
+                    }
+                }
+            }
+            ImGui::TreePop();
+        }
+    }
+
+    // magnified hover preview (whole image or hovered tile)
+    ImGui::Separator();
+    if (not hasHover)
+    {
+        const sf::Texture* texture = registry.texture(mEditTextureId);
+        const sf::Texture& shown =
+            texture != nullptr ? *texture : registry.fallbackTexture();
+        hoverTile = sf::Sprite(shown, registry.textureRect(mEditTextureId,
+                                                          mEditTileCol,
+                                                          mEditTileRow));
+        hoverName = fmt::format("{} ({})", mEditTextureId,
+                                mEditTileCol >= 0 ? "tile" : "whole image");
+    }
+    ImGui::TextUnformatted(hoverName.c_str());
+    ImGui::Image(*hoverTile, { 96.f, 96.f });
+
+    ImGui::End();
 }
 
 void

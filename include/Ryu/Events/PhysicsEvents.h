@@ -12,7 +12,13 @@ struct PhysicsObjectCreatedEvent {
     b2Vec2 position; // in meters
     b2Vec2 size; // in meters
     bool isDynamic;
-    std::variant<Textures::PhysicAssetsID, Textures::SceneID, Textures::SpritesheetID> textureId;  // Optional: Pass texture ID for rendering
+    // legacy direct asset reference (e.g. crate physics asset);
+    // empty -> scene-texture-registry lookup via textureName/tile
+    std::variant<Textures::PhysicAssetsID, Textures::SceneID, Textures::SpritesheetID> textureId;
+    // scene object: registry id + optional tile of a tileset (-1/-1 = whole image)
+    std::string textureName;
+    int tileCol = -1;
+    int tileRow = -1;
     int layer = 1; // scenegraph layer (0=Background, 1=Ground1, 2=Foreground)
     float rotation = 0.f; // radians, ccw (scene objects)
 };
