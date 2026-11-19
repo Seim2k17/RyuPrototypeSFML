@@ -235,6 +235,7 @@ Editor::Editor()
     , mTileStrokePlacedParams()
     , mTileStrokeRemoved()
     , mShowTileBrushPreview(false)
+    , mReplaceTiles(false)
 {
     std::snprintf(mSettingsPath, sizeof(mSettingsPath),
                   "%s", "assets/levelEditorSettings.json");
@@ -1349,20 +1350,65 @@ Editor::applyUndoState(const UndoEntry& entry, bool redoState)
     // n objects); playback keeps the indices valid in each direction
     if (entry.kind == UndoEntry::Kind::StrokeAdd)
     {
-        if (redoState)
+        // replace-mode strokes are mixed: the placed objects go away and
+        // the replaced (removed) ones come back; the placed tiles carry
+        // unique names (tileset + tile coords), so undo finds them by
+        // name + position instead of by (stale) row indices
+        if (not redoState)
         {
-            for (std::size_t k = 0; k < entry.strokeIndices.size(); ++k)
+            auto& objects = mWorld->getSceneObjects().at(entry.level);
+            for (int k = static_cast<int>(entry.strokeParams.size()) - 1;
+                 k >= 0; --k)
             {
-                reinsertSceneObject(entry.level, entry.strokeIndices.at(k),
-                                    entry.strokeParams.at(k));
+                const auto& params = entry.strokeParams.at(k);
+                for (int i = static_cast<int>(objects.size()) - 1; i >= 0;
+                     --i)
+                {
+                    const auto& object = objects.at(i);
+                    const float ox =
+                        Converter::metersToPixels(object.mPosition.x);
+                    const float oy =
+                        Converter::metersToPixels(object.mPosition.y);
+                    const float px =
+                        Converter::metersToPixels(params.mPosition.x);
+                    const float py =
+                        Converter::metersToPixels(params.mPosition.y);
+                    if (object.mName == params.mName
+                        and std::abs(ox - px) < 0.1f
+                        and std::abs(oy - py) < 0.1f)
+                    {
+                        removeSceneObjectAtIndex(entry.level, i);
+                        break;
+                    }
+                }
+            }
+            // the replaced objects return in reverse removal order (each
+            // recorded index is valid again in the state of its time)
+            for (int k = static_cast<int>(entry.strokeRemovedIndices.size())
+                     - 1;
+                 k >= 0; --k)
+            {
+                reinsertSceneObject(entry.level,
+                                    entry.strokeRemovedIndices.at(k),
+                                    entry.strokeRemovedParams.at(k));
             }
             return true;
         }
-        // undo: remove the appended objects, tail first (indices stay valid)
-        for (int k = static_cast<int>(entry.strokeIndices.size()) - 1;
-             k >= 0; --k)
+        // redo: replay the original removal order (its indices are valid
+        // step by step, the list is back in its pre-stroke order), then
+        // re-append the placed tiles at the end in stroke order
+        for (std::size_t k = 0;
+             k < entry.strokeRemovedIndices.size(); ++k)
         {
-            removeSceneObjectAtIndex(entry.level, entry.strokeIndices.at(k));
+            removeSceneObjectAtIndex(entry.level,
+                                     entry.strokeRemovedIndices.at(k));
+        }
+        auto& objects = mWorld->getSceneObjects().at(entry.level);
+        for (std::size_t k = 0; k < entry.strokeParams.size(); ++k)
+        {
+            reinsertSceneObject(entry.level,
+                                static_cast<int>(objects.size()),
+                                entry.strokeParams.at(k));
         }
         return true;
     }
@@ -1823,7 +1869,14 @@ void
 Editor::placeTileAt(const sf::Vector2f& cellCenterPx)
 {
     if (mWorld == nullptr) { return; }
-    if (tileCellOccupied(cellCenterPx)) { return; } // skip occupied cells
+    if (tileCellOccupied(cellCenterPx))
+    {
+        if (not mReplaceTiles) { return; } // off: occupied cells are skipped
+        // replace: only tile-sized objects of the cell are removed first;
+        // big manually built geometry protects the cell (floor stays)
+        eraseTileAt(cellCenterPx);
+        if (tileCellOccupied(cellCenterPx)) { return; }
+    }
     auto& registry = mWorld->getTextureRegistry();
     const sf::IntRect rect = registry.textureRect(mEditTextureId,
                                                  mEditTileCol, mEditTileRow);
@@ -1914,6 +1967,12 @@ Editor::endTileStroke()
         if (mTileStrokePlacedParams.empty()) { return; }
         entry.strokeIndices = mTileStrokeIndices;
         entry.strokeParams = mTileStrokePlacedParams;
+        // replace-mode strokes may have removed objects on the way
+        for (const auto& removed : mTileStrokeRemoved)
+        {
+            entry.strokeRemovedIndices.push_back(removed.index);
+            entry.strokeRemovedParams.push_back(removed.params);
+        }
     }
     // one entry per stroke: a whole drag is undone with a single Ctrl+Z
     pushUndoEntry(entry);
@@ -2800,6 +2859,12 @@ Editor::drawObjectDetails(SceneObjectPhysicsParameters *object)
     }
     ImGui::TextDisabled("drop pngs into assets/scenes/objects");
     ImGui::EndGroup();
+    ImGui::Checkbox("Paint over tiles (replace)", &mReplaceTiles);
+    if (mReplaceTiles)
+    {
+        ImGui::SameLine();
+        ImGui::TextDisabled("(big geometry stays)");
+    }
     if (ImGui::InputInt("Layer (0=BG,1=G1,2=FG)", &mEditLayer, 1, 100,
                         enterFlags))
     {

@@ -131,6 +131,10 @@ class Editor
         /// indices, so each index is valid in the list state of its time)
         std::vector<int> strokeIndices;
         std::vector<SceneObjectPhysicsParameters> strokeParams;
+        /// replace-mode strokes also remove objects (recorded in their
+        /// original removal order, like StrokeDelete)
+        std::vector<int> strokeRemovedIndices;
+        std::vector<SceneObjectPhysicsParameters> strokeRemovedParams;
     };
 
     /// one object removed during a tile-erase stroke (its removal-time index
@@ -357,6 +361,9 @@ class Editor
     std::vector<StrokeRemoved> mTileStrokeRemoved;
     /// brush-cell preview in the game view (orange overlay, updateTileStroke)
     bool mShowTileBrushPreview;
+    /// place strokes replace tile-sized objects in occupied cells
+    /// (big manually built geometry is never replaced)
+    bool mReplaceTiles;
 
     // editor settings window + persistent settings file
     bool mShowEditorSettings;

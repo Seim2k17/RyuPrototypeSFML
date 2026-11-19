@@ -91,7 +91,11 @@ registry entries, so existing level files load unchanged.
 ## painting tiles (level editor)
 With the "Tile paint" tool active, the tile picked in the texture picker is
 the brush: left-drag in the game view paints grid cells with the tile,
-right-drag erases, and "Tile erase" is a dedicated erase tool. Physics
+right-drag erases, and "Tile erase" is a dedicated erase tool. With
+"Paint over tiles (replace)" checked, occupied cells are repainted: the
+tile-sized objects in the cell are replaced by the new tile (big
+manually built geometry like floors is never replaced); the whole
+drag - incl. its replacements - is one undo step. Physics
 pause while a tile tool is active; each object takes the "Physics
 (collides)" flag, layer and entity type from the edit buffers. The grid
 cell size snaps to the brush tile automatically. One drag = one undo
