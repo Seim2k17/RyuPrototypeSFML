@@ -60,6 +60,7 @@ SceneObjectPhysicsParameters::SceneObjectPhysicsParameters() :
     mTextureId(Textures::SceneID::Unknown),
     mEntityType(EntityType::None),
     mLayer(1),
+    mHasPhysics(true),
     mPhysicsBodyId(b2_nullBodyId) {}
     // polygonShape.SetAsBox(0.5,0.9);
 
@@ -67,7 +68,8 @@ SceneObjectPhysicsParameters::SceneObjectPhysicsParameters() :
 SceneObjectPhysicsParameters::SceneObjectPhysicsParameters(
         b2Vec2 positionInPixel, b2Vec2 sizeInPixel,
         std::string name, b2BodyType type,
-        Textures::SceneID textureId, EntityType entityType, int layer, float rotation) :
+        Textures::SceneID textureId, EntityType entityType, int layer, float rotation,
+        bool hasPhysics) :
     mPosition(Converter::pixelsToMeters(positionInPixel.x), Converter::pixelsToMeters(positionInPixel.y)),
     mSize(Converter::pixelsToMeters(sizeInPixel.x), Converter::pixelsToMeters(sizeInPixel.y)),
     mRotation(rotation),
@@ -76,6 +78,7 @@ SceneObjectPhysicsParameters::SceneObjectPhysicsParameters(
     mTextureId(textureId),
     mEntityType(entityType),
     mLayer(layer),
+    mHasPhysics(hasPhysics),
     mPhysicsBodyId(b2_nullBodyId)
 {}
 
@@ -607,6 +610,12 @@ Physics::createPhysicsBody(SceneObjectPhysicsParameters& sceneObject, int& i)
     b2BodyDef bodyDef = b2DefaultBodyDef();
     bodyDef.position = objPosition;
     bodyDef.type = sceneObject.mType;
+    if (not sceneObject.mHasPhysics)
+    {
+        // decoration: never dynamic (it must not fall/rotate under gravity)
+        // and it must not collide with the player or anything else
+        bodyDef.type = b2BodyType::b2_staticBody;
+    }
     
     if(B2_IS_NULL(mPhysicsWorldId)){
         fmt::print("no physics world created\n");
@@ -629,7 +638,11 @@ Physics::createPhysicsBody(SceneObjectPhysicsParameters& sceneObject, int& i)
     
     b2Filter filter = b2DefaultFilter();
     // Set collision categories based on body type
-    if (sceneObject.mType == b2_dynamicBody) {
+    if (not sceneObject.mHasPhysics) {
+        // decoration: empty mask = collides with nothing at all
+        filter.categoryBits = CollisionCategories::STATIC;
+        filter.maskBits = 0;
+    } else if (sceneObject.mType == b2_dynamicBody) {
         filter.categoryBits = CollisionCategories::DYNAMIC;  // Dynamic object
         filter.maskBits = CollisionCategories::STATIC | CollisionCategories::DYNAMIC | CollisionCategories::PLAYER;
     } else {
@@ -723,7 +736,8 @@ Physics::createPhysicsBody(SceneObjectPhysicsParameters& sceneObject, int& i)
     event.name = sceneObject.mName;
     event.position = objPosition;
     event.size = sceneObject.mSize;
-    event.isDynamic = (sceneObject.mType == b2_dynamicBody);
+    event.isDynamic = sceneObject.mHasPhysics
+                      && (sceneObject.mType == b2_dynamicBody);
     event.textureId = sceneObject.mTextureId;  // Pass texture ID for rendering
     event.layer = sceneObject.mLayer;
     event.rotation = sceneObject.mRotation;

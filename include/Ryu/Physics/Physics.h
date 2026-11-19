@@ -62,7 +62,8 @@ struct SceneObjectPhysicsParameters
         b2Vec2 position, b2Vec2 size,
         std::string name, b2BodyType type, /* = b2_staticBody,*/
         Textures::SceneID textureId, /* = Textures::SceneID::Grass,*/ EntityType entityType, int layer = 1, /*=EntityType::None);*/
-        float rotation = 0.f); /* radians, ccw */
+        float rotation = 0.f, /* radians, ccw */
+        bool hasPhysics = true); /* false = decorative, collides with nothing */
 
     b2Vec2 mPosition;
     b2Vec2 mSize;
@@ -76,6 +77,9 @@ struct SceneObjectPhysicsParameters
     b2BodyId mPhysicsBodyId;
     // TODO: use existing enum for more clarity
     int mLayer; // Layer for scenegraph rendering (0=Background, 1=Ground1, 2=Foreground)
+    /// false = no physics collision (decoration: a collision-free body is
+    /// still created so editor/rendering keep working off the bodyId)
+    bool mHasPhysics;
 };
 
 // Custom hash function for b2BodyId

@@ -173,6 +173,7 @@ Editor::Editor()
     , mLastSelectedIndex(-1)
     , mEditName("new_object")
     , mEditIsDynamic(false)
+    , mEditHasPhysics(true)
     , mEditTextureId(textureIdToIndex(Textures::SceneID::Grass))
     , mEditEntityType(0)
     , mEditLayer(1)
@@ -271,7 +272,9 @@ Editor::addObject()
         mEditIsDynamic ? b2_dynamicBody : b2_staticBody,
         textureIdFromIndex(mEditTextureId),
         mEditEntityType == 1 ? EntityType::Climbable : EntityType::None,
-        mEditLayer
+        mEditLayer,
+        0.f, // rotation: radians in the physics world
+        mEditHasPhysics
     };
     auto& objectsBefore = mWorld->getSceneObjects().at(mSelectedLevel);
     auto& added = mWorld->addSceneObject(mSelectedLevel, std::move(object));
@@ -329,6 +332,7 @@ Editor::applyEdits()
                                UndoEntry::Kind::Edit, object, object };
     object.mName = mEditName;
     object.mType = mEditIsDynamic ? b2_dynamicBody : b2_staticBody;
+    object.mHasPhysics = mEditHasPhysics;
     object.mTextureId = textureIdFromIndex(mEditTextureId);
     object.mEntityType = mEditEntityType == 1 ? EntityType::Climbable
                                               : EntityType::None;
@@ -1150,6 +1154,7 @@ Editor::syncEditBuffersFromSelection()
     auto& object = objects.at(mSelectedIndex);
     mEditName = object.mName;
     mEditIsDynamic = object.mType == b2_dynamicBody;
+    mEditHasPhysics = object.mHasPhysics;
     mEditTextureId = textureIdToIndex(object.mTextureId);
     mEditEntityType = object.mEntityType == EntityType::Climbable ? 1 : 0;
     mEditLayer = object.mLayer;
@@ -1283,7 +1288,8 @@ Editor::objectStatesDiffer(const SceneObjectPhysicsParameters& lhs,
         || lhs.mType != rhs.mType
         || lhs.mTextureId != rhs.mTextureId
         || lhs.mEntityType != rhs.mEntityType
-        || lhs.mLayer != rhs.mLayer;
+        || lhs.mLayer != rhs.mLayer
+        || lhs.mHasPhysics != rhs.mHasPhysics;
 }
 
 void
@@ -2394,6 +2400,15 @@ Editor::drawObjectDetails(SceneObjectPhysicsParameters *object)
     if (ImGui::Combo("BodyType", &typeItem, kBodyTypeNames, kNumBodyTypes))
     {
         mEditIsDynamic = typeItem == 1;
+    }
+    if (ImGui::Checkbox("Physics (collides)", &mEditHasPhysics))
+    {
+        applyEdits();
+    }
+    if (not mEditHasPhysics)
+    {
+        ImGui::SameLine();
+        ImGui::TextDisabled("(decoration)");
     }
     ImGui::Combo("Texture", &mEditTextureId, kTextureNames, kNumTextures);
     ImGui::Combo("EntityType", &mEditEntityType, kEntityTypeNames, kNumEntityTypes);

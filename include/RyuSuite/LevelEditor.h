@@ -205,6 +205,7 @@ class Editor
     // edit buffers of the currently selected object
     std::string mEditName;
     bool mEditIsDynamic;
+    bool mEditHasPhysics;
     int mEditTextureId;
     int mEditEntityType;
     int mEditLayer;
