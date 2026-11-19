@@ -203,6 +203,9 @@ class Editor
     void drawSelectionModeHud();
     void drawToolSidebar();
     void drawGridControls();
+    /// per-layer parallax sliders + camera preview pan (level data is
+    /// persisted in the level JSON root "parallax" key on save)
+    void drawParallaxControls();
     void switchTool(Tool tool);
     /// plain click in the game view without a transform tool: selects the
     /// object under the cursor (list row + edit buffers + fill highlight)
@@ -339,6 +342,14 @@ class Editor
     /// place strokes replace tile-sized objects in occupied cells
     /// (big manually built geometry is never replaced)
     bool mReplaceTiles;
+
+    // parallax factors of the selected level (Background, Ground1,
+    // Foreground) + camera preview offset (parallax pan preview)
+    float mParallax[3];
+    sf::Vector2f mCameraPreviewOffsetPx;
+    /// parallax buffers must re-sync from the renderer when the editor
+    /// (re-)opens (the level may have been changed/saved in between)
+    bool mParallaxSyncNeeded;
 
     // editor settings window + persistent settings file
     bool mShowEditorSettings;

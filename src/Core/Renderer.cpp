@@ -178,9 +178,29 @@ Renderer::setPlayerOnTop(bool onTop)
 
 void Renderer::draw()
 {
+    // parallax: a layer with factor f shifts by (1 - f) * cameraOffset, so
+    // f = 1 keeps it glued to the world, f < 1 moves it slower (background)
+    // and f > 1 faster (foreground) - the camera offset is the current view
+    // center relative to the world start position (fixed canvas origin)
+    const sf::View view = mWindow.getView();
+    const sf::Vector2f cameraOffset = view.getCenter()
+        - (mWorldBounds.position + mWorldBounds.size / 2.f);
+    for (std::size_t i = 0; i < mSceneLayers.size(); ++i)
+    {
+        if (i < mLayerParallax.size())
+        {
+            mSceneLayers.at(i)->setPosition(
+                (1.f - mLayerParallax.at(i)) * cameraOffset);
+        }
+    }
+
     mWindow.draw(mSceneGraph);
     drawGridOverlay();
     drawLevelEditorOverlay();
+
+    // the grid/editor overlays are drawn in world coordinates: reset the
+    // layer roots so selections/marker overlays stay where they were
+    for (auto& layer : mSceneLayers) { layer->setPosition({}); }
 }
 
 void

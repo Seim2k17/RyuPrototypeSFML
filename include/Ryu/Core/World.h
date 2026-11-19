@@ -62,6 +62,32 @@ class World : public Observer {
     void reloadSceneObjects(ELevel level)
     {
         mPhysics.reloadSceneObjects(level);
+        applyLevelParallax(level);
+    }
+    /** Applies the stored parallax factors of \p level to the renderer. */
+    void applyLevelParallax(ELevel level)
+    {
+        const auto factors = mPhysics.getLevelParallax(level);
+        for (std::size_t i = 0; i < factors.size(); ++i)
+        {
+            mRenderer->setLayerParallax(i, factors.at(i));
+        }
+    }
+    /** Camera of the (fixed-canvas) world view; used by the level editor
+        for the parallax preview pan. */
+    void setWorldViewCenterPx(const sf::Vector2f& centerPx)
+    {
+        mWorldView.setCenter(centerPx);
+    }
+    sf::Vector2f getWorldViewCenterPx() const { return mWorldView.getCenter(); }
+    /** Parallax factor passthroughs to the renderer (level editor). */
+    void setLayerParallax(std::size_t layer, float factor)
+    {
+        if (mRenderer) { mRenderer->setLayerParallax(layer, factor); }
+    }
+    float getLayerParallax(std::size_t layer) const
+    {
+        return mRenderer ? mRenderer->getLayerParallax(layer) : 1.f;
     }
     /** The level whose scene-object bodies are currently created. */
     ELevel getActiveLevel() { return mPhysics.getActiveLevel(); }

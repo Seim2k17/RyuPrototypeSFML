@@ -214,9 +214,51 @@ loadLevelDataFiles(const std::string &directory)
     return levels;
 }
 
+std::map<ELevel, ParallaxFactors>
+loadParallaxData(const std::string &directory)
+{
+    std::map<ELevel, ParallaxFactors> parallax;
+    const std::regex levelFileRe("^level(\\d+)\\.json$");
+
+    std::error_code ec;
+    if (not fs::exists(directory, ec)) {
+        return parallax;
+    }
+
+    for (const auto &entry : fs::directory_iterator{ directory })
+    {
+        std::smatch match;
+        const std::string filename = entry.path().filename().string();
+        if (not std::regex_match(filename, match, levelFileRe)) { continue; }
+        const auto levelId = std::stoi(match[1]);
+        if (not ELevel::_is_valid(levelId)) { continue; }
+
+        try {
+            json data;
+            std::ifstream f(entry.path());
+            f >> data;
+
+            ParallaxFactors factors = kParallaxDefaults;
+            if (data.contains("parallax")) {
+                const auto values = data.at("parallax");
+                for (std::size_t i = 0; i < factors.size()
+                     && i < values.size(); ++i) {
+                    factors.at(i) = values.at(i).get<float>();
+                }
+            }
+            parallax.emplace(ELevel::_from_integral(levelId), factors);
+        }
+        catch (const std::exception &e) {
+            fmt::print("LevelData: failed to parse parallax of {}: {}.\n",
+                       filename, e.what());
+        }
+    }
+    return parallax;
+}
+
 void
 saveLevelData(ELevel level, const SceneObjects &objects,
-              const std::string &directory)
+              const std::string &directory, const ParallaxFactors *parallax)
 {
     namespace fs = std::filesystem;
 
@@ -229,6 +271,10 @@ saveLevelData(ELevel level, const SceneObjects &objects,
     };
     for (const auto &object : objects) {
         out["objects"].push_back(objectToJson(object));
+    }
+    if (parallax != nullptr) {
+        out["parallax"] = { parallax->at(0), parallax->at(1),
+                            parallax->at(2) };
     }
 
     const auto path = levelFilePath(level, directory);

@@ -11,6 +11,7 @@
 #include "Ryu/Debug/b2DrawSFML.hpp"
 #include "Ryu/Events/Subject.h"
 #include "Ryu/Scene/EntityStatic.h"
+#include <Ryu/Scene/Parallax.h>
 #include "Ryu/Scene/SceneEnums.h"
 #include <Ryu/Core/AssetIdentifiers.h>
 #include <Ryu/Control/CharacterEnums.h>
@@ -209,4 +210,16 @@ class Physics : public Subject {
 
    public: // TODO: tmp storage !!!! -> make static again outside of class, e.g. mnovce to renderer-class
     std::map<ELevel, std::vector<SceneObjectPhysicsParameters>> sceneObjects;
+    /// parallax factors per level (from the level JSON root "parallax"
+    /// key; applied to the renderer by the World on (level) startup)
+    std::map<ELevel, RyuLevel::ParallaxFactors> mLevelParallax;
+
+    /** Parallax factors of \p level (kParallaxDefaults when the level
+        has no stored values, e.g. a yet unsaved new level). */
+    RyuLevel::ParallaxFactors getLevelParallax(ELevel level) const
+    {
+        const auto it = mLevelParallax.find(level);
+        return it != mLevelParallax.end() ? it->second
+                                          : RyuLevel::kParallaxDefaults;
+    }
 };

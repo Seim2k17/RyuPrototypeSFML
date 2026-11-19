@@ -101,3 +101,14 @@ pause while a tile tool is active; each object takes the "Physics
 cell size snaps to the brush tile automatically. One drag = one undo
 step (Ctrl+Z removes/restores the whole stroke). `test_*.png` in
 assets/scenes/tilesets/ are test tilesets (8/16/32/64 px tiles).
+
+## parallax (per scene layer)
+Each renderer layer (Background, Ground1, Foreground) has a parallax
+factor: 1.0 = glued to the world (walk plane), < 1 = slower (farer
+background), > 1 = faster (near foreground). Defaults 0.5 / 1.0 / 1.2.
+The level editor ("Parallax (per layer)") tunes the factors live, with
+a camera preview offset to make the layers separate visibly; "Save
+level" persists them to the level JSON root ("parallax": [bg, g1, fg],
+missing key = defaults). Levels fit the fixed canvas so the camera
+normally never moves - the factors become effective as soon as a
+moving camera exists.

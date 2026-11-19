@@ -102,6 +102,7 @@ Physics::Physics() :
     // level data comes from the generic per-level JSON files instead of the
     // former hardcoded sceneObjects initializer in Physics.h
     sceneObjects = RyuLevel::loadLevelDataFiles();
+    mLevelParallax = RyuLevel::loadParallaxData();
 }
 
 Physics::~Physics()

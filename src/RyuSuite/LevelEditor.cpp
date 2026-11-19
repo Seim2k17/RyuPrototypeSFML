@@ -193,6 +193,9 @@ Editor::Editor()
     , mTileStrokeRemoved()
     , mShowTileBrushPreview(false)
     , mReplaceTiles(false)
+    , mParallax{ 0.5f, 1.f, 1.2f }
+    , mCameraPreviewOffsetPx()
+    , mParallaxSyncNeeded(true)
 {
     std::snprintf(mSettingsPath, sizeof(mSettingsPath),
                   "%s", "assets/levelEditorSettings.json");
@@ -215,6 +218,10 @@ Editor::switchLevel(ELevel level)
         mWorld->setCharacterSelection({}, {}, false);
         mWorld->reloadSceneObjects(level);
         syncEditBuffersFromSelection();
+        for (std::size_t i = 0; i < 3; ++i)
+        {
+            mParallax[i] = mWorld->getLayerParallax(i);
+        }
         fmt::print("LevelEditor: switched to level {}.\n", level._to_string());
     }
 }
@@ -321,8 +328,11 @@ void
 Editor::saveLevel()
 {
     if (not mWorld) { return; }
+    const RyuLevel::ParallaxFactors parallax{ mParallax[0], mParallax[1],
+                                                mParallax[2] };
     RyuLevel::saveLevelData(mSelectedLevel,
-                            mWorld->getSceneObjects().at(mSelectedLevel));
+                            mWorld->getSceneObjects().at(mSelectedLevel),
+                            "assets/levels", &parallax);
 }
 
 /// ---- selection mode ----------------------------------------------------
@@ -1771,6 +1781,51 @@ Editor::drawGridControls()
 
 
 void
+Editor::drawParallaxControls()
+{
+    ImGui::Separator();
+    if (not ImGui::CollapsingHeader("Parallax (per layer)")) { return; }
+    if (mWorld == nullptr) { return; }
+
+    // buffers are synced in switchLevel; sliders write the live values to
+    // the renderer, save writes them into the level JSON root
+    static const char* layerNames[3] = { "Background", "Ground1 (walk plane)",
+                                         "Foreground" };
+    for (int i = 0; i < 3; ++i)
+    {
+        if (ImGui::DragFloat(layerNames[i], &mParallax[i], 0.005f, 0.f, 2.f,
+                             "%.2f"))
+        {
+            mWorld->setLayerParallax(static_cast<std::size_t>(i),
+                                     mParallax[i]);
+        }
+    }
+    if (ImGui::Button("Reset defaults##parallax"))
+    {
+        for (std::size_t i = 0; i < 3; ++i)
+        {
+            mParallax[i] = RyuLevel::kParallaxDefaults.at(i);
+            mWorld->setLayerParallax(i, mParallax[i]);
+        }
+    }
+    ImGui::SameLine();
+    ImGui::TextDisabled("1.00 = glued to the world");
+
+    // the levels fit the fixed canvas so the camera normally never moves;
+    // this preview pan shifts the view so the layers visibly separate
+    if (ImGui::DragFloat2("Camera preview offset", &mCameraPreviewOffsetPx.x,
+                         1.f, -320.f, 320.f, "%.0f"))
+    {
+        mWorld->setWorldViewCenterPx({ 320.f + mCameraPreviewOffsetPx.x,
+                                       180.f + mCameraPreviewOffsetPx.y });
+    }
+    ImGui::TextWrapped("Pan the camera preview to see the layers separate; "
+                       "the pan resets when the editor closes. 'Save level' "
+                       "writes the factors into the level JSON.");
+}
+
+
+void
 Editor::setSnapDirectionVertical(bool up)
 {
     mSnapUp = up;
@@ -2591,6 +2646,13 @@ Editor::createEditorWidgets(bool *p_open)
             mShowGrid = false;
             mWorld->setGridOverlay(false, {32.f, 32.f}, sf::Color::Red);
         }
+        mParallaxSyncNeeded = true;
+        if (mCameraPreviewOffsetPx != sf::Vector2f{} && mWorld != nullptr)
+        {
+            // restore the fixed-canvas camera when the editor closes
+            mCameraPreviewOffsetPx = {};
+            mWorld->setWorldViewCenterPx({ 320.f, 180.f });
+        }
         mRenameActive = false;
         mShowEditorSettings = false;
         mShowToolContextMenu = false;
@@ -2598,7 +2660,16 @@ Editor::createEditorWidgets(bool *p_open)
     }
 
     drawToolSidebar();
+    if (mParallaxSyncNeeded && mWorld != nullptr)
+    {
+        for (std::size_t i = 0; i < 3; ++i)
+        {
+            mParallax[i] = mWorld->getLayerParallax(i);
+        }
+        mParallaxSyncNeeded = false;
+    }
     drawGridControls();
+    drawParallaxControls();
 
     if (ImGui::Begin("Ryu Level Editor", p_open))
     {

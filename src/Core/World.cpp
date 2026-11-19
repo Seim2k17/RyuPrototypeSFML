@@ -70,6 +70,7 @@ World::World(sf::RenderWindow &window, EventManager& eventManager)
     // (e.g. duck) can rebuild the physics body through Physics
     player->setPhysics(&mPhysics);
     setDebugDrawer(mWindow);
+    applyLevelParallax(getActiveLevel());
 
     // TODO: here the scene and the character is created
     // TODO: Race incoming !!!, see Game Ctor (create Ichi)

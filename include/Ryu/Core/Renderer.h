@@ -11,6 +11,7 @@
 #include <Ryu/Core/SpriteNode.h>
 #include <SFML/Graphics.hpp>
 #include <unordered_map>
+#include <algorithm>
 #include <array>
 
 using PhysicsAssetsManager = AssetManager<sf::Texture, Textures::PhysicAssetsID>;
@@ -32,6 +33,23 @@ public:
     /// data-driven scene texture registry (whole images + tilesets);
     /// used by the renderer scene paths and the level editor picker
     SceneTextureRegistry& getTextureRegistry() { return mTextureRegistry; }
+
+    /** \name Parallax (per scene layer) \{ */
+    /// parallax factor of one layer (1.0 = moves exactly with the camera,
+    /// &lt;1 = slower/background, &gt;1 = faster/foreground); applied in draw()
+    /// relative to the camera offset (current view center vs. world start)
+    void setLayerParallax(size_t layer, float factor)
+    {
+        if (layer < mLayerParallax.size())
+        {
+            mLayerParallax.at(layer) = std::clamp(factor, 0.f, 3.f);
+        }
+    }
+    float getLayerParallax(size_t layer) const
+    {
+        return layer < mLayerParallax.size() ? mLayerParallax.at(layer) : 1.f;
+    }
+    /** \} */
 
     // Layer management
     enum class Layer { Background, Ground1, Foreground, LayerCount };
@@ -90,6 +108,9 @@ private:
     std::array<std::shared_ptr<SceneNode>, static_cast<size_t>(Layer::LayerCount)> mSceneLayers;
     SceneAssetsManager mSceneAssetsManager;
     SceneTextureRegistry mTextureRegistry;
+    /// parallax factor per scene layer (Background, Ground1, Foreground)
+    std::array<float, static_cast<size_t>(Layer::LayerCount)> mLayerParallax;
+    bool mParallaxInitialized = false;
     sf::FloatRect mWorldBounds;
     sf::Vector2f mSpawnPosition;
     // TODO: just tempoprarly location to store a Box-ptr (just an example)
