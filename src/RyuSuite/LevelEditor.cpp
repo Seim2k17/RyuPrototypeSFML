@@ -121,6 +121,37 @@ vectorAngle(const sf::Vector2f& v)
     return std::atan2(v.y, v.x);
 }
 
+/// mouseover tooltip of the last ImGui item (call right after the widget):
+/// texture id + rendered size in pixels (tile size + full image size
+/// when \p col/\p row address a tile of a tileset)
+void
+textureSizeTooltip(const SceneTextureRegistry& registry,
+                   const std::string& id, int col, int row)
+{
+    if (not ImGui::IsItemHovered()) { return; }
+    const sf::Texture* texture = registry.texture(id);
+    if (texture == nullptr)
+    {
+        ImGui::SetTooltip("%s\n(not found)", id.c_str());
+        return;
+    }
+    const sf::Vector2u image = texture->getSize();
+    const sf::IntRect rect = registry.textureRect(id, col, row);
+    const auto* info = registry.tileset(id);
+    if (col >= 0 and info != nullptr)
+    {
+        ImGui::SetTooltip(
+            "%s [%d,%d]\ntile: %dx%d px (grid %dx%d)\nimage: %ux%u px",
+            id.c_str(), col, row, rect.size.x, rect.size.y,
+            info->columns, info->rows, image.x, image.y);
+    }
+    else
+    {
+        ImGui::SetTooltip("%s\n%dx%d px",
+                         id.c_str(), rect.size.x, rect.size.y);
+    }
+}
+
 } // anonymous namespace
 
 namespace
@@ -2476,6 +2507,7 @@ Editor::drawTexturePreview(const sf::Vector2f& boxSize)
     const float fit = std::min(boxSize.x / rectW, boxSize.y / rectH);
     const sf::Vector2f display{ rectW * fit, rectH * fit };
     ImGui::Image(sprite, display);
+    textureSizeTooltip(registry, mEditTextureId, mEditTileCol, mEditTileRow);
     if (texture == nullptr)
     {
         ImGui::SameLine();
@@ -2500,6 +2532,9 @@ Editor::drawTexturePicker()
     bool hasHover = false;
     std::optional<sf::Sprite> hoverTile;
     std::string hoverName;
+    std::string hoverId;
+    int hoverCol = -1;
+    int hoverRow = -1;
 
     const float cell = 40.f;
     if (ImGui::CollapsingHeader("Whole images", ImGuiTreeNodeFlags_DefaultOpen))
@@ -2521,11 +2556,15 @@ Editor::drawTexturePicker()
                 applyEdits();
             }
             ImGui::PopID();
+            textureSizeTooltip(registry, id, -1, -1);
             if (ImGui::IsItemHovered())
             {
                 hasHover = true;
                 hoverTile = sprite;
                 hoverName = id;
+                hoverId = id;
+                hoverCol = -1;
+                hoverRow = -1;
             }
             ImGui::SameLine();
             ImGui::TextUnformatted(id.c_str());
@@ -2569,12 +2608,16 @@ Editor::drawTexturePicker()
                         applyEdits();
                     }
                     ImGui::PopID();
+                    textureSizeTooltip(registry, id, col, row);
                     if (ImGui::IsItemHovered())
                     {
                         hasHover = true;
                         hoverTile = tile;
                         hoverName =
                             fmt::format("{} [{},{}]", id, col, row);
+                        hoverId = id;
+                        hoverCol = col;
+                        hoverRow = row;
                     }
                     const bool currentTile = mEditTextureId == id
                         && mEditTileCol == col && mEditTileRow == row;
@@ -2609,6 +2652,9 @@ Editor::drawTexturePicker()
     }
     ImGui::TextUnformatted(hoverName.c_str());
     ImGui::Image(*hoverTile, { 96.f, 96.f });
+    textureSizeTooltip(registry, hasHover ? hoverId : mEditTextureId,
+                       hasHover ? hoverCol : mEditTileCol,
+                       hasHover ? hoverRow : mEditTileRow);
 
     ImGui::End();
 }
