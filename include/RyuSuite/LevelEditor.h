@@ -37,9 +37,6 @@
 #include <SFML/System/Vector2.hpp>
 #include <SFML/Window/Event.hpp>
 
-#include <map>
-#include <regex>
-#include <set>
 #include <deque>
 #include <string>
 
@@ -69,7 +66,7 @@ class Editor
 
     /** The editor needs access to the world (physics + renderer); called
         after Game was fully constructed. */
-    void setWorld(World* world);
+    void setWorld(World* world) { mWorld = world; }
 
     void createEditorWidgets(bool* p_open);
 
@@ -150,12 +147,6 @@ class Editor
     void deleteObject();
     void applyEdits();
     void saveLevel();
-    /// Creates a new level with a floor and character
-    void createNewLevel();
-    /// Loads custom level names from JSON files
-    void loadCustomLevelNames();
-    /// Gets the display name for a level (custom name if available, otherwise "LevelN")
-    std::string getLevelDisplayName(ELevel level) const;
     /// edit-buffers from the MAIN CHARACTER physics body (list pseudo-entry)
     void syncCharEditBuffers();
     
@@ -212,7 +203,6 @@ class Editor
     void drawSelectionModeHud();
     void drawToolSidebar();
     void drawGridControls();
-    void drawNewLevelDialog();
     void switchTool(Tool tool);
     /// plain click in the game view without a transform tool: selects the
     /// object under the cursor (list row + edit buffers + fill highlight)
@@ -222,9 +212,6 @@ class Editor
     /// the tools context window (resize/rotate/undo/redo)
     void drawToolContextMenu();
     void drawObjectDetails(SceneObjectPhysicsParameters *object);
-    
-    // Level name helpers
-    std::string buildLevelDropdownString() const;
 
     // tile placement tools (TilePlacer/TileRemover): the active tile brush is
     // the current texture edit buffer (tileset id + tile coordinates)
@@ -320,18 +307,6 @@ class Editor
     /// (moves the character body; mutually exclusive with the object rows)
     bool mMainCharRowSelected;
 
-    // New level creation
-    bool mShowNewLevelDialog = false;
-    char mNewLevelName[64] = {};
-    
-    // Custom level names: maps ELevel to custom display name
-    std::map<ELevel, std::string> mCustomLevelNames;
-    // Track which levels have been loaded (for refreshing)
-    std::set<ELevel> mLoadedLevels;
-    // Cached dropdown string for levels
-    mutable std::string mLevelDropdownCache;
-    mutable bool mLevelDropdownDirty = true;
-    
     // undo/redo: at most mMaxUndoSteps recorded edits; every new edit
     // invalidates the redo stack
     std::deque<UndoEntry> mUndoStack;
