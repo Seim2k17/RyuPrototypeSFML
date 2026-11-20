@@ -35,6 +35,10 @@ class World : public Observer {
     CommandQueue &getActiveCommands();
     const sf::Drawable &getPlayerSprite();
     void toggleDrawDebug();
+    /** Physics-debug overlay (b2 solid-shape draw + raycasts) state
+        setter; the level editor resets it when it closes so leftover
+        debug states cannot fake 'broken' game visuals. */
+    void setPhysicsDebugActive(bool active) { phDebugPhysics = active; }
     void setDebugDrawer(sf::RenderTarget &target);
     void onNotify(const SceneNode &entity, Ryu::EEvent event) override;
 

@@ -2766,6 +2766,13 @@ Editor::createEditorWidgets(bool *p_open)
             mShowGrid = false;
             mWorld->setGridOverlay(false, {32.f, 32.f}, sf::Color::Red);
         }
+        if (mWorld != nullptr)
+        {
+            // leftover b2 debug overlays (solid shapes over the whole
+            // screen, raycasts) made the game look broken after F3-off;
+            // leaving the editor always restores the plain game visuals
+            mWorld->setPhysicsDebugActive(false);
+        }
         mParallaxSyncNeeded = true;
         if (mCameraPreviewOffsetPx != sf::Vector2f{} && mWorld != nullptr)
         {
