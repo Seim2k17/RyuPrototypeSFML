@@ -1450,7 +1450,12 @@ Editor::saveEditorSettings()
                    mSettingsPath);
         return;
     }
-    nlohmann::json settings = { {"undoSteps", mMaxUndoSteps} };
+    nlohmann::json settings = { {"undoSteps", mMaxUndoSteps},
+        {"referenceImage",
+         {{"path", mReferencePath},
+          {"zoom", mReferenceZoom},
+          {"opacity", mReferenceOpacity},
+          {"visible", mShowReferenceImage}}} };
     oSet << settings.dump(2) << "\n";
     fmt::print("LevelEditor: saved editor-settings to {}\n",
                mSettingsPath);
@@ -1467,6 +1472,22 @@ Editor::loadEditorSettings()
         if (settings.contains("undoSteps"))
         {
             mMaxUndoSteps = std::clamp(settings["undoSteps"].get<int>(), 1, 500);
+        }
+        if (settings.contains("referenceImage"))
+        {
+            const auto& reference = settings["referenceImage"];
+            // the chosen settings persist; the texture load can still fail
+            // (e.g. the file no longer exists), which only logs
+            mReferenceZoom =
+                std::clamp(reference.value("zoom", 1.f), 0.05f, 8.f);
+            mReferenceOpacity =
+                std::clamp(reference.value("opacity", 1.f), 0.1f, 1.f);
+            mShowReferenceImage = reference.value("visible", false);
+            const std::string path = reference.value("path", "");
+            if (not path.empty())
+            {
+                loadReferenceImage(path);
+            }
         }
         fmt::print("LevelEditor: loaded editor-settings from {}\n",
                    mSettingsPath);
@@ -1792,6 +1813,110 @@ Editor::endTileStroke()
 }
 
 void
+Editor::loadReferenceImage(const std::string& path)
+{
+    if (not mReferenceTexture.loadFromFile(path))
+    {
+        mReferenceLoaded = false;
+        fmt::print("LevelEditor: could not load reference image {}.\n",
+                   path);
+        return;
+    }
+    mReferenceLoaded = true;
+    mReferencePath = path;
+    fmt::print("LevelEditor: loaded reference image {} ({}x{} px).\n",
+               path,
+               mReferenceTexture.getSize().x,
+               mReferenceTexture.getSize().y);
+}
+
+void
+Editor::drawReferenceImageWindow()
+{
+    if (not mShowReferenceImage) { return; }
+
+    // like the other editor panels: docked only on the very first use,
+    // movable and freely resizable afterwards (imguiLayout.ini persists
+    // the window's size and position)
+    ImGui::SetNextWindowPos(
+        ImVec2(kCanvasWidth * dockZoom() + 480.f, 0.f),
+        ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(480.f, 320.f), ImGuiCond_FirstUseEver);
+    if (ImGui::Begin("Reference Image", &mShowReferenceImage))
+    {
+        if (ImGui::Button("Load image..."))
+        {
+            if (not mReferenceFileBrowser)
+            {
+                mReferenceFileBrowser = std::make_unique<ImGui::FileBrowser>();
+                mReferenceFileBrowser->SetTypeFilters({ ".png", ".jpg",
+                                                        ".jpeg", ".bmp",
+                                                        ".tga" });
+            }
+            mReferenceFileBrowser->Open();
+        }
+        // the file browser is an ImGui popup: display it inside the
+        // frame (same as the animator's file browser)
+        if (mReferenceFileBrowser)
+        {
+            mReferenceFileBrowser->Display();
+            if (mReferenceFileBrowser->HasSelected())
+            {
+                loadReferenceImage(
+                    mReferenceFileBrowser->GetSelected().string());
+                mReferenceFileBrowser->ClearSelected();
+            }
+        }
+
+        if (not mReferenceLoaded)
+        {
+            ImGui::TextDisabled("(no image loaded)");
+            ImGui::End();
+            return;
+        }
+
+        ImGui::SameLine();
+        ImGui::TextDisabled("%s", mReferencePath.c_str());
+        ImGui::SameLine();
+        ImGui::TextDisabled("%dx%d", mReferenceTexture.getSize().x,
+                            mReferenceTexture.getSize().y);
+
+        // zoom + fit + opacity controls
+        ImGui::SliderFloat("Zoom##reference", &mReferenceZoom, 0.05f, 8.f,
+                           "%.2fx");
+        ImGui::SameLine();
+        if (ImGui::Button("Fit##reference"))
+        {
+            // scale the image so it fits the window's free area while
+            // keeping its aspect ratio (the next widgets take a few
+            // pixels, so a small bottom reserve is subtracted)
+            const ImVec2 avail = ImGui::GetContentRegionAvail();
+            const auto tex = mReferenceTexture.getSize();
+            const float fitX = avail.x / static_cast<float>(tex.x);
+            const float fitY = (avail.y - 20.f) / static_cast<float>(tex.y);
+            mReferenceZoom = std::clamp(std::min(fitX, fitY), 0.05f, 8.f);
+        }
+        ImGui::SliderFloat("Opacity##reference", &mReferenceOpacity, 0.1f,
+                           1.f);
+
+        // the image itself: child region = the window's free area, so
+        // resizing the window resizes the view; scrollbars pan the image
+        if (ImGui::BeginChild("##referenceScroll", ImVec2(0.f, 0.f)))
+        {
+            const auto sizePx = mReferenceTexture.getSize();
+            const sf::Color tint(255, 255, 255,
+                static_cast<std::uint8_t>(mReferenceOpacity * 255.f));
+            ImGui::Image(mReferenceTexture,
+                ImVec2(static_cast<float>(sizePx.x) * mReferenceZoom,
+                       static_cast<float>(sizePx.y) * mReferenceZoom),
+                tint);
+        }
+        ImGui::EndChild();
+    }
+    ImGui::End();
+}
+
+void
 Editor::setTestPlaying(bool active)
 {
     if (mTestPlaying == active) { return; }
@@ -1938,6 +2063,14 @@ Editor::drawToolSidebar()
     else if (ImGui::Button("Play test", ImVec2(-FLT_MIN, 0.f)))
     {
         setTestPlaying(true);
+    }
+
+    if (ImGui::Button(mShowReferenceImage
+                          ? "Hide reference image"
+                          : "Show reference image",
+                      ImVec2(-FLT_MIN, 0.f)))
+    {
+        mShowReferenceImage = not mShowReferenceImage;
     }
 
     ImGui::End();
@@ -2931,6 +3064,7 @@ Editor::createEditorWidgets(bool *p_open)
         mShowEditorSettings = false;
         mShowToolContextMenu = false;
         mTestPlaying = false;
+        mShowReferenceImage = false;
         return;
     }
 
@@ -2955,6 +3089,7 @@ Editor::createEditorWidgets(bool *p_open)
     drawGridControls();
     drawParallaxControls();
     ImGui::End();
+    drawReferenceImageWindow();
 
     // docked only on the very first use; afterwards the user arrangement
     // wins (imgui.ini persists it, see saveEditorSettings)

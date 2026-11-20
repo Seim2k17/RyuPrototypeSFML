@@ -34,8 +34,12 @@
 #include <Ryu/Physics/Physics.h>
 
 #include <box2d/box2d.h>
+#include <SFML/Graphics/Texture.hpp>
 #include <SFML/System/Vector2.hpp>
 #include <SFML/Window/Event.hpp>
+
+#include <imgui.h>
+#include <Thirdparty/imgui-filebrowser/imfilebrowser.h>
 
 #include <algorithm>
 #include <deque>
@@ -103,6 +107,15 @@ class Editor
     /// control inside the fullscreen editor window; ESC stops it and the
     /// editor stays open (tools must not fight the running game)
     bool testPlayingActive() const { return mTestPlaying; }
+
+    /// reference-image window (level-building aid): a loaded image is
+    /// shown in its own resizable window with zoom/fit and scroll-pan;
+    /// path, zoom, opacity and window-open state persist in the editor
+    /// settings json
+    void setReferenceImageVisible(bool visible)
+    {
+        mShowReferenceImage = visible;
+    }
     void setTestPlaying(bool active);
 
     /// zoom actually used to render: the chosen factor adapted to the
@@ -162,6 +175,21 @@ class Editor
     /// grid state before the play test: the grid overlay is hidden while
     /// the level is played (editing aid) and restored afterwards
     bool mGridShownBeforeTest{false};
+
+    /// reference-image preview: texture loaded from the chosen file plus
+    /// its display settings (persisted via the editor-settings json)
+    bool mShowReferenceImage{false};
+    sf::Texture mReferenceTexture;
+    bool mReferenceLoaded{false};
+    std::string mReferencePath;
+    float mReferenceZoom{1.f};
+    float mReferenceOpacity{1.f};
+    std::unique_ptr<ImGui::FileBrowser> mReferenceFileBrowser;
+
+    /// loads the reference image from a file path (logs on failure)
+    void loadReferenceImage(const std::string& path);
+    /// draws the reference-image window (called while the editor is open)
+    void drawReferenceImageWindow();
 
     /// optional persistence hook (see setLayoutSaveHook)
     std::function<void()> mLayoutSaveHook;
