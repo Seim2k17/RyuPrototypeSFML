@@ -181,6 +181,11 @@ class Editor
     bool mShowReferenceImage{false};
     /// true while the reference image is being dragged around (pan mode)
     bool mReferencePanning{false};
+    /// screen rect of the image item (updated every frame): while the
+    /// mouse is inside, the window is NoMove so the click-drag pan can
+    /// never drag the window itself around
+    ImVec2 mReferenceImageRectMin{0.f, 0.f};
+    ImVec2 mReferenceImageRectMax{0.f, 0.f};
     sf::Texture mReferenceTexture;
     bool mReferenceLoaded{false};
     std::string mReferencePath;

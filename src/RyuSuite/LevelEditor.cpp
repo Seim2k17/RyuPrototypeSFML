@@ -1842,7 +1842,22 @@ Editor::drawReferenceImageWindow()
         ImVec2(kCanvasWidth * dockZoom() + 480.f, 0.f),
         ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowSize(ImVec2(480.f, 320.f), ImGuiCond_FirstUseEver);
-    if (ImGui::Begin("Reference Image", &mShowReferenceImage))
+    // ImGui moves windows by dragging anywhere on them by default, which
+    // would move the window along with the image while panning; while the
+    // mouse is over the image itself, the window is pinned (moving works
+    // via the title bar and everywhere else on the window as before)
+    ImGuiWindowFlags referenceWindowFlags = ImGuiWindowFlags_None;
+    const ImVec2 mouse = ImGui::GetIO().MousePos;
+    const bool mouseOverImage = mouse.x >= mReferenceImageRectMin.x
+        && mouse.x <= mReferenceImageRectMax.x
+        && mouse.y >= mReferenceImageRectMin.y
+        && mouse.y <= mReferenceImageRectMax.y;
+    if (mouseOverImage || mReferencePanning)
+    {
+        referenceWindowFlags |= ImGuiWindowFlags_NoMove;
+    }
+    if (ImGui::Begin("Reference Image", &mShowReferenceImage,
+                     referenceWindowFlags))
     {
         if (ImGui::Button("Load image..."))
         {
@@ -1934,6 +1949,9 @@ Editor::drawReferenceImageWindow()
                     mReferencePanning = false;
                 }
             }
+            // the image item's screen rect drives the next frame's NoMove
+            mReferenceImageRectMin = ImGui::GetItemRectMin();
+            mReferenceImageRectMax = ImGui::GetItemRectMax();
         }
         ImGui::EndChild();
     }
