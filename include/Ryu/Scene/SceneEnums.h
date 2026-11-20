@@ -14,4 +14,6 @@ BETTER_ENUM(ELevel, char
     , Level8=8
     , Level9=9
     , Level10=10
+    , Level11=11
+    , Level12=12
 );

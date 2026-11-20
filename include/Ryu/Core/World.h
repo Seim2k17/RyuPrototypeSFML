@@ -48,6 +48,9 @@ class World : public Observer {
     {
         return mRenderer->getTextureRegistry();
     }
+    /** Custom (display) level names, persisted as "levelName" in the
+        level JSONs; created levels register their name here. */
+    std::map<ELevel, std::string> &getLevelNames() { return mPhysics.mLevelNames; }
     SceneObjectPhysicsParameters &addSceneObject(ELevel level,
                                                  SceneObjectPhysicsParameters object)
     {

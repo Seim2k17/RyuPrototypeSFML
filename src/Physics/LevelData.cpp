@@ -214,6 +214,42 @@ loadLevelDataFiles(const std::string &directory)
     return levels;
 }
 
+std::map<ELevel, std::string>
+loadLevelNames(const std::string &directory)
+{
+    std::map<ELevel, std::string> names;
+    const std::regex levelFileRe("^level(\\d+)\\.json$");
+
+    std::error_code ec;
+    if (not fs::exists(directory, ec)) {
+        return names;
+    }
+
+    for (const auto &entry : fs::directory_iterator{ directory })
+    {
+        std::smatch match;
+        const std::string filename = entry.path().filename().string();
+        if (not std::regex_match(filename, match, levelFileRe)) { continue; }
+        const auto levelId = std::stoi(match[1]);
+        if (not ELevel::_is_valid(levelId)) { continue; }
+
+        try {
+            json data;
+            std::ifstream f(entry.path());
+            f >> data;
+
+            const auto level = ELevel::_from_integral(levelId);
+            names.emplace(level,
+                          data.value("levelName", level._to_string()));
+        }
+        catch (const std::exception &e) {
+            fmt::print("LevelData: failed to parse name of {}: {}.\n",
+                       filename, e.what());
+        }
+    }
+    return names;
+}
+
 std::map<ELevel, ParallaxFactors>
 loadParallaxData(const std::string &directory)
 {
@@ -246,7 +282,9 @@ loadParallaxData(const std::string &directory)
                     factors.at(i) = values.at(i).get<float>();
                 }
             }
-            parallax.emplace(ELevel::_from_integral(levelId), factors);
+            const auto level
+                = ELevel::_from_integral(levelId);
+            parallax.emplace(level, factors);
         }
         catch (const std::exception &e) {
             fmt::print("LevelData: failed to parse parallax of {}: {}.\n",
@@ -258,7 +296,8 @@ loadParallaxData(const std::string &directory)
 
 void
 saveLevelData(ELevel level, const SceneObjects &objects,
-              const std::string &directory, const ParallaxFactors *parallax)
+              const std::string &directory, const ParallaxFactors *parallax,
+              const std::string *levelName)
 {
     namespace fs = std::filesystem;
 
@@ -266,7 +305,8 @@ saveLevelData(ELevel level, const SceneObjects &objects,
     fs::create_directories(directory, ec);
 
     json out = {
-        { "levelName", level._to_string() },
+        { "levelName", levelName != nullptr ? *levelName
+                                           : level._to_string() },
         { "objects", json::array() }
     };
     for (const auto &object : objects) {

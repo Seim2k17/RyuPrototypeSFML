@@ -196,6 +196,12 @@ class Editor
     void beginRename(int index);
     /// small modal window: rename the object (double-click in the list)
     void drawRenameWindow();
+    /// create-level window: name input, creates an empty level (floor only,
+    /// character centered) in the next free level slot
+    void drawCreateLevelWindow();
+    /// creates level \p name in the next free slot; returns false when no
+    /// slot is free or the name is empty
+    bool createLevelFromName(const std::string& name);
     /// editor-settings window (undo steps, settings file)
     void drawEditorSettings();
     void saveEditorSettings();
@@ -328,6 +334,10 @@ class Editor
 
     // texture picker window (open from the object details)
     bool mShowTexturePicker;
+
+    // create-level window (level combo's '+ create' button)
+    bool mShowCreateLevel;
+    char mNewLevelName[64];
 
     // tile stroke state (TilePlacer left=paint/right=erase, TileRemover erase)
     bool mTileStrokeActive;

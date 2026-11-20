@@ -30,6 +30,9 @@ class Game : public Observer
     void onNotify(const SceneNode& entity, RyuEvent event) override;
   private:
 	  void processEvents(std::optional<sf::Event> event, CommandQueue& commands);
+	  /// letterboxes the window view on resize so the 16:9 canvas aspect
+	  /// ratio is kept (black bars on the overflowing side)
+	  void applyLetterboxView(sf::Vector2u newSize);
 	  void update(sf::Time deltaTime);
 	  void render();
     // TODO: clarify where exactly to put these methods

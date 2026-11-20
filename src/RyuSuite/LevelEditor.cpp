@@ -26,6 +26,7 @@
 #include <deque>
 #include <fstream>
 #include <string>
+#include <vector>
 
 namespace RyuLevel
 {
@@ -177,6 +178,8 @@ Editor::Editor()
     , mRenameIndex(-1)
     , mRenameActive(false)
     , mShowTexturePicker(false)
+    , mShowCreateLevel(false)
+    , mNewLevelName{}
     , mShowEditorSettings(false)
     , mShowToolContextMenu(false)
     , mContextMenuPosX(0)
@@ -1282,6 +1285,99 @@ Editor::beginRename(int index)
     std::snprintf(mRenameBuffer, sizeof(mRenameBuffer), "%s",
                   objects.at(index).mName.c_str());
     mRenameActive = true;
+}
+
+void
+Editor::drawCreateLevelWindow()
+{
+    if (not mShowCreateLevel) { return; }
+    const ImGuiViewport* viewport = ImGui::GetMainViewport();
+    ImGui::SetNextWindowPos(viewport->GetCenter(), ImGuiCond_Appearing,
+                            ImVec2(0.5f, 0.5f));
+    ImGui::SetNextWindowSize(ImVec2(360.f, 0.f), ImGuiCond_Appearing);
+    if (ImGui::Begin("Create level", &mShowCreateLevel,
+                     ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse))
+    {
+        bool create = ImGui::InputText("Name##newlevel", mNewLevelName,
+                                       sizeof(mNewLevelName),
+                                       ImGuiInputTextFlags_EnterReturnsTrue);
+        ImGui::SameLine();
+        if (ImGui::Button("Create")) { create = true; }
+        ImGui::SameLine();
+        if (ImGui::Button("Cancel")) { mShowCreateLevel = false; }
+        ImGui::TextWrapped("Creates levelN.json in the next free slot: an "
+                           "empty level with one floor (full width, bottom) "
+                           "and the character in the middle of the screen.");
+
+        if (create && mWorld != nullptr)
+        {
+            if (createLevelFromName(mNewLevelName))
+            {
+                mShowCreateLevel = false;
+                mNewLevelName[0] = '\0';
+            }
+        }
+    }
+    ImGui::End();
+}
+
+bool
+Editor::createLevelFromName(const std::string& name)
+{
+    if (mWorld == nullptr or name.empty())
+    {
+        fmt::print("LevelEditor: create level needs a name.\n");
+        return false;
+    }
+
+    // first free slot: no level data loaded for this ELevel
+    ELevel target = ELevel::None;
+    for (auto level : ELevel::_values())
+    {
+        if (level == +ELevel::None) { continue; }
+        if (not mWorld->getSceneObjects().contains(level))
+        {
+            target = level;
+            break;
+        }
+    }
+    if (target == +ELevel::None)
+    {
+        fmt::print("LevelEditor: no free level slot (all slots used).\n");
+        return false;
+    }
+
+    // floor like level2's: full canvas width, at the bottom
+    SceneObjectPhysicsParameters floor{
+        { 320.f, 360.f },
+        { 640.f, 9.f },
+        "floor",
+        b2BodyType::b2_staticBody,
+        "Grass",
+        EntityType::None,
+        1,
+        0.f,
+        true,
+        -1,
+        -1
+    };
+    mWorld->addSceneObject(target, std::move(floor));
+    mWorld->getLevelNames()[target] = name;
+
+    // character to the middle of the screen
+    mWorld->moveMainCharacterToPx({ 320.f, 180.f });
+
+    // persist the new level right away (name + current parallax values)
+    const RyuLevel::ParallaxFactors parallax{ mParallax[0], mParallax[1],
+                                              mParallax[2] };
+    RyuLevel::saveLevelData(target, mWorld->getSceneObjects().at(target),
+                            "assets/levels", &parallax, &name);
+
+    // rebuild the level (physics + renderer) and select it
+    switchLevel(target);
+    fmt::print("LevelEditor: created level '{}' as {}.\n", name,
+               target._to_string());
+    return true;
 }
 
 void
@@ -2704,15 +2800,46 @@ Editor::createEditorWidgets(bool *p_open)
             return;
         }
 
-        // Level switching
-        int levelItem = mSelectedLevel._to_integral();
-        if (ImGui::Combo("Level", &levelItem, "None\0Level1\0Level2\0Level3\0"))
+        // Level switching: every level slot, labeled with its custom name
+        // when the level file carries one; missing (empty) slots exist only
+        // for levels created with the '+ create level' button
+        std::vector<std::string> levelLabels;
+        for (auto level : ELevel::_values())
         {
-            if (ELevel::_is_valid(levelItem) && ELevel::_from_integral(levelItem) != mSelectedLevel)
+            std::string label = level._to_string();
+            if (const auto name = mWorld->getLevelNames().find(level);
+                name != mWorld->getLevelNames().end()
+                and not name->second.empty())
             {
-                switchLevel(ELevel::_from_integral(levelItem));
+                label = fmt::format("{} ({})", name->second,
+                                    level._to_string());
+            }
+            levelLabels.push_back(std::move(label));
+        }
+        std::vector<const char*> levelItems;
+        levelItems.reserve(levelLabels.size());
+        for (const auto& label : levelLabels)
+        {
+            levelItems.push_back(label.c_str());
+        }
+        int levelItem = mSelectedLevel._to_integral();
+        if (ImGui::Combo("Level", &levelItem, levelItems.data(),
+                         static_cast<int>(levelItems.size())))
+        {
+            if (ELevel::_is_valid(levelItem))
+            {
+                const auto chosen = ELevel::_from_integral(levelItem);
+                // only levels with data can be opened: empty slots are
+                // filled through the create-level window
+                if (chosen != mSelectedLevel
+                    and mWorld->getSceneObjects().contains(chosen))
+                {
+                    switchLevel(chosen);
+                }
             }
         }
+        ImGui::SameLine();
+        if (ImGui::Button("+ create level")) { mShowCreateLevel = true; }
 
         // Object list
         auto& objects = mWorld->getSceneObjects().at(mSelectedLevel);
@@ -2833,6 +2960,7 @@ Editor::createEditorWidgets(bool *p_open)
 
     drawSelectionModeHud();
     drawRenameWindow();
+    drawCreateLevelWindow();
     drawEditorSettings();
     drawToolContextMenu();
 }

@@ -213,6 +213,9 @@ class Physics : public Subject {
     /// parallax factors per level (from the level JSON root "parallax"
     /// key; applied to the renderer by the World on (level) startup)
     std::map<ELevel, RyuLevel::ParallaxFactors> mLevelParallax;
+    /// custom (display) names per level (level JSON root "levelName");
+    /// created levels are also registered here by the level editor
+    std::map<ELevel, std::string> mLevelNames;
 
     /** Parallax factors of \p level (kParallaxDefaults when the level
         has no stored values, e.g. a yet unsaved new level). */

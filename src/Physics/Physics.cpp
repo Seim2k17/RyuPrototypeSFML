@@ -103,6 +103,7 @@ Physics::Physics() :
     // former hardcoded sceneObjects initializer in Physics.h
     sceneObjects = RyuLevel::loadLevelDataFiles();
     mLevelParallax = RyuLevel::loadParallaxData();
+    mLevelNames = RyuLevel::loadLevelNames();
 }
 
 Physics::~Physics()

@@ -306,8 +306,40 @@ void Game::processEvents(std::optional<sf::Event> event, CommandQueue& commands)
 			mWindow.close();
 		}
 
+		if (const auto* resized = event->getIf<sf::Event::Resized>())
+		{
+			applyLetterboxView(resized->size);
+		}
+}
 
+void
+Game::applyLetterboxView(sf::Vector2u newSize)
+{
+	if (newSize.x == 0 || newSize.y == 0) { return; }
+	// keep the 16:9 canvas aspect: the view covers the canvas resolution
+	// and its viewport is letterboxed (centered black bars on the
+	// overflowing side); ImGui is unaffected (own projection) and
+	// mapPixelToCoords stays correct through the view's viewport
+	const float canvasAspect = CANVAS_RESOLUTION.x / CANVAS_RESOLUTION.y;
+	const float windowAspect
+		= static_cast<float>(newSize.x) / static_cast<float>(newSize.y);
 
+	sf::View view(sf::FloatRect(sf::Vector2f{}, CANVAS_RESOLUTION));
+	if (windowAspect > canvasAspect)
+	{
+		// window too wide: bars left and right
+		const float width = canvasAspect / windowAspect;
+		view.setViewport(sf::FloatRect({ (1.f - width) / 2.f, 0.f },
+									  { width, 1.f }));
+	}
+	else
+	{
+		// window too high: bars top and bottom
+		const float height = windowAspect / canvasAspect;
+		view.setViewport(sf::FloatRect({ 0.f, (1.f - height) / 2.f },
+									  { 1.f, height }));
+	}
+	mWindow.setView(view);
 }
 
 

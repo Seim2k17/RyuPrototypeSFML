@@ -34,10 +34,16 @@ std::map<ELevel, SceneObjects> loadLevelDataFiles(const std::string &directory =
     kParallaxDefaults when the key is missing). */
 std::map<ELevel, ParallaxFactors> loadParallaxData(const std::string &directory = "assets/levels");
 
+/** Custom (display) names of every levelN.json ("levelName" root key);
+    levels without the key fall back to the ELevel enum name. */
+std::map<ELevel, std::string> loadLevelNames(const std::string &directory = "assets/levels");
+
 /** Saves \p objects to levelN.json, according to the \p level; \p parallax
-    is written to the file root when not nullptr. */
+    is written to the file root when not nullptr, \p levelName overrides
+    the "levelName" root key when not nullptr. */
 void saveLevelData(ELevel level, const SceneObjects &objects,
                    const std::string &directory = "assets/levels",
-                   const ParallaxFactors *parallax = nullptr);
+                   const ParallaxFactors *parallax = nullptr,
+                   const std::string *levelName = nullptr);
 
 } // namespace RyuLevel
