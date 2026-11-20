@@ -184,22 +184,25 @@ CharacterIchi::drawCurrent(sf::RenderTarget &target,
 {
     if (mDebugFillMode)
     {
-        // level-editor mode: the character is drawn as a single-color cyan
-        // rect with its CENTER PIVOT at the character position (the char
-        // position is the rect center, no animation-pivot math involved)
+        // level-editor mode: the collision/bounding rect is drawn as a
+        // translucent cyan fill with a border around the character
+        // (CENTER PIVOT at the character position, no animation-pivot math
+        // involved) - the animated sprite is drawn on top of it so the
+        // idle pose stays visible while editing
         const auto frameSize = mCharacterAnimation.getFrameSize();
-        sf::RectangleShape debugFill(
+        sf::RectangleShape debugRect(
             {static_cast<float>(frameSize.x), static_cast<float>(frameSize.y)});
-        debugFill.setOrigin({static_cast<float>(frameSize.x) / 2.f,
+        debugRect.setOrigin({static_cast<float>(frameSize.x) / 2.f,
                              static_cast<float>(frameSize.y) / 2.f});
-        debugFill.setPosition(mCharacterAnimation.getPosition());
-        debugFill.setFillColor(sf::Color(0, 200, 255, 170));
-        target.draw(debugFill, states);
-        return;
+        debugRect.setPosition(mCharacterAnimation.getPosition());
+        debugRect.setFillColor(sf::Color(0, 200, 255, 40));
+        debugRect.setOutlineColor(sf::Color(0, 200, 255, 200));
+        debugRect.setOutlineThickness(1.5f);
+        target.draw(debugRect, states);
     }
     // draw physicsshape (visible in debug-mode)
     // CharacterBase::drawCurrent(target, states);
-    // draw PlayerSprite
+    // draw PlayerSprite (always, also while the level editor is open)
     target.draw(mCharacterAnimation);
 }
 
