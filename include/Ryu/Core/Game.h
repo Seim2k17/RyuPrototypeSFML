@@ -50,6 +50,9 @@ class Game : public Observer
 	  void setupLogCapture();
 	  /// ImGui window below the scene showing the captured output log
 	  void drawLogWindow();
+	  /// red frame + label overlay while the play-in-editor test runs,
+	  /// so 'playing, not editing' is visible at a glance
+	  void drawTestModeOverlay();
 	  /// switches the game window between the small canvas-sized playing
 	  /// window and a large editor window whenever an editor is open so the
 	  /// editor widgets have room next to the scene instead of covering it

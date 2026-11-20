@@ -262,6 +262,7 @@ void Game::run()
 		mLevelEditor.createEditorWidgets(&mLevelEditor.showLevelEditor);
 		mScriptEditor.createEditorWidgets(&mScriptEditor.showScriptEditor);
 		drawLogWindow();
+		drawTestModeOverlay();
 
 		// while editors are  open the game only listens to the
 		// mode keys (see PlayerController::handleEvent / handleRealtimeInput);
@@ -529,6 +530,27 @@ Game::drawLogWindow()
 		ImGui::EndChild();
 	}
 	ImGui::End();
+}
+
+void
+Game::drawTestModeOverlay()
+{
+	if (not mLevelEditor.testPlayingActive() or not mEditorLayoutActive)
+	{
+		return;
+	}
+	// drawn on the foreground draw list: a red frame around the whole
+	// editor window plus a small label make it visible at a glance
+	// that the level is being played, not edited (ESC ends the test)
+	ImDrawList* drawList = ImGui::GetForegroundDrawList();
+	const ImVec2 windowMax = ImGui::GetIO().DisplaySize;
+	const ImU32 red = IM_COL32(255, 40, 40, 220);
+	drawList->AddRect(ImVec2(2.f, 2.f),
+					 ImVec2(windowMax.x > 6.f ? windowMax.x - 2.f : 4.f,
+							  windowMax.y > 6.f ? windowMax.y - 2.f : 4.f),
+					 red, 0.f, ImDrawFlags_None, 4.f);
+	drawList->AddText(ImVec2(14.f, 10.f), red,
+					"PLAY TEST (ESC ends)");
 }
 
 void
