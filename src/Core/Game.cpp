@@ -206,7 +206,29 @@ void Game::run()
 			}
 		}
 
-		// ImGui frame: NewFrame, widget calls and Render must happen exactly
+		// switch the window mode right before the ImGui frame: editor keys
+		// (F3 etc.) are processed above, so applying the mode here means the
+		// editor window and its geometry exist BEFORE any editor widget
+		// docks itself (first-use docking would otherwise still see the
+		// small play window and dock panels inside the scene)
+		applyEditorWindowMode(
+			mLevelEditor.showLevelEditor
+			|| mAnimator.showAnimationEditor
+			|| mScriptEditor.showScriptEditor);
+
+		// the level editor's scene-zoom setting can change every frame;
+		// re-apply the view whenever the effective (window-adapted) zoom
+		// baked into it differs so the scene region grows/shrinks live
+		if (mEditorLayoutActive
+			&& mAppliedSceneZoom
+			   != mLevelEditor.sceneZoomForWindow(
+					static_cast<float>(mWindow.getSize().x),
+					static_cast<float>(mWindow.getSize().y)))
+		{
+			applyLetterboxView(mWindow.getSize());
+		}
+
+		// ImGui frame: NewFrame, our widget calls and Render must happen exactly
 		// once per rendered frame (not per simulation tick).
 		ImGui::SFML::Update(mWindow, imguiClock.restart());
 		if (!mIsPaused)
@@ -281,8 +303,19 @@ void Game::processEvents(std::optional<sf::Event> event, CommandQueue& commands)
 			}
 
 			// forward whenever a mouse position was resolvable (mouse move,
-			// button press, button release)
-			if (mousePixel != sf::Vector2i{-1, -1})
+			// button press, button release); in the enlarged editor window only
+			// the top-left canvas region is scene, clicks in the widget margins
+			// must not paint/select into the level
+			const bool inCanvasRegion = mousePixel.x >= 0
+				&& mousePixel.y >= 0
+				&& (not mEditorLayoutActive
+					|| (mousePixel.x
+							< static_cast<int>(CANVAS_RESOLUTION.x
+												 * mAppliedSceneZoom)
+						&& mousePixel.y
+							< static_cast<int>(CANVAS_RESOLUTION.y
+																	* mAppliedSceneZoom)));
+			if (mousePixel != sf::Vector2i{-1, -1} && inCanvasRegion)
 			{
 				mLevelEditor.handleMouseEvent(event.value(),
 					mWindow.mapPixelToCoords(mousePixel));
@@ -313,9 +346,60 @@ void Game::processEvents(std::optional<sf::Event> event, CommandQueue& commands)
 }
 
 void
+Game::applyEditorWindowMode(bool editorOpen)
+{
+	if (editorOpen == mEditorLayoutActive) { return; }
+	mEditorLayoutActive = editorOpen;
+	if (mEditorLayoutActive)
+	{
+		// editor mode: a borderless, desktop-sized window (no title bar
+		// overflow, no taskbar gap) gives the widgets room next to the
+		// scene; remember the playing window's size AND position so
+		// closing the editors returns to exactly the setup the player
+		// had (a manually resized play window survives the editor session)
+		mPlayWindowSize = mWindow.getSize();
+		mPlayWindowPos = mWindow.getPosition();
+		// SFML 3: styles can only be set at creation, so the window is
+		// recreated (World/Renderer hold references, which stay valid);
+		// recreation emits no Resized event, the view is applied below
+		mWindow.create(
+			sf::VideoMode(sf::VideoMode::getDesktopMode().size),
+			PROJECT_NAME.data(), sf::Style::None);
+		mWindow.setPosition({0, 0});
+	}
+	else
+	{
+		mWindow.create(sf::VideoMode(mPlayWindowSize), PROJECT_NAME.data(),
+			sf::Style::Default);
+		mWindow.setPosition(mPlayWindowPos);
+	}
+	applyLetterboxView(mWindow.getSize());
+}
+
+
+void
 Game::applyLetterboxView(sf::Vector2u newSize)
 {
 	if (newSize.x == 0 || newSize.y == 0) { return; }
+
+	sf::View view(sf::FloatRect(sf::Vector2f{}, CANVAS_RESOLUTION));
+	if (mEditorLayoutActive)
+	{
+		// editor mode: the scene covers the canvas resolution and is scaled
+		// up by the editor's scene-zoom factor, pinned to the top-left
+		// corner of the enlarged window; everything right/below stays free
+		// for the editor widgets
+		mAppliedSceneZoom = mLevelEditor.sceneZoom();
+		view.setViewport(sf::FloatRect(
+			{ 0.f, 0.f },
+			{ CANVAS_RESOLUTION.x * mAppliedSceneZoom
+			    / static_cast<float>(newSize.x),
+			  CANVAS_RESOLUTION.y * mAppliedSceneZoom
+			    / static_cast<float>(newSize.y) }));
+		mWindow.setView(view);
+		return;
+	}
+	mAppliedSceneZoom = 1.f;
 	// keep the 16:9 canvas aspect: the view covers the canvas resolution
 	// and its viewport is letterboxed (centered black bars on the
 	// overflowing side); ImGui is unaffected (own projection) and
@@ -324,7 +408,6 @@ Game::applyLetterboxView(sf::Vector2u newSize)
 	const float windowAspect
 		= static_cast<float>(newSize.x) / static_cast<float>(newSize.y);
 
-	sf::View view(sf::FloatRect(sf::Vector2f{}, CANVAS_RESOLUTION));
 	if (windowAspect > canvasAspect)
 	{
 		// window too wide: bars left and right

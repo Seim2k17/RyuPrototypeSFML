@@ -37,6 +37,17 @@ namespace
 constexpr int kNumBodyTypes = 2;
 const char *kBodyTypeNames[kNumBodyTypes] = { "Static", "Dynamic" };
 
+/// editor layout: the scene occupies this native-resolution region in the
+/// top-left corner of the enlarged editor window (matches
+/// Game::applyLetterboxView); the editor widgets live in the margins around it
+constexpr float kCanvasWidth = 640.f;
+constexpr float kCanvasHeight = 360.f;
+
+/// free space the layout keeps around the zoomed scene so the main editor
+/// window (right) and the tool sidebar / HUD (below) stay on screen
+constexpr float kMinPanelMarginX = 380.f;
+constexpr float kMinPanelMarginY = 260.f;
+
 constexpr int kNumEntityTypes = 2;
 const char *kEntityTypeNames[kNumEntityTypes] = { "None", "Climbable" };
 
@@ -1467,7 +1478,9 @@ void
 Editor::drawEditorSettings()
 {
     if (not mShowEditorSettings) { return; }
-    ImGui::SetNextWindowPos(ImVec2(360.f, 120.f), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowPos(
+        ImVec2(kCanvasWidth * mSceneZoom + 12.f, 120.f),
+        ImGuiCond_Appearing);
     ImGui::SetNextWindowSize(ImVec2(340.f, 0.f), ImGuiCond_Appearing);
     if (ImGui::Begin("Level Editor Settings", &mShowEditorSettings,
                      ImGuiWindowFlags_NoCollapse))
@@ -1771,9 +1784,13 @@ Editor::endTileStroke()
 void
 Editor::drawToolSidebar()
 {
-    // tools-sidebar (photoshop-style), left edge of the game view
+    // tools-sidebar (photoshop-style); in the editor window layout it
+    // sits below the (zoomed) scene so it never covers the level
     const ImGuiViewport *viewport = ImGui::GetMainViewport();
-    ImGui::SetNextWindowPos(viewport->Pos, ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowPos(
+        ImVec2(viewport->Pos.x,
+               viewport->Pos.y + kCanvasHeight * mSceneZoom + 12.f),
+        ImGuiCond_Always);
     ImGui::SetNextWindowSize(ImVec2(110.f, 0.f), ImGuiCond_Always);
 
     ImGuiWindowFlags flags = ImGuiWindowFlags_NoDecoration
@@ -1808,6 +1825,22 @@ Editor::drawToolSidebar()
     toolButton("Edit", Tool::Edit);
     ImGui::EndDisabled();
     ImGui::Separator();
+
+    ImGui::Text("Scene zoom");
+    // seamless slider; the upper bound adapts to the window so the zoomed
+    // scene never grows past the editor panels (or off the screen): keep
+    // the fixed panel margins free next to the zoomed canvas region
+    const float maxZoomX =
+        (ImGui::GetMainViewport()->WorkSize.x - kMinPanelMarginX)
+        / kCanvasWidth;
+    const float maxZoomY =
+        (ImGui::GetMainViewport()->WorkSize.y - kMinPanelMarginY)
+        / kCanvasHeight;
+    const float maxZoom = std::max(1.f, std::min(maxZoomX, maxZoomY));
+    mSceneZoom = std::clamp(mSceneZoom, 1.f, maxZoom);
+    ImGui::PushItemWidth(-FLT_MIN);
+    ImGui::SliderFloat("##sceneZoom", &mSceneZoom, 1.f, maxZoom, "%.2fx");
+    ImGui::PopItemWidth();
 
     ImGui::End();
 }
@@ -2447,8 +2480,10 @@ Editor::drawSelectionModeHud()
     if (mActiveTool != Tool::Resize && mActiveTool != Tool::Rotate
         && not tileToolActive()) { return; }
 
-    const ImGuiViewport *viewport = ImGui::GetMainViewport();
-    const ImVec2 pos{ viewport->WorkSize.x - 240.f, viewport->WorkSize.y - 36.f };
+    // pinned to the bottom-right corner just below the (zoomed) scene so
+    // the tool state stays readable without covering the level
+    const ImVec2 pos{ kCanvasWidth * mSceneZoom - 240.f,
+                      kCanvasHeight * mSceneZoom + 8.f };
     ImGui::SetNextWindowPos(pos, ImGuiCond_Always, {0.f, 0.f});
     ImGuiWindowFlags flags = ImGuiWindowFlags_NoDecoration
                              | ImGuiWindowFlags_NoBackground
@@ -2798,7 +2833,11 @@ Editor::createEditorWidgets(bool *p_open)
     drawGridControls();
     drawParallaxControls();
 
-    if (ImGui::Begin("Ryu Level Editor", p_open))
+    ImGui::SetNextWindowPos(
+        ImVec2(kCanvasWidth * mSceneZoom + 12.f, 0.f),
+        ImGuiCond_Appearing);
+    if (ImGui::Begin("Ryu Level Editor", p_open,
+                     ImGuiWindowFlags_NoSavedSettings))
     {
         if (mWorld == nullptr)
         {

@@ -89,6 +89,12 @@ class Editor
 
     bool showLevelEditor = false;
 
+    /// zoom factor of the scene region in the enlarged editor window
+    /// (1x = native 640x360 pixels; higher values make the scene bigger
+    /// for precise edits on large monitors); the game window layout uses
+    /// this, so changing it re-arranges view and editor panels
+    float sceneZoom() const { return mSceneZoom; }
+
     /// transform mode = the Resize or Rotate tool is turned on (physics is
     /// paused while it is active so dragged bodies don't fall between updates)
     bool tileToolActive() const
@@ -109,6 +115,10 @@ class Editor
 
   private:
     enum class DragMode { None, Move, Resize, Rotate, MovePivot };
+
+    /// scene zoom chosen in the tool sidebar (see sceneZoom()); the editor
+    /// window layout scales the native canvas region by this factor
+    float mSceneZoom{2.f};
 
     /// undo/redo record: state of one scene object before/after an edit,
     /// addressed by level + index into the level's sceneObjects vector;
