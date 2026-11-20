@@ -37,7 +37,9 @@
 #include <SFML/System/Vector2.hpp>
 #include <SFML/Window/Event.hpp>
 
+#include <algorithm>
 #include <deque>
+#include <functional>
 #include <string>
 
 namespace sf {
@@ -94,6 +96,27 @@ class Editor
     /// for precise edits on large monitors); the game window layout uses
     /// this, so changing it re-arranges view and editor panels
     float sceneZoom() const { return mSceneZoom; }
+    /// restores a persisted zoom factor (clamped to >= 1x)
+    void setSceneZoom(float zoom) { mSceneZoom = std::max(zoom, 1.f); }
+
+    /// zoom actually used to render: the chosen factor adapted to the
+    /// given window so the scene (with its panel margins) always fits;
+    /// never modifies the persisted value
+    float sceneZoomForWindow(float windowWidthPx, float windowHeightPx) const
+    {
+        const float maxZoomX = (windowWidthPx - 380.f) / 640.f;
+        const float maxZoomY = (windowHeightPx - 260.f) / 360.f;
+        return std::min(mSceneZoom,
+                        std::max(1.f, std::min(maxZoomX, maxZoomY)));
+    }
+
+    /// hook the Game uses to persist the whole editor layout (play
+    /// window, zoom, ImGui window positions via imgui.ini); invoked by
+    /// the settings window's 'Save as default' button
+    void setLayoutSaveHook(std::function<void()> hook)
+    {
+        mLayoutSaveHook = std::move(hook);
+    }
 
     /// transform mode = the Resize or Rotate tool is turned on (physics is
     /// paused while it is active so dragged bodies don't fall between updates)
@@ -119,6 +142,13 @@ class Editor
     /// scene zoom chosen in the tool sidebar (see sceneZoom()); the editor
     /// window layout scales the native canvas region by this factor
     float mSceneZoom{2.f};
+
+    /// optional persistence hook (see setLayoutSaveHook)
+    std::function<void()> mLayoutSaveHook;
+
+    /// zoom the editor panels dock against: the effective (window-adapted)
+    /// scene zoom, so panels dock to the scene edge that is really shown
+    float dockZoom() const;
 
     /// undo/redo record: state of one scene object before/after an edit,
     /// addressed by level + index into the level's sceneObjects vector;

@@ -43,6 +43,10 @@ const char *kBodyTypeNames[kNumBodyTypes] = { "Static", "Dynamic" };
 constexpr float kCanvasWidth = 640.f;
 constexpr float kCanvasHeight = 360.f;
 
+/// width of the tools panels (sidebar + right-click menu): widens them so
+/// the whole tool text stays readable
+constexpr float kToolsPanelWidth = 230.f;
+
 /// free space the layout keeps around the zoomed scene so the main editor
 /// window (right) and the tool sidebar / HUD (below) stay on screen
 constexpr float kMinPanelMarginX = 380.f;
@@ -1479,8 +1483,8 @@ Editor::drawEditorSettings()
 {
     if (not mShowEditorSettings) { return; }
     ImGui::SetNextWindowPos(
-        ImVec2(kCanvasWidth * mSceneZoom + 12.f, 120.f),
-        ImGuiCond_Appearing);
+        ImVec2(kCanvasWidth * dockZoom() + 12.f, 120.f),
+        ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowSize(ImVec2(340.f, 0.f), ImGuiCond_Appearing);
     if (ImGui::Begin("Level Editor Settings", &mShowEditorSettings,
                      ImGuiWindowFlags_NoCollapse))
@@ -1507,7 +1511,13 @@ Editor::drawEditorSettings()
         ImGui::InputText("Settings file", mSettingsPath,
                          IM_ARRAYSIZE(mSettingsPath));
         ImGui::SameLine();
-        if (ImGui::Button("Save as default")) { saveEditorSettings(); }
+        if (ImGui::Button("Save as default"))
+        {
+            saveEditorSettings();
+            // persist the whole editor layout as well: play window,
+            // scene zoom, all ImGui window positions (imgui.ini)
+            if (mLayoutSaveHook) { mLayoutSaveHook(); }
+        }
     }
     ImGui::End();
 }
@@ -1781,21 +1791,30 @@ Editor::endTileStroke()
                mTileStrokeErase ? "erased" : "placed");
 }
 
+float
+Editor::dockZoom() const
+{
+    const ImGuiViewport *viewport = ImGui::GetMainViewport();
+    return sceneZoomForWindow(viewport->WorkSize.x, viewport->WorkSize.y);
+}
+
 void
 Editor::drawToolSidebar()
 {
     // tools-sidebar (photoshop-style); in the editor window layout it
     // sits below the (zoomed) scene so it never covers the level
     const ImGuiViewport *viewport = ImGui::GetMainViewport();
+    // docked only on the very first use; afterwards the sidebar remembers
+    // where the user dragged it (imgui.ini)
     ImGui::SetNextWindowPos(
         ImVec2(viewport->Pos.x,
-               viewport->Pos.y + kCanvasHeight * mSceneZoom + 12.f),
-        ImGuiCond_Always);
-    ImGui::SetNextWindowSize(ImVec2(110.f, 0.f), ImGuiCond_Always);
+               viewport->Pos.y + kCanvasHeight * dockZoom() + 12.f),
+        ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(kToolsPanelWidth, 0.f),
+                             ImGuiCond_FirstUseEver);
 
     ImGuiWindowFlags flags = ImGuiWindowFlags_NoDecoration
-                             | ImGuiWindowFlags_AlwaysAutoResize
-                             | ImGuiWindowFlags_NoSavedSettings;
+                             | ImGuiWindowFlags_AlwaysAutoResize;
     ImGui::Begin("##levelEditorTools", nullptr, flags);
 
     ImGui::Text("Tools");
@@ -1837,9 +1856,22 @@ Editor::drawToolSidebar()
         (ImGui::GetMainViewport()->WorkSize.y - kMinPanelMarginY)
         / kCanvasHeight;
     const float maxZoom = std::max(1.f, std::min(maxZoomX, maxZoomY));
-    mSceneZoom = std::clamp(mSceneZoom, 1.f, maxZoom);
+    // the persisted zoom is never clobbered here: a window smaller than
+    // the zoomed scene (e.g. right after a mode switch) only limits the
+    // slider/render momentarily, the chosen factor stays intact
+    float sliderZoom = std::min(mSceneZoom, maxZoom);
     ImGui::PushItemWidth(-FLT_MIN);
-    ImGui::SliderFloat("##sceneZoom", &mSceneZoom, 1.f, maxZoom, "%.2fx");
+    if (ImGui::SliderFloat("##sceneZoom", &sliderZoom, 1.f, maxZoom,
+                           "%.2fx"))
+    {
+        mSceneZoom = sliderZoom;
+    }
+    // persisting right when the slider is released keeps the zoom even
+    // if the game is closed without saving (alt-F4, crash, ...)
+    if (ImGui::IsItemDeactivatedAfterEdit())
+    {
+        if (mLayoutSaveHook) { mLayoutSaveHook(); }
+    }
     ImGui::PopItemWidth();
 
     ImGui::End();
@@ -2115,12 +2147,17 @@ Editor::drawToolContextMenu()
         ImVec2(static_cast<float>(mContextMenuPosX),
                static_cast<float>(mContextMenuPosY)),
         ImGuiCond_Appearing);
+    // matches the tool sidebar's width so the whole tool text stays
+    // readable (height auto); slightly transparent so the scene behind
+    // it stays visible
+    ImGui::SetNextWindowSize(ImVec2(kToolsPanelWidth, 0.f),
+                             ImGuiCond_Appearing);
+    ImGui::SetNextWindowBgAlpha(0.75f);
     const ImGuiWindowFlags flags = ImGuiWindowFlags_NoTitleBar
                                    | ImGuiWindowFlags_NoResize
                                    | ImGuiWindowFlags_NoCollapse
                                    | ImGuiWindowFlags_NoMove
-                                   | ImGuiWindowFlags_NoSavedSettings
-                                   | ImGuiWindowFlags_AlwaysAutoResize;
+                                   | ImGuiWindowFlags_NoSavedSettings;
 
     // the menu has no close button: End() is paired unconditionally
     if (ImGui::Begin("##levelEditorToolMenu", nullptr, flags))
@@ -2482,8 +2519,8 @@ Editor::drawSelectionModeHud()
 
     // pinned to the bottom-right corner just below the (zoomed) scene so
     // the tool state stays readable without covering the level
-    const ImVec2 pos{ kCanvasWidth * mSceneZoom - 240.f,
-                      kCanvasHeight * mSceneZoom + 8.f };
+    const ImVec2 pos{ kCanvasWidth * dockZoom() - 240.f,
+                      kCanvasHeight * dockZoom() + 8.f };
     ImGui::SetNextWindowPos(pos, ImGuiCond_Always, {0.f, 0.f});
     ImGuiWindowFlags flags = ImGuiWindowFlags_NoDecoration
                              | ImGuiWindowFlags_NoBackground
@@ -2830,14 +2867,25 @@ Editor::createEditorWidgets(bool *p_open)
         }
         mParallaxSyncNeeded = false;
     }
+    // grid/parallax debug controls get their own persistable window
+    // (previously they were stray widgets collected by ImGui's implicit
+    // Debug window, which ignores the editor layout and its position
+    // reset on every restart); docked only on the very first use, the
+    // user arrangement wins afterwards (via assets/imguiLayout.ini)
+    ImGui::SetNextWindowPos(
+        ImVec2(kCanvasWidth * dockZoom() + 12.f, 480.f),
+        ImGuiCond_FirstUseEver);
+    ImGui::Begin("Level Editor Debug");
     drawGridControls();
     drawParallaxControls();
+    ImGui::End();
 
+    // docked only on the very first use; afterwards the user arrangement
+    // wins (imgui.ini persists it, see saveEditorSettings)
     ImGui::SetNextWindowPos(
-        ImVec2(kCanvasWidth * mSceneZoom + 12.f, 0.f),
-        ImGuiCond_Appearing);
-    if (ImGui::Begin("Ryu Level Editor", p_open,
-                     ImGuiWindowFlags_NoSavedSettings))
+        ImVec2(kCanvasWidth * dockZoom() + 12.f, 0.f),
+        ImGuiCond_FirstUseEver);
+    if (ImGui::Begin("Ryu Level Editor", p_open))
     {
         if (mWorld == nullptr)
         {
