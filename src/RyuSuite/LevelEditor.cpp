@@ -1791,6 +1791,57 @@ Editor::endTileStroke()
                mTileStrokeErase ? "erased" : "placed");
 }
 
+void
+Editor::setTestPlaying(bool active)
+{
+    if (mTestPlaying == active) { return; }
+    mTestPlaying = active;
+    if (active)
+    {
+        // tools would fight the running game: leave any transform or tile
+        // mode (also clears selection highlights)
+        switchTool(Tool::None);
+        // unconditionally drop every editor overlay state that would be
+        // painted over the running level: with no tool active the
+        // switchTool above early-returns, and a selected/hovered object
+        // (fill + outline) would cover the level during the whole test —
+        // this is the programmatic equivalent of the manual click that
+        // cleared the overlays before and made the test look right
+        exitSelectionMode();
+        mShowTileBrushPreview = false;
+        mMainCharRowSelected = false;
+        if (mWorld != nullptr)
+        {
+            mWorld->setCharacterSelection({}, {}, false);
+        }
+        // the grid is an editing aid: hide it for the test so the level
+        // is judged like the real game, remember it for afterwards
+        mGridShownBeforeTest = mShowGrid;
+        if (mShowGrid && mWorld != nullptr)
+        {
+            mShowGrid = false;
+            mWorld->setGridOverlay(false, {32.f, 32.f}, sf::Color::Red);
+        }
+        fmt::print("LevelEditor: play-in-editor started (ESC stops).\n");
+    }
+    else
+    {
+        // back in editing: the grid comes back exactly as it was
+        mShowGrid = mGridShownBeforeTest;
+        if (mShowGrid && mWorld != nullptr)
+        {
+            const sf::Vector2f cellSizePx{
+                static_cast<float>(std::max(mGridCellWidth, 4)),
+                static_cast<float>(std::max(mGridCellHeight, 4))};
+            const sf::Color color = mGridColorIndex == 1
+                                        ? sf::Color(0, 255, 0, 90)
+                                        : sf::Color(255, 0, 0, 90);
+            mWorld->setGridOverlay(true, cellSizePx, color);
+        }
+        fmt::print("LevelEditor: play-in-editor stopped.\n");
+    }
+}
+
 float
 Editor::dockZoom() const
 {
@@ -1873,6 +1924,21 @@ Editor::drawToolSidebar()
         if (mLayoutSaveHook) { mLayoutSaveHook(); }
     }
     ImGui::PopItemWidth();
+
+    ImGui::Separator();
+    // play the level right inside the editor window: the player gets the
+    // control while the editor stays open; ESC ends the test
+    if (mTestPlaying)
+    {
+        if (ImGui::Button("Stop test (ESC)", ImVec2(-FLT_MIN, 0.f)))
+        {
+            setTestPlaying(false);
+        }
+    }
+    else if (ImGui::Button("Play test", ImVec2(-FLT_MIN, 0.f)))
+    {
+        setTestPlaying(true);
+    }
 
     ImGui::End();
 }
@@ -2824,6 +2890,15 @@ Editor::createEditorWidgets(bool *p_open)
 {
     if (*p_open == false)
     {
+    // one-shot cleanup on the open->closed transition; createEditorWidgets
+    // also runs every frame while the editor stays closed, and running
+    // the cleanup per frame would reset state that the game itself
+    // controls in play mode (e.g. the P-toggled physics-debug overlay)
+    if (not mEditorWasOpen)
+    {
+        return;
+    }
+    mEditorWasOpen = false;
         // the editor is closed: never leave a dangling selection/tool/hover
         // behind; the level must return to its original playing state
         mActiveTool = Tool::None;
@@ -2855,6 +2930,7 @@ Editor::createEditorWidgets(bool *p_open)
         mRenameActive = false;
         mShowEditorSettings = false;
         mShowToolContextMenu = false;
+        mTestPlaying = false;
         return;
     }
 
@@ -2882,6 +2958,7 @@ Editor::createEditorWidgets(bool *p_open)
 
     // docked only on the very first use; afterwards the user arrangement
     // wins (imgui.ini persists it, see saveEditorSettings)
+    mEditorWasOpen = true;
     ImGui::SetNextWindowPos(
         ImVec2(kCanvasWidth * dockZoom() + 12.f, 0.f),
         ImGuiCond_FirstUseEver);

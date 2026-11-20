@@ -264,11 +264,23 @@ void Game::run()
 		drawLogWindow();
 
 		// while editors are  open the game only listens to the
-		// mode keys (see PlayerController::handleEvent / handleRealtimeInput)
+		// mode keys (see PlayerController::handleEvent / handleRealtimeInput);
+		// during the play-in-editor test the player controller gets its
+		// input back so the level can be played inside the editor window
 		mPlayerController->setUiInputActive(
-			mAnimator.showAnimationEditor
-			|| mLevelEditor.showLevelEditor
-			|| mScriptEditor.showScriptEditor);
+			(mAnimator.showAnimationEditor
+			 || mLevelEditor.showLevelEditor
+			 || mScriptEditor.showScriptEditor)
+			&& not mLevelEditor.testPlayingActive());
+
+		// during the play-in-editor test the scene must look like the real
+		// game: normal draw order and the normal character sprite. The b2
+		// physics-debug overlay (P) stays available for on purpose
+		const bool editorDebugVisuals = mLevelEditor.showLevelEditor
+			&& not mLevelEditor.testPlayingActive();
+		mWorld.setPlayerOnTop(editorDebugVisuals);
+		mPlayerController->getPlayableCharacter()->setDebugFillMode(
+			editorDebugVisuals);
 
 		// Render once per frame, outside the fixed-timestep loop: a slow render
 		// must not slow down the simulation.
@@ -290,7 +302,9 @@ void Game::processEvents(std::optional<sf::Event> event, CommandQueue& commands)
 		// Player-related one-time events
 		// arrow keys navigate the level-editor object list while it is
 		// open; Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y undo/redo the last edit
-		if (mLevelEditor.showLevelEditor && event->is<sf::Event::KeyPressed>())
+		if (mLevelEditor.showLevelEditor
+			&& not mLevelEditor.testPlayingActive()
+			&& event->is<sf::Event::KeyPressed>())
 		{
 			const auto* key = event->getIf<sf::Event::KeyPressed>();
 			// Z/Y via the layout-localized key code (QWERTZ keyboards
@@ -307,10 +321,53 @@ void Game::processEvents(std::optional<sf::Event> event, CommandQueue& commands)
 			}
 		}
 
-		mPlayerController->handleEvent(event.value(), commands);
+		// ESC ends the play-in-editor test while the editor stays open;
+		// the keypress is swallowed so it never reaches the player.
+		// The mode keys (F1-F12 toggles) are kept inert during the test
+		// so panels can't be switched mid-test; P still toggles the b2
+		// physics-debug overlay (hitboxes, raycasts, pivot points)
+		bool swallowEvent = false;
+		if (mLevelEditor.showLevelEditor
+			&& mLevelEditor.testPlayingActive()
+			&& event->is<sf::Event::KeyPressed>())
+		{
+			const auto* testKey = event->getIf<sf::Event::KeyPressed>();
+			if (testKey->code == sf::Keyboard::Key::Escape)
+			{
+				mLevelEditor.setTestPlaying(false);
+				swallowEvent = true;
+			}
+			else if (testKey->scancode >= sf::Keyboard::Scancode::F1
+					 && testKey->scancode <= sf::Keyboard::Scancode::F12)
+			{
+				swallowEvent = true;
+			}
+		}
+		// P toggles the b2 physics-debug overlay (hitboxes, raycasts,
+		// pivot points) in EVERY mode: normal play, open editor and
+		// play test. The game triggers the toggle directly and
+		// swallows the key, because the player controller's UI-input
+		// gate would swallow P while an editor is open otherwise.
+		// Never fires while typing in an editor text field.
+		if (not swallowEvent
+			&& event->is<sf::Event::KeyPressed>()
+			&& event->getIf<sf::Event::KeyPressed>()->scancode
+				== sf::Keyboard::Scancode::P
+			&& not ImGui::GetIO().WantTextInput)
+		{
+			mPlayerController->requestDebugToggle();
+			swallowEvent = true;
+		}
+		if (not swallowEvent)
+		{
+			mPlayerController->handleEvent(event.value(), commands);
+		}
 
-		// forward game-view mouse events to the level editor while it is open
-		if (mLevelEditor.showLevelEditor)
+		// forward game-view mouse events to the level editor while it is
+		// open (not during the play-in-editor test: the clicks belong to
+		// the running game then)
+		if (mLevelEditor.showLevelEditor
+			&& not mLevelEditor.testPlayingActive())
 		{
 			sf::Vector2i mousePixel;
 			if (const auto* moved = event->getIf<sf::Event::MouseMoved>())
@@ -677,7 +734,10 @@ void Game::update(sf::Time deltaTime)
 
 	// selection mode pauses the physics world stepping so dragged bodies
 	// don't fall between the drag updates; leaving it resumes automatically
-	mWorld.setPhysicsActive(not mLevelEditor.transformModeActive());
+	// (and during the play-in-editor test the simulation always runs)
+	mWorld.setPhysicsActive(
+		mLevelEditor.testPlayingActive()
+		|| not mLevelEditor.transformModeActive());
 	mWorld.update(deltaTime);
 
 	// the animator preview must be advanced with the simulation; the

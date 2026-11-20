@@ -99,6 +99,12 @@ class Editor
     /// restores a persisted zoom factor (clamped to >= 1x)
     void setSceneZoom(float zoom) { mSceneZoom = std::max(zoom, 1.f); }
 
+    /// play-in-editor test: while active the game runs with player
+    /// control inside the fullscreen editor window; ESC stops it and the
+    /// editor stays open (tools must not fight the running game)
+    bool testPlayingActive() const { return mTestPlaying; }
+    void setTestPlaying(bool active);
+
     /// zoom actually used to render: the chosen factor adapted to the
     /// given window so the scene (with its panel margins) always fits;
     /// never modifies the persisted value
@@ -142,6 +148,20 @@ class Editor
     /// scene zoom chosen in the tool sidebar (see sceneZoom()); the editor
     /// window layout scales the native canvas region by this factor
     float mSceneZoom{2.f};
+
+    /// true while the level is being played back inside the editor
+    /// (see setTestPlaying)
+    bool mTestPlaying{false};
+
+    /// editor-was-open tracking: the createEditorWidgets close-branch
+    /// (visual cleanup) must run once when the editor closes, NOT every
+    /// frame while it stays closed (it would reset e.g. the physics
+    /// debug overlay in play mode)
+    bool mEditorWasOpen{false};
+
+    /// grid state before the play test: the grid overlay is hidden while
+    /// the level is played (editing aid) and restored afterwards
+    bool mGridShownBeforeTest{false};
 
     /// optional persistence hook (see setLayoutSaveHook)
     std::function<void()> mLayoutSaveHook;

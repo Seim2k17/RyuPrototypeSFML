@@ -49,6 +49,13 @@ class PlayerController : public Observer, public Subject /// notifier and observ
         void setUiInputActive(bool active) { mUiInputActive = active; }
         bool isUiInputActive() const { return mUiInputActive; }
 
+        /** \brief Toggles the b2 physics-debug overlay (hitboxes,
+            raycasts, pivot points) from outside the keyboard event
+            chain. Used by Game while an editor is open: the UI input
+            gate would swallow the P key there, but inspecting the level
+            physics while editing is a wanted workflow. */
+        void requestDebugToggle();
+
         void onNotify(const SceneNode& entity, RyuEvent event) override;
 
     private:

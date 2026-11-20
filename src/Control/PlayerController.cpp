@@ -154,6 +154,16 @@ PlayerController::initializeBindings()
 }
 
 void
+PlayerController::requestDebugToggle()
+{
+    if (playerCharacter)
+    {
+        notify(*playerCharacter, RyuEvent::DebugToggle);
+    }
+    mDebugPanelOpen = not mDebugPanelOpen;
+}
+
+void
 PlayerController::handleEvent(const sf::Event& event, CommandQueue& commands)
 {
    /* 
