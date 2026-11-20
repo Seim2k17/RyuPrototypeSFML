@@ -179,6 +179,8 @@ class Editor
     /// reference-image preview: texture loaded from the chosen file plus
     /// its display settings (persisted via the editor-settings json)
     bool mShowReferenceImage{false};
+    /// true while the reference image is being dragged around (pan mode)
+    bool mReferencePanning{false};
     sf::Texture mReferenceTexture;
     bool mReferenceLoaded{false};
     std::string mReferencePath;

@@ -1900,7 +1900,9 @@ Editor::drawReferenceImageWindow()
                            1.f);
 
         // the image itself: child region = the window's free area, so
-        // resizing the window resizes the view; scrollbars pan the image
+        // resizing the window resizes the view; scrollbars pan the
+        // image - and the image can also be grabbed and dragged around
+        // (especially useful in the zoomed mode)
         if (ImGui::BeginChild("##referenceScroll", ImVec2(0.f, 0.f)))
         {
             const auto sizePx = mReferenceTexture.getSize();
@@ -1910,6 +1912,28 @@ Editor::drawReferenceImageWindow()
                 ImVec2(static_cast<float>(sizePx.x) * mReferenceZoom,
                        static_cast<float>(sizePx.y) * mReferenceZoom),
                 tint);
+
+            // pan mode: left-click the image, keep the button pressed and
+            // drag; the child region scrolls with the mouse movement
+            if (ImGui::IsItemHovered() || mReferencePanning)
+            {
+                ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
+                if (ImGui::IsMouseClicked(ImGuiMouseButton_Left))
+                {
+                    mReferencePanning = true;
+                    ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeAll);
+                }
+                if (mReferencePanning && ImGui::IsMouseDown(ImGuiMouseButton_Left))
+                {
+                    const ImVec2 drag = ImGui::GetIO().MouseDelta;
+                    ImGui::SetScrollX(ImGui::GetScrollX() - drag.x);
+                    ImGui::SetScrollY(ImGui::GetScrollY() - drag.y);
+                }
+                if (ImGui::IsMouseReleased(ImGuiMouseButton_Left))
+                {
+                    mReferencePanning = false;
+                }
+            }
         }
         ImGui::EndChild();
     }
