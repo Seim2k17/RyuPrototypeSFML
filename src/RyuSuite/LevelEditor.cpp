@@ -117,10 +117,33 @@ textureSizeTooltip(const SceneTextureRegistry& registry,
     const auto* info = registry.tileset(id);
     if (col >= 0 and info != nullptr)
     {
+        // collision state of this tile from the sidecar overrides
+        // (hover only - the collision editor is the place to author them)
+        const auto* collision = registry.tileCollision(id, col, row);
+        std::string collisionText = "full collider (default)";
+        if (collision != nullptr)
+        {
+            if (collision->kind
+                == SceneTextureRegistry::TileCollision::Kind::None)
+            {
+                collisionText = "no collider";
+            }
+            else if (collision->kind
+                     == SceneTextureRegistry::TileCollision::Kind::Rect)
+            {
+                collisionText = "1 rect collider";
+            }
+            else
+            {
+                collisionText = fmt::format("{} polygonal colliders",
+                                            collision->polygons.size());
+            }
+        }
         ImGui::SetTooltip(
-            "%s [%d,%d]\ntile: %dx%d px (grid %dx%d)\nimage: %ux%u px",
+            "%s [%d,%d]\ntile: %dx%d px (grid %dx%d)\nimage: %ux%u px\n%s",
             id.c_str(), col, row, rect.size.x, rect.size.y,
-            info->columns, info->rows, image.x, image.y);
+            info->columns, info->rows, image.x, image.y,
+            collisionText.c_str());
     }
     else
     {
@@ -161,6 +184,8 @@ Editor::Editor()
     , mEditWidth(64.f)
     , mEditHeight(16.f)
     , mEditAngle(0.f)
+    , mEditVisualOffsetX(0.f)
+    , mEditVisualOffsetY(0.f)
     , mDragMode(DragMode::None)
     , mDragHandle(-1)
     , mDragStartCenterPx({})
@@ -212,6 +237,13 @@ Editor::Editor()
     , mTileStrokeRemoved()
     , mShowTileBrushPreview(false)
     , mReplaceTiles(false)
+    , mShowTileCollisionEditor(false)
+    , mCollisionCol(0)
+    , mCollisionRow(0)
+    , mTileDragPart(-1)
+    , mTileDragVertex(-1)
+    , mTileLastPart(-1)
+    , mCollisionTileSelected(false)
     , mParallax{ 0.5f, 1.f, 1.2f }
     , mCameraPreviewOffsetPx()
     , mParallaxSyncNeeded(true)
@@ -232,10 +264,13 @@ Editor::switchLevel(ELevel level)
     mSelectedLevel = level;
     mSelectedIndex = -1;
     mMainCharRowSelected = false;
+    // the multi-selection belongs to the old level's row indices
+    mMultiSelectedIndices.clear();
     if (mWorld)
     {
         mWorld->setCharacterSelection({}, {}, false);
         mWorld->reloadSceneObjects(level);
+        syncMultiSelectionHighlight();
         syncEditBuffersFromSelection();
         for (std::size_t i = 0; i < 3; ++i)
         {
@@ -249,12 +284,17 @@ void
 Editor::addObject()
 {
     if (not mWorld) { return; }
+    auto& registry = mWorld->getTextureRegistry();
+    const std::string semanticId
+        = registry.semanticIdFor(mEditTextureId, mEditTileCol, mEditTileRow);
+    const std::string& storedId = semanticId.empty() ? mEditTextureId
+                                                      : semanticId;
     SceneObjectPhysicsParameters object{
         { mEditPositionX, mEditPositionY },
         { mEditWidth, mEditHeight },
         mEditName,
         mEditIsDynamic ? b2_dynamicBody : b2_staticBody,
-        mEditTextureId,
+        storedId,
         mEditEntityType == 1 ? EntityType::Climbable : EntityType::None,
         mEditLayer,
         0.f, // rotation: radians in the physics world
@@ -262,6 +302,12 @@ Editor::addObject()
         mEditTileCol,
         mEditTileRow
     };
+    // a tile texture also carries the sidecar's per-tile collision with it
+    bool hasPhysics = mEditHasPhysics;
+    object.mCollisionParts = collisionPartsFor(
+        storedId, mEditTileCol, mEditTileRow, { mEditWidth, mEditHeight },
+        hasPhysics);
+    object.mHasPhysics = hasPhysics;
     auto& objectsBefore = mWorld->getSceneObjects().at(mSelectedLevel);
     auto& added = mWorld->addSceneObject(mSelectedLevel, std::move(object));
     mSelectedIndex = static_cast<int>(objectsBefore.size()) - 1;
@@ -297,6 +343,153 @@ Editor::deleteObject()
 }
 
 void
+Editor::deleteSelectedObjects()
+{
+    if (not mWorld) { return; }
+    // DEL hits the shift-click selection first, then the single selected
+    // row; one undo (Delete) entry per removed object
+    std::vector<int> indices = mMultiSelectedIndices;
+    std::sort(indices.begin(), indices.end());
+    indices.erase(std::unique(indices.begin(), indices.end()),
+                  indices.end());
+    if (indices.empty())
+    {
+        if (mSelectedIndex < 0) { return; }
+        indices.push_back(mSelectedIndex);
+    }
+
+    exitSelectionMode();
+    const ELevel level = mWorld->getActiveLevel();
+    for (int k = static_cast<int>(indices.size()) - 1; k >= 0; --k)
+    {
+        const int index = indices.at(k);
+        auto& objects = mWorld->getSceneObjects().at(level);
+        if (index < 0 or index >= static_cast<int>(objects.size()))
+        {
+            continue;
+        }
+        UndoEntry entry{ level, index, UndoEntry::Kind::Delete,
+                         objects.at(index), {} };
+        mWorld->removeSceneObject(objects.at(index).mPhysicsBodyId);
+        adjustUndoIndicesForRemoval(entry.level, index);
+        pushUndoEntry(entry);
+    }
+    mMultiSelectedIndices.clear();
+    // rows shifted around by the removals: drop the focus instead of
+    // pointing edit buffers at a different object than before
+    mSelectedIndex = -1;
+    mLastSelectedIndex = -1;
+    mSelectedBodyId = b2_nullBodyId;
+    mWorld->setSelectedHighlight(b2_nullBodyId);
+    syncMultiSelectionHighlight();
+    fmt::print("LevelEditor: deleted {} object(s).\n", indices.size());
+}
+
+void
+Editor::applyTextureEditTo(int index)
+{
+    if (not mWorld) { return; }
+    auto& objects = mWorld->getSceneObjects().at(mSelectedLevel);
+    if (index < 0 or index >= static_cast<int>(objects.size())) { return; }
+    auto& object = objects.at(index);
+    const UndoEntry undoEntry{ mSelectedLevel, index, UndoEntry::Kind::Edit,
+                               object, object };
+    object.mTextureId = mEditTextureId;
+    object.mTileCol = mEditTileCol;
+    object.mTileRow = mEditTileRow;
+    const b2BodyId bodyId = mWorld->updateSceneObject(object.mPhysicsBodyId);
+    if (index == mSelectedIndex)
+    {
+        mSelectedBodyId = bodyId;
+        mWorld->setSelectedHighlight(bodyId);
+    }
+    UndoEntry entry = undoEntry;
+    entry.after = object;
+    if (objectStatesDiffer(entry.before, entry.after))
+    {
+        pushUndoEntry(entry);
+    }
+}
+
+std::vector<std::vector<b2Vec2>>
+Editor::collisionPartsFor(const std::string& textureId, int tileCol, int tileRow,
+                           const sf::Vector2f& objectSizePx,
+                           bool& hasPhysics) const
+{
+    std::vector<std::vector<b2Vec2>> parts;
+    if (mWorld == nullptr) { return parts; }
+    const SceneTextureRegistry& registry = mWorld->getTextureRegistry();
+    const auto* collision = registry.tileCollision(textureId, tileCol,
+                                                    tileRow);
+    if (collision == nullptr) { return parts; }
+    if (collision->kind == SceneTextureRegistry::TileCollision::Kind::Full)
+    {
+        return parts;
+    }
+    if (collision->kind == SceneTextureRegistry::TileCollision::Kind::None)
+    {
+        hasPhysics = false;
+        return parts;
+    }
+    const sf::IntRect rect = registry.textureRect(textureId, tileCol,
+                                                   tileRow);
+    const sf::Vector2f tileSizePx{ static_cast<float>(rect.size.x),
+                                   static_cast<float>(rect.size.y) };
+    const sf::Vector2f scale{ objectSizePx.x / std::max(1.f, tileSizePx.x),
+                              objectSizePx.y / std::max(1.f, tileSizePx.y) };
+    auto toLocalMeters = [&](const sf::Vector2f& vertex)
+    {
+        return b2Vec2{
+            Converter::pixelsToMeters(
+                (vertex.x - tileSizePx.x / 2.f) * scale.x),
+            Converter::pixelsToMeters(
+                (vertex.y - tileSizePx.y / 2.f) * scale.y) };
+    };
+    if (collision->kind == SceneTextureRegistry::TileCollision::Kind::Rect)
+    {
+        const sf::IntRect& r = collision->rect;
+        parts.push_back({
+            toLocalMeters({ static_cast<float>(r.position.x),
+                            static_cast<float>(r.position.y) }),
+            toLocalMeters({ static_cast<float>(r.position.x + r.size.x),
+                            static_cast<float>(r.position.y) }),
+            toLocalMeters({ static_cast<float>(r.position.x + r.size.x),
+                            static_cast<float>(r.position.y + r.size.y) }),
+            toLocalMeters({ static_cast<float>(r.position.x),
+                            static_cast<float>(r.position.y + r.size.y) }) });
+        return parts;
+    }
+    for (const auto& polygon : collision->polygons)
+    {
+        std::vector<b2Vec2> vertices;
+        for (const auto& vertex : polygon)
+        {
+            vertices.push_back(toLocalMeters(vertex));
+        }
+        parts.push_back(std::move(vertices));
+    }
+    return parts;
+}
+
+void
+Editor::syncMultiSelectionHighlight()
+{
+    if (not mWorld) { return; }
+    std::vector<b2BodyId> bodyIds;
+    auto& objects = mWorld->getSceneObjects().at(mSelectedLevel);
+    for (const int index : mMultiSelectedIndices)
+    {
+        if (index < 0 or index >= static_cast<int>(objects.size()))
+        {
+            continue;
+        }
+        const b2BodyId bodyId = objects.at(index).mPhysicsBodyId;
+        if (not B2_IS_NULL(bodyId)) { bodyIds.push_back(bodyId); }
+    }
+    mWorld->setMultiSelectionHighlight(bodyIds);
+}
+
+void
 Editor::applyEdits()
 {
     if (not mWorld) { return; }
@@ -309,8 +502,36 @@ Editor::applyEdits()
         syncCharEditBuffers();
         return;
     }
-    if (mSelectedIndex < 0) { return; }
     auto& objects = mWorld->getSceneObjects().at(mSelectedLevel);
+
+    // multi-selection (shift-click rows): the picked texture/tile goes to
+    // EVERY selected row at once, one undoable Edit entry per object; the
+    // other edit fields keep editing the singly selected object below
+    if (not mMultiSelectedIndices.empty())
+    {
+        int texturized = 0;
+        for (const int index : mMultiSelectedIndices)
+        {
+            if (index == mSelectedIndex) { continue; }
+            if (index < 0 or index >= static_cast<int>(objects.size()))
+            {
+                continue;
+            }
+            applyTextureEditTo(index);
+            ++texturized;
+        }
+        syncMultiSelectionHighlight();
+        fmt::print("LevelEditor: applied the texture to {} selected "
+                   "object(s).\n",
+                   texturized);
+        if (mSelectedIndex < 0
+            or mSelectedIndex >= static_cast<int>(objects.size()))
+        {
+            return;
+        }
+    }
+    else if (mSelectedIndex < 0) { return; }
+
     if (mSelectedIndex >= static_cast<int>(objects.size())) { return; }
 
     auto& object = objects.at(mSelectedIndex);
@@ -328,12 +549,15 @@ Editor::applyEdits()
     object.mRotation = Converter::degToRad(mEditAngle);
     object.mPosition = { Converter::pixelsToMeters(mEditPositionX),
                          Converter::pixelsToMeters(mEditPositionY) };
+    object.mVisualOffset = { Converter::pixelsToMeters(mEditVisualOffsetX),
+                             Converter::pixelsToMeters(mEditVisualOffsetY) };
     object.mSize = { Converter::pixelsToMeters(mEditWidth),
                      Converter::pixelsToMeters(mEditHeight) };
 
     // recreate and keep the in-level selection highlight on the new body
     mSelectedBodyId = mWorld->updateSceneObject(object.mPhysicsBodyId);
     mWorld->setSelectedHighlight(mSelectedBodyId);
+    syncMultiSelectionHighlight();
 
     UndoEntry entry = undoEntry;
     entry.after = object;
@@ -841,6 +1065,9 @@ Editor::exitSelectionMode()
     mPivotOffsetPx = {};
     mRotateStartMouseAngle = 0.f;
     mRotateStartObjectAngle = 0.f;
+    // leaving selection overlays (tool switch, play-in-editor): the scene
+    // markers go away everywhere; the list keeps its shift-click rows
+    mWorld->setMultiSelectionHighlight({});
 }
 
 void
@@ -867,6 +1094,8 @@ Editor::syncEditBuffersFromSelection()
     mEditWidth = Converter::metersToPixels(object.mSize.x);
     mEditHeight = Converter::metersToPixels(object.mSize.y);
     mEditAngle = static_cast<float>(Converter::radToDeg(object.mRotation));
+    mEditVisualOffsetX = Converter::metersToPixels(object.mVisualOffset.x);
+    mEditVisualOffsetY = Converter::metersToPixels(object.mVisualOffset.y);
 }
 
 void
@@ -879,6 +1108,8 @@ Editor::syncCharEditBuffers()
     mEditWidth = rect.sizePx.x;
     mEditHeight = rect.sizePx.y;
     mEditAngle = 0.f; // the character body has no rotation
+    mEditVisualOffsetX = 0.f;
+    mEditVisualOffsetY = 0.f;
 }
 
 /// select + highlight the MAIN CHARACTER pseudo-entry (list/arrow keys)
@@ -927,6 +1158,16 @@ Editor::handleKey(const sf::Event::KeyPressed& key)
         }
     }
 
+    // DEL/ENTF deletes the multi-selection, else the single selected object
+    // (one undoable Delete entry per object); ignored while a text input is
+    // active, e.g. renaming an object
+    if (key.code == sf::Keyboard::Key::Delete
+        && not ImGui::GetIO().WantTextInput)
+    {
+        deleteSelectedObjects();
+        return;
+    }
+
     const sf::Keyboard::Scancode scancode = key.scancode;
     int step = 0;
     if (scancode == sf::Keyboard::Scancode::Up) { step = -1; }
@@ -964,6 +1205,8 @@ Editor::handleKey(const sf::Event::KeyPressed& key)
     }
 
     syncEditBuffersFromSelection();
+    // arrow navigation moves the focus: follow it in the object list
+    mScrollListToSelection = true;
     // also mark the object inside the running level
     mSelectedBodyId
         = objects.at(mSelectedIndex).mPhysicsBodyId;
@@ -996,7 +1239,9 @@ Editor::objectStatesDiffer(const SceneObjectPhysicsParameters& lhs,
         || lhs.mHasPhysics != rhs.mHasPhysics
         || lhs.mTextureId != rhs.mTextureId
         || lhs.mTileCol != rhs.mTileCol
-        || lhs.mTileRow != rhs.mTileRow;
+        || lhs.mTileRow != rhs.mTileRow
+        || lhs.mVisualOffset.x != rhs.mVisualOffset.x
+        || lhs.mVisualOffset.y != rhs.mVisualOffset.y;
 }
 
 void
@@ -1689,6 +1934,14 @@ Editor::placeTileAt(const sf::Vector2f& cellCenterPx)
     const sf::IntRect rect = registry.textureRect(mEditTextureId,
                                                  mEditTileCol, mEditTileRow);
 
+    // store the semantic id when the picked tile is mapped in
+    // semantic.json: the object then re-skins with the mapping, not with
+    // the concrete texture it was painted with
+    const std::string semanticId
+        = registry.semanticIdFor(mEditTextureId, mEditTileCol, mEditTileRow);
+    const std::string& storedId = semanticId.empty() ? mEditTextureId
+                                                      : semanticId;
+
     // unique, equally wide names: the next free counter suffix of all
     // tile-placed objects of this level (_0000, _0001, ...); tiles painted
     // in an earlier session keep counting on from their stored suffixes
@@ -1715,17 +1968,28 @@ Editor::placeTileAt(const sf::Vector2f& cellCenterPx)
     SceneObjectPhysicsParameters object{
         { cellCenterPx.x, cellCenterPx.y },
         { static_cast<float>(rect.size.x), static_cast<float>(rect.size.y) },
-        fmt::format("tile_{}_{}_{}_{:04d}", mEditTextureId, mEditTileCol,
+        fmt::format("tile_{}_{}_{}_{:04d}", storedId, mEditTileCol,
                     mEditTileRow, maxCounter + 1),
         b2BodyType::b2_staticBody,
-        mEditTextureId,
+        storedId,
         EntityType::None,
         mEditLayer,
         0.f,
         mEditHasPhysics,
         mEditTileCol,
-        mEditTileRow
+        mEditTileRow,
+        // visual offset is taken from the edit buffers so tiles can be
+        // painted pre-offset (set OffsetX/OffsetY before the stroke)
+        { mEditVisualOffsetX, mEditVisualOffsetY }
     };
+    // per-tile collision of the tileset sidecar (partial tiles, edge
+    // tiles): overrides the full-cell box and may drop physics (kind None)
+    bool hasPhysics = mEditHasPhysics;
+    object.mCollisionParts = collisionPartsFor(
+        storedId, mEditTileCol, mEditTileRow,
+        { static_cast<float>(rect.size.x), static_cast<float>(rect.size.y) },
+        hasPhysics);
+    object.mHasPhysics = hasPhysics;
     auto& added = mWorld->addSceneObject(level, std::move(object));
     auto& objects = mWorld->getSceneObjects().at(level);
     mTileStrokePlacedParams.push_back(added);
@@ -2364,6 +2628,10 @@ Editor::selectObjectAt(const sf::Vector2f& mouseWorldPosPx)
     }
     mLastSelectedIndex = -1;
     mSelectedBodyId = hit;
+    mMultiSelectedIndices.clear();
+    syncMultiSelectionHighlight();
+    // scene click: make it visible which list row belongs to the object
+    mScrollListToSelection = true;
     mPivotOffsetPx = {};
     mWorld->setSelectedHighlight(hit);
     // no transform tool active: plain selection look (no handles/markers)
@@ -2699,6 +2967,8 @@ Editor::handleMouseEvent(const sf::Event &event, const sf::Vector2f &mouseWorldP
         // keep the object list in sync with the viewport selection
         mMainCharRowSelected = false;
         mWorld->setCharacterSelection({}, {}, false);
+        // viewport click: jump to the row in the object list
+        mScrollListToSelection = true;
         auto& objects = mWorld->getSceneObjects().at(activeLevel);
         for (int i = 0; i < static_cast<int>(objects.size()); ++i)
         {
@@ -2807,7 +3077,20 @@ Editor::drawObjectDetails(SceneObjectPhysicsParameters *object)
     {
         mEditIsDynamic = typeItem == 1;
     }
-    if (ImGui::Checkbox("Physics (collides)", &mEditHasPhysics))
+    // tiles carry the collision of the tileset sidecar (tile collision
+    // editor): the checkbox is non-editable for them and only reflects it
+    if (mEditTileCol >= 0 and mEditTileRow >= 0)
+    {
+        ImGui::BeginDisabled();
+        ImGui::Checkbox("Collision active", &mEditHasPhysics);
+        ImGui::EndDisabled();
+        if (ImGui::IsItemHovered())
+        {
+            ImGui::SetTooltip(
+                "tiles take their collision from the tile collision editor");
+        }
+    }
+    else if (ImGui::Checkbox("Collision active", &mEditHasPhysics))
     {
         applyEdits();
     }
@@ -2817,8 +3100,8 @@ Editor::drawObjectDetails(SceneObjectPhysicsParameters *object)
         ImGui::TextDisabled("(decoration)");
     }
     ImGui::Combo("EntityType", &mEditEntityType, kEntityTypeNames, kNumEntityTypes);
-    // texture: live preview + button that opens the registry picker window
-    // (whole images and tilesets with per-tile selection)
+    // texture: clickable preview (opens the registry picker with whole
+    // images and tilesets) + button that opens the tile collision editor
     drawTexturePreview({ 48.f, 48.f });
     ImGui::SameLine();
     ImGui::BeginGroup();
@@ -2826,13 +3109,23 @@ Editor::drawObjectDetails(SceneObjectPhysicsParameters *object)
         mEditTileCol >= 0
             ? fmt::format("tile [{},{}]", mEditTileCol, mEditTileRow)
             : std::string("whole image");
-    if (ImGui::Button(fmt::format("Pick texture: {}\n({})",
+    if (ImGui::Button(fmt::format("Tile collision editor\n{} ({})",
                                   mEditTextureId, tileLabel).c_str(),
                       { 170.f, 0.f }))
     {
-        mShowTexturePicker = not mShowTexturePicker;
+        mShowTileCollisionEditor = not mShowTileCollisionEditor;
     }
+    ImGui::TextDisabled("click the preview to pick a texture/tile");
     ImGui::TextDisabled("drop pngs into assets/scenes/objects");
+    if (mWorld)
+    {
+        auto& registry = mWorld->getTextureRegistry();
+        if (const auto* mapping = registry.semantic(mEditTextureId))
+        {
+            ImGui::TextDisabled("semantic id -> '%s'",
+                                mapping->textureId.c_str());
+        }
+    }
     ImGui::EndGroup();
     ImGui::Checkbox("Paint over tiles (replace)", &mReplaceTiles);
     if (mReplaceTiles)
@@ -2870,6 +3163,20 @@ Editor::drawObjectDetails(SceneObjectPhysicsParameters *object)
     {
         applyOnEnter = true;
     }
+    if (ImGui::DragFloat("OffsetX px", &mEditVisualOffsetX, 0.5f, -1000.f,
+                         1000.f, "%.3f", enterFlags))
+    {
+        applyOnEnter = true;
+    }
+    if (ImGui::DragFloat("OffsetY px", &mEditVisualOffsetY, 0.5f, -1000.f,
+                         1000.f, "%.3f", enterFlags))
+    {
+        applyOnEnter = true;
+    }
+    if (tileToolActive())
+    {
+        ImGui::TextDisabled("tile strokes paint with this offset");
+    }
 
     if (applyOnEnter && object != nullptr)
     {
@@ -2885,6 +3192,7 @@ Editor::drawObjectDetails(SceneObjectPhysicsParameters *object)
     if (ImGui::Button("Add object")) { addObject(); }
 
     if (mShowTexturePicker) { drawTexturePicker(); }
+    if (mShowTileCollisionEditor) { drawTileCollisionEditor(); }
 }
 
 void
@@ -2907,7 +3215,11 @@ Editor::drawTexturePreview(const sf::Vector2f& boxSize)
     const float rectH = std::max(1.f, static_cast<float>(rect.size.y));
     const float fit = std::min(boxSize.x / rectW, boxSize.y / rectH);
     const sf::Vector2f display{ rectW * fit, rectH * fit };
-    ImGui::Image(sprite, display);
+    // the preview itself is the texture-picker toggle
+    if (ImGui::ImageButton("texture_preview", sprite, display))
+    {
+        mShowTexturePicker = not mShowTexturePicker;
+    }
     textureSizeTooltip(registry, mEditTextureId, mEditTileCol, mEditTileRow);
     if (texture == nullptr)
     {
@@ -3020,14 +3332,6 @@ Editor::drawTexturePicker()
                         hoverCol = col;
                         hoverRow = row;
                     }
-                    const bool currentTile = mEditTextureId == id
-                        && mEditTileCol == col && mEditTileRow == row;
-                    if (currentTile)
-                    {
-                        ImGui::GetWindowDrawList()->AddRect(
-                            ImGui::GetItemRectMin(), ImGui::GetItemRectMax(),
-                            IM_COL32(255, 160, 0, 255), 2.f);
-                    }
                     if (col < info->columns - 1)
                     {
                         ImGui::SameLine();
@@ -3056,6 +3360,544 @@ Editor::drawTexturePicker()
     textureSizeTooltip(registry, hasHover ? hoverId : mEditTextureId,
                        hasHover ? hoverCol : mEditTileCol,
                        hasHover ? hoverRow : mEditTileRow);
+
+    ImGui::End();
+}
+
+void
+Editor::drawTileCollisionEditor()
+{
+    if (not mWorld)
+    {
+        mShowTileCollisionEditor = false;
+        return;
+    }
+    auto& registry = mWorld->getTextureRegistry();
+
+    // pinned while a tile is selected (collision editing active): moving
+    // polygon nodes must not move the panel; without a selection the
+    // window behaves normally (drag by title bar, resize at the borders)
+    const ImGuiWindowFlags windowFlags = mCollisionTileSelected
+        ? ImGuiWindowFlags_NoMove : ImGuiWindowFlags_None;
+    ImGui::SetNextWindowSize({ 430.f, 470.f }, ImGuiCond_Appearing);
+    if (not ImGui::Begin("Tile collision editor", &mShowTileCollisionEditor,
+                        windowFlags))
+    {
+        ImGui::End();
+        return;
+    }
+
+    if (registry.tilesetIds().empty())
+    {
+        ImGui::TextUnformatted(
+            "no tilesets in the registry (drop pngs into "
+            "assets/scenes/tilesets)");
+        ImGui::End();
+        return;
+    }
+
+    if (mCollisionTilesetId.empty()
+        or registry.tileset(mCollisionTilesetId) == nullptr)
+    {
+        mCollisionTilesetId = registry.tilesetIds().front();
+        mCollisionCol = 0;
+        mCollisionRow = 0;
+        mCollisionTileSelected = false;
+        mCollisionPartsWorking.clear();
+        mCollisionEditKey.clear();
+    }
+    if (registry.tileset(mCollisionTilesetId) == nullptr)
+    {
+        ImGui::TextUnformatted("tileset without usable metadata");
+        ImGui::End();
+        return;
+    }
+
+    if (ImGui::BeginCombo("Tileset", mCollisionTilesetId.c_str()))
+    {
+        for (const auto& id : registry.tilesetIds())
+        {
+            const bool selected = id == mCollisionTilesetId;
+            if (ImGui::Selectable(id.c_str(), selected))
+            {
+                mCollisionTilesetId = id;
+                mCollisionCol = 0;
+                mCollisionRow = 0;
+                mCollisionTileSelected = false;
+                mCollisionPartsWorking.clear();
+                mCollisionEditKey.clear();
+                mTileDragPart = -1;
+                mTileDragVertex = -1;
+            }
+            if (selected) { ImGui::SetItemDefaultFocus(); }
+        }
+        ImGui::EndCombo();
+    }
+
+    const auto* info = registry.tileset(mCollisionTilesetId);
+    const sf::Texture* texture = registry.texture(mCollisionTilesetId);
+    const float cell { 36.f };
+    if (info->columns <= 0 or info->rows <= 0 or texture == nullptr)
+    {
+        ImGui::Text("tileset '%s' has no usable tiles.",
+                    mCollisionTilesetId.c_str());
+        ImGui::End();
+        return;
+    }
+    mCollisionCol = std::clamp(mCollisionCol, 0, info->columns - 1);
+    mCollisionRow = std::clamp(mCollisionRow, 0, info->rows - 1);
+
+    // ---------------- tile grid ----------------
+    // click selects a tile (thin orange frame + editable collision below);
+    // clicking the selected tile again unselects it; hover only marks the
+    // row for the big preview, no collision overlays in the grid
+    int hoverCol = -1;
+    int hoverRow = -1;
+    for (int row = 0; row < info->rows; ++row)
+    {
+        for (int col = 0; col < info->columns; ++col)
+        {
+            const sf::IntRect tileRect = registry.textureRect(
+                mCollisionTilesetId, col, row);
+            sf::Sprite sprite(*texture, tileRect);
+            ImGui::PushID(row * info->columns + col);
+            if (ImGui::ImageButton("tile", sprite, { cell, cell }))
+            {
+                if (mCollisionTileSelected and mCollisionCol == col
+                    and mCollisionRow == row)
+                {
+                    // click again: unselect, collision view disappears
+                    mCollisionTileSelected = false;
+                    mCollisionPartsWorking.clear();
+                    mCollisionEditKey.clear();
+                    mTileDragPart = -1;
+                    mTileDragVertex = -1;
+                }
+                else
+                {
+                    mCollisionCol = col;
+                    mCollisionRow = row;
+                    mCollisionTileSelected = true;
+                    mCollisionPartsWorking.clear();
+                    mCollisionEditKey.clear();
+                    mTileDragPart = -1;
+                    mTileDragVertex = -1;
+                }
+            }
+            ImGui::PopID();
+            if (ImGui::IsItemHovered())
+            {
+                hoverCol = col;
+                hoverRow = row;
+            }
+            if (mCollisionTileSelected and mCollisionCol == col
+                and mCollisionRow == row)
+            {
+                ImGui::GetWindowDrawList()->AddRect(
+                    ImGui::GetItemRectMin(), ImGui::GetItemRectMax(),
+                    IM_COL32(255, 160, 0, 255), 1.5f);
+            }
+            if (col < info->columns - 1) { ImGui::SameLine(); }
+        }
+    }
+
+    // reload the working buffers when another tile gets selected: every
+    // collision becomes editable polygon parts - a rect override loads
+    // as its 4-node part, NO override (the default) loads as the full-tile
+    // part (the full collider the physics world really uses), only an
+    // explicit 'No collision' stays empty
+    const std::string editKey = fmt::format("{}/{}/{}", mCollisionTilesetId,
+                                            mCollisionCol, mCollisionRow);
+    if (mCollisionTileSelected and editKey != mCollisionEditKey)
+    {
+        mCollisionEditKey = editKey;
+        mCollisionPartsWorking.clear();
+        const auto* selectedCollision = registry.tileCollision(
+            mCollisionTilesetId, mCollisionCol, mCollisionRow);
+        if (selectedCollision != nullptr)
+        {
+            if (selectedCollision->kind
+                == SceneTextureRegistry::TileCollision::Kind::Polygons)
+            {
+                mCollisionPartsWorking = selectedCollision->polygons;
+            }
+            else if (selectedCollision->kind
+                     == SceneTextureRegistry::TileCollision::Kind::Rect)
+            {
+                const sf::IntRect& r = selectedCollision->rect;
+                mCollisionPartsWorking.push_back({
+                    { static_cast<float>(r.position.x),
+                      static_cast<float>(r.position.y) },
+                    { static_cast<float>(r.position.x + r.size.x),
+                      static_cast<float>(r.position.y) },
+                    { static_cast<float>(r.position.x + r.size.x),
+                      static_cast<float>(r.position.y + r.size.y) },
+                    { static_cast<float>(r.position.x),
+                      static_cast<float>(r.position.y + r.size.y) } });
+            }
+            else if (selectedCollision->kind
+                     == SceneTextureRegistry::TileCollision::Kind::None)
+            {
+                mCollisionPartsWorking.clear();
+            }
+        }
+        if (mCollisionPartsWorking.empty() and (selectedCollision == nullptr
+            or selectedCollision->kind
+                   == SceneTextureRegistry::TileCollision::Kind::Full))
+        {
+            const float w = static_cast<float>(info->tileWidth);
+            const float h = static_cast<float>(info->tileHeight);
+            mCollisionPartsWorking.push_back({ { 0.f, 0.f }, { w, 0.f },
+                                                { w, h }, { 0.f, h } });
+        }
+    }
+
+    if (not mCollisionTileSelected)
+    {
+        // nothing selected: hover shows ONLY the tile (big preview,
+        // no collision); the editing section stays hidden
+        ImGui::Separator();
+        if (hoverCol >= 0 and hoverRow >= 0)
+        {
+            const sf::IntRect hoverRect = registry.textureRect(
+                mCollisionTilesetId, hoverCol, hoverRow);
+            sf::Sprite hoverSprite(*texture, hoverRect);
+            const float hoverZoom = std::min(160.f / info->tileWidth,
+                                             160.f / info->tileHeight);
+            ImGui::Text("tile [%d,%d] - click to edit its collision",
+                        hoverCol, hoverRow);
+            ImGui::Image(hoverSprite,
+                         { info->tileWidth * hoverZoom,
+                           info->tileHeight * hoverZoom });
+        }
+        else
+        {
+            ImGui::TextDisabled(
+                "click a tile to view and edit its collision; "
+                "click it again to unselect");
+        }
+        ImGui::End();
+        return;
+    }
+
+    ImGui::Separator();
+    ImGui::Text("tile [%d,%d] of %s (%dx%d px) - selected",
+                mCollisionCol, mCollisionRow, mCollisionTilesetId.c_str(),
+                info->tileWidth, info->tileHeight);
+    ImGui::TextDisabled(
+        "parts stay convex (3-8 nodes; L-shapes: add them decomposed)");
+    ImGui::TextDisabled(
+        "coordinates are tile-local pixels, origin = top-left");
+
+    // ---- magnified editable preview ---------------------------------------
+    // the tile scaled up, green polygon parts on top; every vertex is a
+    // grab handle (click + drag, snapped to whole tile-local pixels); all
+    // changes save to the sidecar instantly
+    const sf::IntRect editedTileRect = registry.textureRect(
+        mCollisionTilesetId, mCollisionCol, mCollisionRow);
+    sf::Sprite editedTileSprite(*texture, editedTileRect);
+    const float zoom = std::min(160.f / info->tileWidth,
+                                 160.f / info->tileHeight);
+    const ImVec2 previewOrigin = ImGui::GetCursorScreenPos();
+    ImGui::Image(editedTileSprite, { info->tileWidth * zoom,
+                                    info->tileHeight * zoom });
+    const bool previewHovered = ImGui::IsItemHovered()
+        or (mTileDragPart >= 0 and ImGui::IsMouseDown(0));
+    ImDrawList* previewDrawList = ImGui::GetWindowDrawList();
+    auto screenOfTile = [&](const sf::Vector2f& v)
+    {
+        return ImVec2{ previewOrigin.x + v.x * zoom,
+                       previewOrigin.y + v.y * zoom };
+    };
+    auto tileOfScreen = [&](const ImVec2& p)
+    {
+        return sf::Vector2f{ (p.x - previewOrigin.x) / zoom,
+                             (p.y - previewOrigin.y) / zoom };
+    };
+
+    const ImVec2 mousePos = ImGui::GetIO().MousePos;
+    const float snapRadius = 16.f;
+
+    auto savePartCollision = [&]()
+    {
+        SceneTextureRegistry::TileCollision c;
+        c.kind = SceneTextureRegistry::TileCollision::Kind::Polygons;
+        c.polygons = mCollisionPartsWorking;
+        registry.setTileCollision(mCollisionTilesetId, mCollisionCol,
+                                  mCollisionRow, c);
+        registry.saveTilesetMetadata(mCollisionTilesetId);
+    };
+    auto saveNoCollision = [&]()
+    {
+        SceneTextureRegistry::TileCollision c;
+        c.kind = SceneTextureRegistry::TileCollision::Kind::None;
+        registry.setTileCollision(mCollisionTilesetId, mCollisionCol,
+                                  mCollisionRow, c);
+        registry.saveTilesetMetadata(mCollisionTilesetId);
+        mCollisionPartsWorking.clear();
+    };
+
+    // convexity check each frame: concave geometry blocks the autosave
+    // (Box2D would otherwise silently use the convex hull of it)
+    bool allPartsConvex = true;
+    int concavePart = -1;
+    for (std::size_t p = 0; p < mCollisionPartsWorking.size(); ++p)
+    {
+        const auto& part = mCollisionPartsWorking.at(p);
+        if (part.size() < 3)
+        {
+            allPartsConvex = false;
+            concavePart = static_cast<int>(p);
+            break;
+        }
+        int sign = 0;
+        for (std::size_t k = 0; k < part.size(); ++k)
+        {
+            const sf::Vector2f& a = part.at(k);
+            const sf::Vector2f& b = part.at((k + 1) % part.size());
+            const sf::Vector2f& c = part.at((k + 2) % part.size());
+            const float cross = (b.x - a.x) * (c.y - b.y)
+                - (b.y - a.y) * (c.x - b.x);
+            if (std::abs(cross) < 0.001f) { continue; }
+            const int crossSign = cross > 0.f ? 1 : -1;
+            if (sign == 0) { sign = crossSign; }
+            else if (sign != crossSign)
+            {
+                allPartsConvex = false;
+                concavePart = static_cast<int>(p);
+                break;
+            }
+        }
+        if (not allPartsConvex) { break; }
+    }
+
+    // draw the polygon parts
+    for (const auto& part : mCollisionPartsWorking)
+    {
+        for (std::size_t k = 0; k < part.size(); ++k)
+        {
+            const sf::Vector2f a = part.at(k);
+            const sf::Vector2f b = part.at((k + 1) % part.size());
+            previewDrawList->AddLine(screenOfTile(a), screenOfTile(b),
+                                     IM_COL32(0, 255, 0, 220), 2.f);
+        }
+    }
+
+    // vertex drag (mTileDragPart >= 0); every snapped move saves instantly
+    if (mTileDragPart >= 0 and ImGui::IsMouseDown(0)
+        and not mCollisionPartsWorking.empty())
+    {
+        sf::Vector2f pos = tileOfScreen(mousePos);
+        pos.x = std::clamp(std::round(pos.x), 0.f,
+                           static_cast<float>(info->tileWidth));
+        pos.y = std::clamp(std::round(pos.y), 0.f,
+                           static_cast<float>(info->tileHeight));
+        auto& vertex = mCollisionPartsWorking.at(mTileDragPart).at(
+            mTileDragVertex);
+        if (vertex != pos)
+        {
+            vertex = pos;
+            if (allPartsConvex) { savePartCollision(); }
+        }
+    }
+    else
+    {
+        mTileDragPart = -1;
+        mTileDragVertex = -1;
+        if (previewHovered and ImGui::IsMouseClicked(0)
+            and not mCollisionPartsWorking.empty())
+        {
+            int bestPart = -1;
+            int bestVertex = -1;
+            float bestDistance = snapRadius * snapRadius;
+            for (std::size_t p = 0; p < mCollisionPartsWorking.size(); ++p)
+            {
+                const auto& part = mCollisionPartsWorking.at(p);
+                for (std::size_t v = 0; v < part.size(); ++v)
+                {
+                    const ImVec2 handle = screenOfTile(part.at(v));
+                    const float dx = mousePos.x - handle.x;
+                    const float dy = mousePos.y - handle.y;
+                    if (dx * dx + dy * dy <= bestDistance)
+                    {
+                        bestDistance = dx * dx + dy * dy;
+                        bestPart = static_cast<int>(p);
+                        bestVertex = static_cast<int>(v);
+                    }
+                }
+            }
+            if (bestPart != -1)
+            {
+                mTileDragPart = bestPart;
+                mTileDragVertex = bestVertex;
+                mTileLastPart = bestPart;
+            }
+        }
+    }
+
+    // handle dots; the node under the cursor gets a halo ring + grows,
+    // the dragged one stays enlarged
+    int hoverHandlePart = -1;
+    int hoverHandleVertex = -1;
+    if (mTileDragPart == -1 and previewHovered
+        and not mCollisionPartsWorking.empty())
+    {
+        float bestDistance = snapRadius * snapRadius;
+        for (std::size_t p = 0; p < mCollisionPartsWorking.size(); ++p)
+        {
+            const auto& part = mCollisionPartsWorking.at(p);
+            for (std::size_t v = 0; v < part.size(); ++v)
+            {
+                const ImVec2 handle = screenOfTile(part.at(v));
+                const float dx = mousePos.x - handle.x;
+                const float dy = mousePos.y - handle.y;
+                if (dx * dx + dy * dy <= bestDistance)
+                {
+                    bestDistance = dx * dx + dy * dy;
+                    hoverHandlePart = static_cast<int>(p);
+                    hoverHandleVertex = static_cast<int>(v);
+                    mTileLastPart = hoverHandlePart;
+                }
+            }
+        }
+    }
+    for (std::size_t p = 0; p < mCollisionPartsWorking.size(); ++p)
+    {
+        const auto& part = mCollisionPartsWorking.at(p);
+        for (std::size_t v = 0; v < part.size(); ++v)
+        {
+            const ImVec2 handle = screenOfTile(part.at(v));
+            const bool hot = mTileDragPart == static_cast<int>(p)
+                and mTileDragVertex == static_cast<int>(v);
+            const bool hovered = hoverHandlePart == static_cast<int>(p)
+                and hoverHandleVertex == static_cast<int>(v);
+            if (hovered)
+            {
+                previewDrawList->AddCircle(handle, 10.f,
+                                           IM_COL32(255, 160, 0, 200), 12, 2.f);
+            }
+            previewDrawList->AddCircleFilled(
+                handle, hot ? 8.f : hovered ? 6.5f : 5.f,
+                hot ? IM_COL32(255, 160, 0, 255)
+                    : hovered ? IM_COL32(255, 200, 80, 255)
+                              : IM_COL32(255, 255, 0, 255));
+        }
+    }
+    if (not mCollisionPartsWorking.empty())
+    {
+        ImGui::TextDisabled("%d part(s) - drag the nodes to shape them",
+                            static_cast<int>(mCollisionPartsWorking.size()));
+    }
+    else
+    {
+        ImGui::TextDisabled("no collision - 'Polygon +' adds one");
+    }
+    if (not allPartsConvex)
+    {
+        ImGui::TextColored({ 1.f, 0.2f, 0.2f, 1.f },
+                           "part %d is concave - parts must stay convex; "
+                           "decompose it (e.g. an L's ground slab + wall "
+                           "slab). Changes save once it is convex again.",
+                           concavePart);
+    }
+
+    // ---- actions ---------------------------------------------------------
+    if (ImGui::Button("No collision"))
+    {
+        saveNoCollision();
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Full collision"))
+    {
+        const float w = static_cast<float>(info->tileWidth);
+        const float h = static_cast<float>(info->tileHeight);
+        mCollisionPartsWorking.clear();
+        mCollisionPartsWorking.push_back({ { 0.f, 0.f }, { w, 0.f },
+                                            { w, h }, { 0.f, h } });
+        savePartCollision();
+    }
+    if (ImGui::Button("Polygon +"))
+    {
+        const float w = static_cast<float>(info->tileWidth);
+        const float h = static_cast<float>(info->tileHeight);
+        mCollisionPartsWorking.push_back({ { w / 4.f, h / 4.f },
+                                            { 3.f * w / 4.f, h / 4.f },
+                                            { 3.f * w / 4.f, 3.f * h / 4.f },
+                                            { w / 4.f, 3.f * h / 4.f } });
+        savePartCollision();
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("+ node"))
+    {
+        if (mCollisionPartsWorking.empty())
+        {
+            // nothing to extend yet: spawn a part and save it
+            const float w = static_cast<float>(info->tileWidth);
+            const float h = static_cast<float>(info->tileHeight);
+            mCollisionPartsWorking.push_back({ { w / 4.f, h / 4.f },
+                                                { 3.f * w / 4.f, h / 4.f },
+                                                { 3.f * w / 4.f, 3.f * h / 4.f },
+                                                { w / 4.f, 3.f * h / 4.f } });
+        }
+        else
+        {
+            // extend the part the user last touched (hovered/dragged
+            // node); the new node goes onto the LONGEST edge (same
+            // outline, one extra handle to grab). Box2D caps convex
+            // polygons at 8 vertices
+            const int partIndex = std::clamp(
+                mTileLastPart, 0,
+                static_cast<int>(mCollisionPartsWorking.size()) - 1);
+            auto& part = mCollisionPartsWorking.at(partIndex);
+            if (part.size() >= 8)
+            {
+                ImGui::TextColored({ 1.f, 0.2f, 0.2f, 1.f },
+                                   "part %d is at the 8-node limit "
+                                   "(Box2D polygons)", partIndex);
+            }
+            else
+            {
+                std::size_t bestEdge = 0;
+                float bestLength = -1.f;
+                for (std::size_t k = 0; k < part.size(); ++k)
+                {
+                    const sf::Vector2f& a = part.at(k);
+                    const sf::Vector2f& b
+                        = part.at((k + 1) % part.size());
+                    const float length = (b.x - a.x) * (b.x - a.x)
+                        + (b.y - a.y) * (b.y - a.y);
+                    if (length > bestLength)
+                    {
+                        bestLength = length;
+                        bestEdge = k;
+                    }
+                }
+                const sf::Vector2f& a = part.at(bestEdge);
+                const sf::Vector2f& b
+                    = part.at((bestEdge + 1) % part.size());
+                const sf::Vector2f mid{ std::round((a.x + b.x) / 2.f),
+                                        std::round((a.y + b.y) / 2.f) };
+                part.insert(part.begin() + static_cast<long>(bestEdge) + 1,
+                            mid);
+                mTileLastPart = partIndex;
+            }
+        }
+        if (allPartsConvex) { savePartCollision(); }
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("- last part"))
+    {
+        if (not mCollisionPartsWorking.empty())
+        {
+            mCollisionPartsWorking.pop_back();
+            if (mCollisionPartsWorking.empty()) { saveNoCollision(); }
+            else { savePartCollision(); }
+        }
+    }
+
+    ImGui::Separator();
+    ImGui::TextDisabled("changes are saved to the .json sidecar and apply "
+                        "to newly painted tiles");
 
     ImGui::End();
 }
@@ -3205,13 +4047,28 @@ Editor::createEditorWidgets(bool *p_open)
             if (ImGui::Selectable("MainCharacter [dynamic]",
                                   mMainCharRowSelected))
             {
-                mMainCharRowSelected = true;
-                mSelectedIndex = -1;
-                mLastSelectedIndex = -1;
-                mSelectedBodyId = b2_nullBodyId;
-                mWorld->setSelectedHighlight(b2_nullBodyId);
-                syncCharEditBuffers();
-                showMainCharSelection(mWorld);
+                // click again on the selected pseudo-row unselects it
+                if (mMainCharRowSelected && not ImGui::GetIO().KeyShift)
+                {
+                    mMainCharRowSelected = false;
+                    mLastSelectedIndex = -1;
+                    mWorld->setCharacterSelection({}, {}, false);
+                }
+                else
+                {
+                    mMainCharRowSelected = true;
+                    mSelectedIndex = -1;
+                    mLastSelectedIndex = -1;
+                    mSelectedBodyId = b2_nullBodyId;
+                    mWorld->setSelectedHighlight(b2_nullBodyId);
+                    syncCharEditBuffers();
+                    showMainCharSelection(mWorld);
+                }
+                if (not ImGui::GetIO().KeyShift)
+                {
+                    mMultiSelectedIndices.clear();
+                    syncMultiSelectionHighlight();
+                }
             }
             for (int i = 0; i < static_cast<int>(objects.size()); ++i)
             {
@@ -3219,27 +4076,78 @@ Editor::createEditorWidgets(bool *p_open)
                 const std::string label = fmt::format(
                     "{}. {} [{}]", i, object.mName,
                     object.mType == b2_dynamicBody ? "dynamic" : "static");
+                const bool inMultiSelection = std::find(
+                    mMultiSelectedIndices.begin(),
+                    mMultiSelectedIndices.end(), i)
+                    != mMultiSelectedIndices.end();
 
-                if (ImGui::Selectable(label.c_str(), mSelectedIndex == i))
+                // scene selection (click/arrows): scroll this row into view
+                if (mScrollListToSelection && mSelectedIndex == i)
                 {
-                    mSelectedIndex = i;
-                    mMainCharRowSelected = false;
-                    mWorld->setCharacterSelection({}, {}, false);
-                    mLastSelectedIndex = -1;
-                    syncEditBuffersFromSelection();
+                    ImGui::SetScrollHereY(0.4f);
+                    mScrollListToSelection = false;
+                }
 
-                    // in a transform mode a list click selects the object
-                    // in the level (persistent outline + markers); without
-                    // such a tool the list click only fills the edit buffers
-                    if (transformToolActive())
+                if (ImGui::Selectable(label.c_str(),
+                                       mSelectedIndex == i
+                                           or inMultiSelection))
+                {
+                    if (ImGui::GetIO().KeyShift)
                     {
-                        mSelectedBodyId = object.mPhysicsBodyId;
-                        mPivotOffsetPx = {};
-                        mWorld->setSelectedHighlight(mSelectedBodyId);
-                        mWorld->setSelectionStyle(mActiveTool == Tool::Rotate
-                            ? Renderer::SelectionStyle::RotateMarkers
-                            : Renderer::SelectionStyle::ResizeHandles);
-                        updatePivotMarker();
+                        // shift-click toggles the row in the multi-selection
+                        // (DEL removes every selected row)
+                        if (inMultiSelection)
+                        {
+                            mMultiSelectedIndices.erase(
+                                std::remove(mMultiSelectedIndices.begin(),
+                                            mMultiSelectedIndices.end(), i),
+                                mMultiSelectedIndices.end());
+                        }
+                        else
+                        {
+                            mMultiSelectedIndices.push_back(i);
+                            std::sort(mMultiSelectedIndices.begin(),
+                                      mMultiSelectedIndices.end());
+                        }
+                        syncMultiSelectionHighlight();
+                    }
+                    else if (mSelectedIndex == i and not inMultiSelection)
+                    {
+                        // plain click on the selected row: unselect it (and
+                        // the multi-selection, like clicking empty space)
+                        mSelectedIndex = -1;
+                        mMainCharRowSelected = false;
+                        mLastSelectedIndex = -1;
+                        mSelectedBodyId = b2_nullBodyId;
+                        mMultiSelectedIndices.clear();
+                        mWorld->setSelectedHighlight(b2_nullBodyId);
+                        syncMultiSelectionHighlight();
+                    }
+                    else
+                    {
+                        // plain click on another row: single selection
+                        mMultiSelectedIndices.clear();
+                        syncMultiSelectionHighlight();
+                        mSelectedIndex = i;
+                        mMainCharRowSelected = false;
+                        mLastSelectedIndex = -1;
+                        mWorld->setCharacterSelection({}, {}, false);
+                        syncEditBuffersFromSelection();
+
+                        // in a transform mode a list click selects the object
+                        // in the level (persistent outline + markers); without
+                        // such a tool the list click only fills the edit buffers
+                        if (transformToolActive())
+                        {
+                            mSelectedBodyId = object.mPhysicsBodyId;
+                            mPivotOffsetPx = {};
+                            mWorld->setSelectedHighlight(mSelectedBodyId);
+                            mWorld->setSelectionStyle(
+                                mActiveTool == Tool::Rotate
+                                    ? Renderer::SelectionStyle::RotateMarkers
+                                    : Renderer::SelectionStyle::ResizeHandles);
+                            updatePivotMarker();
+                        }
                     }
                 }
 

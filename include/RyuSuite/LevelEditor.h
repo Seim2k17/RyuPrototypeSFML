@@ -240,6 +240,22 @@ class Editor
     void switchLevel(ELevel level);
     void addObject();
     void deleteObject();
+    /// deletes the multi-selection (DEL key), falling back to the single
+    /// selected object; one undo entry per removed object
+    void deleteSelectedObjects();
+    /// applies the texture edit buffers (id + tile) to \p index of the
+    /// selected level; one undoable Edit entry, recreates the body
+    void applyTextureEditTo(int index);
+    /// pushes the multi-selection's body ids into the renderer highlight
+    void syncMultiSelectionHighlight();
+    /// per-tile collision of a (semantic-resolved) tile -> hull parts
+    /// (meters, body-local); empty = the default full-cell box.\n    /// \p hasPhysics is set false for collision kind None
+    std::vector<std::vector<b2Vec2>> collisionPartsFor(
+        const std::string& textureId, int tileCol, int tileRow,
+        const sf::Vector2f& objectSizePx, bool& hasPhysics) const;
+    /// tile collision editor window: per-tile collision overrides stored
+    /// in the tileset sidecar json (full box, no collision, sub-rect or\n    /// convex parts for edge tiles like ground->wall transitions)
+    void drawTileCollisionEditor();
     void applyEdits();
     void saveLevel();
     /// edit-buffers from the MAIN CHARACTER physics body (list pseudo-entry)
@@ -351,6 +367,12 @@ class Editor
     int mSelectedIndex;
     /// selection-change detection so edit buffers are only re-synced on switch
     int mLastSelectedIndex;
+    /// shift-click rows of the object list (Indices ascending); empty = none,
+    /// a plain click clears it again
+    std::vector<int> mMultiSelectedIndices;
+    /// scrolls the object list to the selected row on the next list pass
+    /// (set when the selection was changed from the scene view / arrows)
+    bool mScrollListToSelection;
 
     // edit buffers of the currently selected object
     std::string mEditName;
@@ -368,6 +390,9 @@ class Editor
     float mEditWidth;
     float mEditHeight;
     float mEditAngle; /// degrees, editor-facing (radians in the physics world)
+    /// visual-only sprite offset (px; meters in the physics world)
+    float mEditVisualOffsetX;
+    float mEditVisualOffsetY;
 
     // drag state; the Select tool gates all selection interactions
     DragMode mDragMode;
@@ -447,6 +472,25 @@ class Editor
     /// place strokes replace tile-sized objects in occupied cells
     /// (big manually built geometry is never replaced)
     bool mReplaceTiles;
+
+    // tile collision editor state (window + working buffers)
+    bool mShowTileCollisionEditor;
+    std::string mCollisionTilesetId;
+    int mCollisionCol;
+    int mCollisionRow;
+    /// working hull parts of the edited tile (tile-local px)
+    std::vector<std::vector<sf::Vector2f>> mCollisionPartsWorking;
+    /// which tile the working parts belong to ("id/col/row"); a mismatch
+    /// reloads them from the sidecar override
+    std::string mCollisionEditKey;
+    /// a tile of the grid is clicked (selected): its collision shows and
+    /// is editable; the editor window pins itself while this is true
+    bool mCollisionTileSelected;
+    /// vertex drag state of the magnified preview: part/vertex (-1 = none)
+    int mTileDragPart;
+    int mTileDragVertex;
+    /// part of the last hovered/dragged node ("+ node" extends it)
+    int mTileLastPart;
 
     // parallax factors of the selected level (Background, Ground1,
     // Foreground) + camera preview offset (parallax pan preview)
