@@ -31,6 +31,44 @@ readTilesetSidecar(const std::filesystem::path& jsonPath,
         tileset.tileHeight = data.value("tileSize", json::array({32, 32}))[1];
         tileset.margin = data.value("margin", 0);
         tileset.spacing = data.value("spacing", 0);
+        if (data.contains("tiles"))
+        {
+            for (auto it = data.at("tiles").begin();
+                 it != data.at("tiles").end(); ++it)
+            {
+                SceneTextureRegistry::TileCollision collision;
+                const std::string kind
+                    = it->value("collision", std::string("full"));
+                if (kind == "none")
+                {
+                    collision.kind = SceneTextureRegistry::TileCollision::Kind::None;
+                }
+                else if (kind == "rect")
+                {
+                    collision.kind = SceneTextureRegistry::TileCollision::Kind::Rect;
+                    const auto rect
+                        = it->value("rect", std::vector<int>{ 0, 0, 0, 0 });
+                    collision.rect = sf::IntRect({ rect.at(0), rect.at(1) },
+                                                 { rect.at(2), rect.at(3) });
+                }
+                else if (kind == "polygons")
+                {
+                    collision.kind = SceneTextureRegistry::TileCollision::Kind::Polygons;
+                    for (const auto& polygon : it->at("polygons"))
+                    {
+                        std::vector<sf::Vector2f> vertices;
+                        for (const auto& vertex : polygon)
+                        {
+                            vertices.push_back(
+                                { vertex.at(0).get<float>(),
+                                  vertex.at(1).get<float>() });
+                        }
+                        collision.polygons.push_back(std::move(vertices));
+                    }
+                }
+                tileset.tileCollisions[it.key()] = std::move(collision);
+            }
+        }
     }
     catch (const std::exception& e)
     {
@@ -130,10 +168,16 @@ SceneTextureRegistry::load(const std::string& scenesDirectory)
     mEntries.clear();
     mImageIds.clear();
     mTilesetIds.clear();
+    mSemantics.clear();
 
     addLegacyEntries(scenesDirectory);
     scanDirectory(std::filesystem::path(scenesDirectory) / "objects", false);
     scanDirectory(std::filesystem::path(scenesDirectory) / "tilesets", true);
+
+    // semantic mappings are applied after the concrete ids are known so the
+    // load log can flag mappings that point at nothing
+    loadSemanticMappings(std::filesystem::path(scenesDirectory)
+                              / "semantic.json");
 
     // tileset entries get their sidecar metadata + column/row counts
     // (image-only entries registered above keep the default metadata)
@@ -182,7 +226,11 @@ SceneTextureRegistry::find(const std::string& id) const
 const sf::Texture*
 SceneTextureRegistry::texture(const std::string& id) const
 {
-    const Entry* entry = find(id);
+    std::string concreteId = id;
+    int col = -1;
+    int row = -1;
+    resolveConcrete(concreteId, col, row);
+    const Entry* entry = find(concreteId);
     if (entry == nullptr or not entry->loaded) { return nullptr; }
     return &entry->texture;
 }
@@ -190,8 +238,12 @@ SceneTextureRegistry::texture(const std::string& id) const
 const SceneTextureRegistry::TilesetInfo*
 SceneTextureRegistry::tileset(const std::string& id) const
 {
-    if (not isTilesetId(mTilesetIds, id)) { return nullptr; }
-    const Entry* entry = find(id);
+    std::string concreteId = id;
+    int col = -1;
+    int row = -1;
+    resolveConcrete(concreteId, col, row);
+    if (not isTilesetId(mTilesetIds, concreteId)) { return nullptr; }
+    const Entry* entry = find(concreteId);
     return entry != nullptr ? &entry->tileset : nullptr;
 }
 
@@ -199,12 +251,14 @@ sf::IntRect
 SceneTextureRegistry::textureRect(const std::string& id, int tileCol,
                                    int tileRow) const
 {
-    const Entry* entry = find(id);
+    std::string concreteId = id;
+    resolveConcrete(concreteId, tileCol, tileRow);
+    const Entry* entry = find(concreteId);
     const sf::Vector2u size =
         (entry != nullptr and entry->loaded) ? entry->texture.getSize()
                                              : sf::Vector2u{ 8u, 8u };
     if (entry == nullptr or tileCol < 0 or tileRow < 0
-        or not isTilesetId(mTilesetIds, id))
+        or not isTilesetId(mTilesetIds, concreteId))
     {
         return sf::IntRect({ 0, 0 },
                            { static_cast<int>(size.x),
@@ -223,6 +277,186 @@ SceneTextureRegistry::textureRect(const std::string& id, int tileCol,
         info.margin + col * (info.tileWidth + info.spacing),
         info.margin + row * (info.tileHeight + info.spacing) };
     return sf::IntRect(position, { info.tileWidth, info.tileHeight });
+}
+
+const SceneTextureRegistry::SemanticInfo*
+SceneTextureRegistry::semantic(const std::string& id) const
+{
+    const auto it = mSemantics.find(id);
+    return it != mSemantics.end() ? &it->second : nullptr;
+}
+
+std::string
+SceneTextureRegistry::semanticIdFor(const std::string& textureId, int tileCol,
+                                     int tileRow) const
+{
+    for (const auto& [id, info] : mSemantics)
+    {
+        if (info.textureId != textureId or info.tileCol != tileCol
+            or info.tileRow != tileRow)
+        {
+            continue;
+        }
+        return id;
+    }
+    return {};
+}
+
+sf::Vector2f
+SceneTextureRegistry::semanticOffsetPx(const std::string& id) const
+{
+    const auto it = mSemantics.find(id);
+    if (it == mSemantics.end()) { return {}; }
+    return { it->second.offsetX, it->second.offsetY };
+}
+
+void
+SceneTextureRegistry::loadSemanticMappings(const std::filesystem::path& jsonPath)
+{
+    std::error_code ec;
+    if (not std::filesystem::exists(jsonPath, ec)) { return; }
+
+    try
+    {
+        json data;
+        std::ifstream f(jsonPath);
+        f >> data;
+        for (auto it = data.begin(); it != data.end(); ++it)
+        {
+            SemanticInfo info;
+            info.textureId = it->value("textureId", std::string());
+            if (it->contains("tile"))
+            {
+                info.tileCol = it->at("tile").at(0).get<int>();
+                info.tileRow = it->at("tile").at(1).get<int>();
+            }
+            if (it->contains("offsetPx"))
+            {
+                info.offsetX = it->at("offsetPx").at(0).get<float>();
+                info.offsetY = it->at("offsetPx").at(1).get<float>();
+            }
+            mSemantics[it.key()] = info;
+            fmt::print("TextureRegistry: semantic '{}' -> '{}' [{},{}]"
+                       " (+{},{} px).\n",
+                       it.key(), info.textureId, info.tileCol, info.tileRow,
+                       info.offsetX, info.offsetY);
+        }
+        fmt::print("TextureRegistry: loaded {} semantic mapping(s).\n",
+                   mSemantics.size());
+    }
+    catch (const std::exception& e)
+    {
+        fmt::print("TextureRegistry: failed to parse {}: {}.\n",
+                   jsonPath.string(), e.what());
+    }
+}
+
+void
+SceneTextureRegistry::resolveConcrete(std::string& id, int& tileCol,
+                                       int& tileRow) const
+{
+    const auto it = mSemantics.find(id);
+    if (it == mSemantics.end()) { return; }
+    const SemanticInfo& info = it->second;
+    id = info.textureId;
+    tileCol = info.tileCol;
+    tileRow = info.tileRow;
+}
+
+const SceneTextureRegistry::TileCollision*
+SceneTextureRegistry::tileCollision(const std::string& id, int tileCol,
+                                     int tileRow) const
+{
+    std::string concreteId = id;
+    resolveConcrete(concreteId, tileCol, tileRow);
+    if (tileCol < 0 or tileRow < 0) { return nullptr; }
+    const Entry* entry = find(concreteId);
+    if (entry == nullptr) { return nullptr; }
+    const auto it = entry->tileset.tileCollisions.find(
+        fmt::format("{},{}", tileCol, tileRow));
+    if (it == entry->tileset.tileCollisions.end()) { return nullptr; }
+    return &it->second;
+}
+
+void
+SceneTextureRegistry::setTileCollision(const std::string& id, int tileCol,
+                                       int tileRow, const TileCollision& collision)
+{
+    Entry* entry = find(id);
+    if (entry == nullptr or tileCol < 0 or tileRow < 0)
+    {
+        return;
+    }
+    const std::string key = fmt::format("{},{}", tileCol, tileRow);
+    if (collision.kind == TileCollision::Kind::Full)
+    {
+        entry->tileset.tileCollisions.erase(key);
+    }
+    else
+    {
+        entry->tileset.tileCollisions[key] = collision;
+    }
+}
+
+bool
+SceneTextureRegistry::saveTilesetMetadata(const std::string& id)
+{
+    const Entry* entry = find(id);
+    if (entry == nullptr) { return false; }
+    const std::filesystem::path jsonPath = entry->image.parent_path()
+        / (entry->image.stem().string() + ".json");
+
+    json tiles = json::object();
+    for (const auto& [key, collision] : entry->tileset.tileCollisions)
+    {
+        json tile;
+        switch (collision.kind)
+        {
+        case TileCollision::Kind::None:
+            tile["collision"] = "none";
+            break;
+        case TileCollision::Kind::Rect:
+            tile["collision"] = "rect";
+            tile["rect"] = { collision.rect.position.x,
+                             collision.rect.position.y,
+                             collision.rect.size.x, collision.rect.size.y };
+            break;
+        case TileCollision::Kind::Polygons:
+        {
+            tile["collision"] = "polygons";
+            json polygons = json::array();
+            for (const auto& polygon : collision.polygons)
+            {
+                json vertices = json::array();
+                for (const auto& vertex : polygon)
+                {
+                    vertices.push_back(
+                        json::array({ vertex.x, vertex.y }));
+                }
+                polygons.push_back(std::move(vertices));
+            }
+            tile["polygons"] = std::move(polygons);
+            break;
+        }
+        case TileCollision::Kind::Full:
+            continue;
+        }
+        tiles[key] = std::move(tile);
+    }
+
+    json out = {
+        { "tileSize", json::array(
+              { entry->tileset.tileWidth, entry->tileset.tileHeight }) },
+        { "margin", entry->tileset.margin },
+        { "spacing", entry->tileset.spacing }
+    };
+    if (not tiles.empty()) { out["tiles"] = std::move(tiles); }
+
+    std::ofstream f(jsonPath);
+    f << out.dump(2) << "\n";
+    fmt::print("TextureRegistry: saved tileset metadata of '{}' to {}.\n",
+               id, jsonPath.string());
+    return true;
 }
 
 const sf::Texture&

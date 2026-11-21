@@ -60,7 +60,8 @@ SceneObjectPhysicsParameters
 objectFromJson(const json &obj)
 {
     const auto tile = obj.value("tile", std::vector<int>{ -1, -1 });
-    return {
+    const auto offset = obj.value("visualOffsetPx", std::vector<float>{ 0.f, 0.f });
+    SceneObjectPhysicsParameters object{
         { obj.at("positionPx").at(0).get<float>(),
           obj.at("positionPx").at(1).get<float>() },
         { obj.at("sizePx").at(0).get<float>(),
@@ -74,8 +75,24 @@ objectFromJson(const json &obj)
         Converter::degToRad(obj.value("rotationDeg", 0.f)),
         obj.value("hasPhysics", true),
         // tile of a tileset: [col, row]; missing/negative = whole image
-        tile.at(0), tile.at(1)
+        tile.at(0), tile.at(1),
+        { offset.at(0), offset.at(1) }
     };
+    if (obj.contains("collisionParts"))
+    {
+        for (const auto &part : obj.at("collisionParts"))
+        {
+            std::vector<b2Vec2> vertices;
+            for (const auto &vertex : part)
+            {
+                vertices.push_back(
+                    { Converter::pixelsToMeters(vertex.at(0).get<float>()),
+                      Converter::pixelsToMeters(vertex.at(1).get<float>()) });
+            }
+            object.mCollisionParts.push_back(std::move(vertices));
+        }
+    }
+    return object;
 }
 
 json
@@ -97,6 +114,30 @@ objectToJson(const SceneObjectPhysicsParameters &object)
     if (object.mTileCol >= 0 and object.mTileRow >= 0)
     {
         out["tile"] = { object.mTileCol, object.mTileRow };
+    }
+    const auto offsetX = Converter::metersToPixels(object.mVisualOffset.x);
+    const auto offsetY = Converter::metersToPixels(object.mVisualOffset.y);
+    if (offsetX != 0.f or offsetY != 0.f)
+    {
+        out["visualOffsetPx"] = { offsetX, offsetY };
+    }
+    // tile-editor authored hull (partial tiles, edge tiles); px, local to
+    // the body center; missing/empty = the default box from sizePx
+    if (not object.mCollisionParts.empty())
+    {
+        json parts = json::array();
+        for (const auto &part : object.mCollisionParts)
+        {
+            json vertices = json::array();
+            for (const auto &vertex : part)
+            {
+                vertices.push_back(json::array(
+                    { Converter::metersToPixels(vertex.x),
+                      Converter::metersToPixels(vertex.y) }));
+            }
+            parts.push_back(std::move(vertices));
+        }
+        out["collisionParts"] = std::move(parts);
     }
     return out;
 }

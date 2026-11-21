@@ -36,6 +36,19 @@
 class SceneTextureRegistry
 {
   public:
+    /// per-tile collision override (tile-local pixels, origin = tile's
+    /// top-left corner); solves partial tiles and ground-to-wall edge
+    /// tiles whose collision hull is polygonal
+    struct TileCollision
+    {
+        enum class Kind { Full, None, Rect, Polygons };
+        Kind kind = Kind::Full;
+        sf::IntRect rect;
+        /// convex parts of the tile's hull (polygonal collisions must be
+        /// decomposed: Box2D only accepts convex polygons)
+        std::vector<std::vector<sf::Vector2f>> polygons;
+    };
+
     /// uniform-grid tileset metadata of one registered image
     struct TilesetInfo
     {
@@ -45,6 +58,19 @@ class SceneTextureRegistry
         int spacing = 0;
         int columns = 0;
         int rows = 0;
+        /// per-tile collision overrides, keyed "col,row"
+        std::map<std::string, TileCollision> tileCollisions;
+    };
+
+    /// semantic (theme) mapping: a stable id (e.g. "floor") that can be
+    /// re-skinned later by editing the mapping file, not the level data
+    struct SemanticInfo
+    {
+        std::string textureId;
+        int tileCol = -1;
+        int tileRow = -1;
+        float offsetX = 0.f;
+        float offsetY = 0.f;
     };
 
     /// Scans \p scenesDirectory (objects/ + tilesets/ sub folders) and
@@ -70,6 +96,32 @@ class SceneTextureRegistry
     {
         return mTilesetIds;
     }
+
+    /// semantic mapping registered under \p id (nullptr = concrete id)
+    const SemanticInfo* semantic(const std::string& id) const;
+
+    /// semantic id whose current mapping points at \p textureId/\p tile
+    /// (empty = no semantic id maps there); writing it into level data
+    /// makes the object re-skinnable via the mapping file
+    std::string semanticIdFor(const std::string& textureId, int tileCol,
+                              int tileRow) const;
+
+    /// visual offset (px) of the semantic mapping \p id, {0,0} for concrete ids
+    sf::Vector2f semanticOffsetPx(const std::string& id) const;
+
+    /// collision definition of the (semantic-resolved) tile \p tileCol/\p
+    /// tileRow of the tileset \p id; nullptr = full tile box (default)
+    const TileCollision* tileCollision(const std::string& id, int tileCol,
+                                       int tileRow) const;
+
+    /// editor setter: override the collision of tile \p tileCol/\p tileRow
+    /// of tileset \p id (kind Full removes the override)
+    void setTileCollision(const std::string& id, int tileCol, int tileRow,
+                          const TileCollision& collision);
+
+    /// writes the tileset metadata (tile size, spacing, per-tile collisions)
+    /// back into the <id>.json sidecar; false when \p id is no tileset
+    bool saveTilesetMetadata(const std::string& id);
 
     /// plain white texture used when a registered file is missing or the
     /// id is unknown; guarantees rendering/editing never crash
@@ -99,10 +151,19 @@ class SceneTextureRegistry
     /// legacy enum names seeded with the former hard-coded paths
     void addLegacyEntries(const std::string& scenesDirectory);
 
+    /// reads assets/scenes/semantic.json (semanticId -> concrete mapping);
+    /// a missing file is fine: no semantics, all ids stay concrete
+    void loadSemanticMappings(const std::filesystem::path& jsonPath);
+
+    /// resolves a possibly-semantic \p id/\p tile to the concrete
+    /// registry entries (semantic mapping wins over the passed tile)
+    void resolveConcrete(std::string& id, int& tileCol, int& tileRow) const;
+
     Entry* find(const std::string& id);
     const Entry* find(const std::string& id) const;
 
     std::map<std::string, Entry> mEntries;
+    std::map<std::string, SemanticInfo> mSemantics;
     std::vector<std::string> mImageIds;
     std::vector<std::string> mTilesetIds;
     /// lazily created in fallbackTexture() (const on purpose)

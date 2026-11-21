@@ -1,0 +1,8 @@
+{
+  "floor": { "textureId": "Grass" },
+  "wall": { "textureId": "Grate" },
+  "button": { "textureId": "Button" },
+  "plateau": { "textureId": "test_32", "tile": [1, 1], "offsetPx": [0, -4] },
+  "pillar": { "textureId": "test_32", "tile": [0, 0] },
+  "teleport": { "textureId": "Teleport" }
+}

@@ -21,6 +21,7 @@
 #include <memory>
 //#include <map>
 #include <unordered_map>
+#include <vector>
 
 class CharacterBase;
 class ICharacter;
@@ -66,7 +67,8 @@ struct SceneObjectPhysicsParameters
         EntityType entityType, int layer = 1, /*=EntityType::None);*/
         float rotation = 0.f, /* radians, ccw */
         bool hasPhysics = true, /* false = decorative, collides with nothing */
-        int tileCol = -1, int tileRow = -1); /* >= 0: tile of a tileset */
+        int tileCol = -1, int tileRow = -1, /* >= 0: tile of a tileset */
+        b2Vec2 visualOffsetPx = {0.f, 0.f}); /* px, visual-only */
 
     b2Vec2 mPosition;
     b2Vec2 mSize;
@@ -80,6 +82,9 @@ struct SceneObjectPhysicsParameters
     /// tile of the \p mTextureId tileset (>= 0, else the whole image)
     int mTileCol;
     int mTileRow;
+    /// visual-only offset of the rendered sprite (meters): PoP-style
+    /// anchoring, the collider itself stays untouched
+    b2Vec2 mVisualOffset;
     EntityType mEntityType;
     b2BodyId mPhysicsBodyId;
     // TODO: use existing enum for more clarity
@@ -87,6 +92,9 @@ struct SceneObjectPhysicsParameters
     /// false = no physics collision (decoration: a collision-free body is
     /// still created so editor/rendering keep working off the bodyId)
     bool mHasPhysics;
+    /// collision hull parts of THIS object (meters, body-local: origin =\n    /// body center); empty = the default box from mSize. Filled from the
+    /// tileset sidecar's per-tile collision data at paint time: partial\n    /// tiles and edge tiles (ground->wall) whose hull must be polygonal -\n    /// every part must be CONVEX (Box2D limitation), L-shapes are stored\n    /// decomposed into boxes
+    std::vector<std::vector<b2Vec2>> mCollisionParts;
 };
 
 // Custom hash function for b2BodyId

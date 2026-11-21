@@ -21,6 +21,7 @@ struct PhysicsObjectCreatedEvent {
     int tileRow = -1;
     int layer = 1; // scenegraph layer (0=Background, 1=Ground1, 2=Foreground)
     float rotation = 0.f; // radians, ccw (scene objects)
+    b2Vec2 visualOffset = {0.f, 0.f}; // meters, visual-only sprite shift
 };
 
 struct PhysicsObjectUpdatedEvent {

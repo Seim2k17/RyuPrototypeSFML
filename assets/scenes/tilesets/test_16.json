@@ -4,5 +4,25 @@
     16
   ],
   "margin": 0,
-  "spacing": 0
+  "spacing": 0,
+  "tiles": {
+    "1,0": {
+      "collision": "rect",
+      "rect": [0, 8, 16, 8]
+    },
+    "2,0": {
+      "collision": "none"
+    },
+    "3,0": {
+      "collision": "polygons",
+      "polygons": [
+        [[0, 8], [16, 8], [16, 16], [0, 16]],
+        [[8, 0], [16, 0], [16, 8], [8, 8]]
+      ]
+    },
+    "0,1": {
+      "collision": "rect",
+      "rect": [4, 4, 8, 8]
+    }
+  }
 }

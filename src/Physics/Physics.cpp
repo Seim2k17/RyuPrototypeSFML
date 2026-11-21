@@ -60,6 +60,7 @@ SceneObjectPhysicsParameters::SceneObjectPhysicsParameters() :
     mTextureId("Unknown"),
     mTileCol(-1),
     mTileRow(-1),
+    mVisualOffset({0.f, 0.f}),
     mEntityType(EntityType::None),
     mLayer(1),
     mHasPhysics(true),
@@ -71,7 +72,7 @@ SceneObjectPhysicsParameters::SceneObjectPhysicsParameters(
         b2Vec2 positionInPixel, b2Vec2 sizeInPixel,
         std::string name, b2BodyType type,
         std::string textureId, EntityType entityType, int layer, float rotation,
-        bool hasPhysics, int tileCol, int tileRow) :
+        bool hasPhysics, int tileCol, int tileRow, b2Vec2 visualOffsetPx) :
     mPosition(Converter::pixelsToMeters(positionInPixel.x), Converter::pixelsToMeters(positionInPixel.y)),
     mSize(Converter::pixelsToMeters(sizeInPixel.x), Converter::pixelsToMeters(sizeInPixel.y)),
     mRotation(rotation),
@@ -80,6 +81,8 @@ SceneObjectPhysicsParameters::SceneObjectPhysicsParameters(
     mTextureId(std::move(textureId)),
     mTileCol(tileCol),
     mTileRow(tileRow),
+    mVisualOffset({Converter::pixelsToMeters(visualOffsetPx.x),
+                   Converter::pixelsToMeters(visualOffsetPx.y)}),
     mEntityType(entityType),
     mLayer(layer),
     mHasPhysics(hasPhysics),
@@ -663,10 +666,46 @@ Physics::createPhysicsBody(SceneObjectPhysicsParameters& sceneObject, int& i)
     material.restitution = 0.2f;  // Bounciness (0 = no bounce, 1 = perfect bounce)
     material.friction = 0.3f;     // Friction coefficient
 
-    b2Polygon box = b2MakeBox((objSize.x / 2.0), (objSize.y / 2.0));
+    // collision hull: the default box from mSize, or the object's
+    // per-tile polygon parts (tile-editor authored, must be convex);
+    // the LAST created shape id goes into the created event.
+    // Decorations (no physics) get NO shape at all: they collide with
+    // nothing either way, and without a shape the physics-debug draw
+    // renders nothing for them - the editor replaces it with a blue rect
+    b2ShapeId shapeId = b2_nullShapeId;
+    if (not sceneObject.mHasPhysics)
+    {
+        fmt::print("Physics: '{}' is decorative - no collision shape.\n",
+                   sceneObject.mName);
+    }
+    else if (sceneObject.mCollisionParts.empty())
+    {
+        b2Polygon box = b2MakeBox((objSize.x / 2.0), (objSize.y / 2.0));
 
-    b2ShapeId shapeId = b2CreatePolygonShape(bodyId, &shapeDef, &box);
-    b2Shape_SetSurfaceMaterial(shapeId, material);
+        shapeId = b2CreatePolygonShape(bodyId, &shapeDef, &box);
+        b2Shape_SetSurfaceMaterial(shapeId, material);
+    }
+    else
+    {
+        for (const auto& part : sceneObject.mCollisionParts)
+        {
+            if (part.size() < 3) { continue; }
+            std::size_t count = std::min(part.size(), std::size_t{ 8 });
+            b2Vec2 vertices[8];
+            for (std::size_t k = 0; k < count; ++k) { vertices[k] = part.at(k); }
+            const b2Hull hull = b2ComputeHull(vertices, int(count));
+            if (hull.count < 3)
+            {
+                fmt::print("Physics: collision part of '{}' is not a valid "
+                           "(convex) polygon - skipped.\n",
+                           sceneObject.mName);
+                continue;
+            }
+            const b2Polygon polygon = b2MakePolygon(&hull, 0.0f);
+            shapeId = b2CreatePolygonShape(bodyId, &shapeDef, &polygon);
+            b2Shape_SetSurfaceMaterial(shapeId, material);
+        }
+    }
 
     // std::unique_ptr<sf::RectangleShape> shape =
     // std::make_unique<sf::RectangleShape>(sf::Vector2f(size_x,size_y));
@@ -750,6 +789,7 @@ Physics::createPhysicsBody(SceneObjectPhysicsParameters& sceneObject, int& i)
     event.tileRow = sceneObject.mTileRow;
     event.layer = sceneObject.mLayer;
     event.rotation = sceneObject.mRotation;
+    event.visualOffset = sceneObject.mVisualOffset;
     
     EventBus::emit(Ryu::EPhysicsEvent::ObjectCreated, event);
     return bodyId;
