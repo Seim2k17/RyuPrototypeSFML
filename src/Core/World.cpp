@@ -21,6 +21,7 @@
 #include <SFML/Graphics/RenderWindow.hpp>
 
 #include <SFML/Graphics/Shape.hpp>
+#include <cmath>
 #include <SFML/System/Angle.hpp>
 #include <SFML/System/Vector2.hpp>
 #include <box2d/box2d.h>
@@ -181,6 +182,42 @@ void World::draw() {
         const auto& sceneObjects = getSceneObjects();
         if (sceneObjects.find(activeLevel) != sceneObjects.end())
         {
+            for (const auto& obj : sceneObjects.at(activeLevel))
+            {
+                if (B2_IS_NULL(obj.mPhysicsBodyId)) { continue; }
+                const b2Vec2 pos = b2Body_GetPosition(obj.mPhysicsBodyId);
+                const sf::Vector2f centerPx = toPx(pos);
+                const float angleRad
+                    = b2Rot_GetAngle(b2Body_GetRotation(obj.mPhysicsBodyId));
+                const float cosA = std::cos(angleRad);
+                const float sinA = std::sin(angleRad);
+                auto rotatedPx = [&](const sf::Vector2f& localPx)
+                {
+                    return sf::Vector2f{
+                        centerPx.x + localPx.x * cosA - localPx.y * sinA,
+                        centerPx.y + localPx.x * sinA + localPx.y * cosA };
+                };
+
+                if (not obj.mHasPhysics)
+                {
+                    // decorative/collision-free: light-blue borders of the
+                    // texture/tile rect (their bodies carry no shapes, so
+                    // the box2d debug draw paints nothing on top of it)
+                    sf::RectangleShape rect(sf::Vector2f{
+                        Converter::metersToPixels(obj.mSize.x),
+                        Converter::metersToPixels(obj.mSize.y) });
+                    rect.setOrigin(rect.getSize() / 2.f);
+                    rect.setPosition(centerPx);
+                    rect.setRotation(sf::radians(angleRad));
+                    rect.setFillColor(sf::Color::Transparent);
+                    rect.setOutlineColor(sf::Color(120, 190, 255, 220));
+                    rect.setOutlineThickness(-1.f);
+                    mWindow.draw(rect);
+                }
+                // colliding objects: the box2d debug draw already paints
+                // their shapes in the physics colors (boxes and authored
+                // polygonal hulls alike) - nothing extra needed
+            }
             for (const auto& obj : sceneObjects.at(activeLevel))
             {
                 if (B2_IS_NULL(obj.mPhysicsBodyId)) continue;

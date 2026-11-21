@@ -139,6 +139,10 @@ class World : public Observer {
     {
         mRenderer->setSelectedHighlight(bodyId);
     }
+    void setMultiSelectionHighlight(const std::vector<b2BodyId>& bodyIds)
+    {
+        mRenderer->setMultiSelectionHighlight(bodyIds);
+    }
     /// marker style of the selected object: resize handles or rotate arrows
     void setSelectionStyle(Renderer::SelectionStyle style)
     {

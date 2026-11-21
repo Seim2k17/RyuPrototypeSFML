@@ -71,6 +71,9 @@ public:
     /// Marks the selected object (drawn with red outline; the markers follow
     /// the current selection style); a null bodyId clears it.
     void setSelectedHighlight(b2BodyId bodyId);
+    /// Shift-click multi-selection of the level-editor object list: every
+    /// body gets the orange fill + red outline; an empty vector clears it
+    void setMultiSelectionHighlight(const std::vector<b2BodyId>& bodyIds);
     /// Sets the marker style of the selected object (resize vs rotate tool).
     void setSelectionStyle(SelectionStyle style);
     /// Pivot-point marker of the selected object (rotate tool): a small
@@ -128,6 +131,9 @@ private:
     /// hovered object gets outline + handles too (true while selection mode)
     bool mHoverShowsOutline;
     b2BodyId mSelectedBodyId;
+    /// Shift-click rows of the object list: bodies highlighted alongside
+    /// (or without) the primary selection
+    std::vector<b2BodyId> mMultiSelectedBodyIds;
     /// marker style of the selected object (resize vs rotate tool)
     SelectionStyle mSelectionStyle;
     // pivot-point marker state (see setPivotMarker)
@@ -163,4 +169,8 @@ private:
 
     // Map to store bodyId -> SpriteNode for physics object updates
     std::unordered_map<b2BodyId, std::weak_ptr<SceneNode>, b2BodyIdHash, b2BodyIdEqual> mPhysicsBodyToNode;
+
+    // per-body visual offset (px): object offset (from the created event) +
+    // semantic mapping offset; applied on creation and on every body update
+    std::unordered_map<b2BodyId, sf::Vector2f, b2BodyIdHash, b2BodyIdEqual> mBodyVisualOffsets;
 };

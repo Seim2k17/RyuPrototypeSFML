@@ -42,6 +42,7 @@ Renderer::Renderer(sf::RenderWindow& window, EventManager& eventManager, const s
      , mHoveredBodyId(b2_nullBodyId)
      , mHoverShowsOutline(false)
      , mSelectedBodyId(b2_nullBodyId)
+     , mMultiSelectedBodyIds()
      , mSelectionStyle(SelectionStyle::ResizeHandles)
      , mShowPivotMarker(false)
      , mPivotMarkerPositionPx()
@@ -298,6 +299,12 @@ Renderer::setSelectedHighlight(b2BodyId bodyId)
 }
 
 void
+Renderer::setMultiSelectionHighlight(const std::vector<b2BodyId>& bodyIds)
+{
+    mMultiSelectedBodyIds = bodyIds;
+}
+
+void
 Renderer::setSelectionStyle(SelectionStyle style)
 {
     mSelectionStyle = style;
@@ -481,6 +488,32 @@ Renderer::drawLevelEditorOverlay()
         mWindow.draw(cross, 4, sf::PrimitiveType::Lines);
     };
 
+    // hull of a tile-editor authored object collision: green outline of
+    // every polygon part (edittime overlay, O(vertices) per frame)
+    auto drawCollisionHull = [&](const SceneObjectPhysicsParameters& object,
+                                  const sf::Vector2f& centerPx, float angleRad)
+    {
+        if (object.mCollisionParts.empty()) { return; }
+        const float cosA = std::cos(angleRad);
+        const float sinA = std::sin(angleRad);
+        const sf::Color hullColor(0, 255, 0, 200);
+        for (const auto& part : object.mCollisionParts)
+        {
+            if (part.size() < 2) { continue; }
+            sf::VertexArray lines(sf::PrimitiveType::LineStrip, part.size() + 1);
+            for (std::size_t k = 0; k < part.size(); ++k)
+            {
+                const sf::Vector2f localPx{ Converter::metersToPixels(part.at(k).x),
+                                            Converter::metersToPixels(part.at(k).y) };
+                lines[k].position = centerPx + sf::Vector2f{ localPx.x * cosA - localPx.y * sinA,
+                                                             localPx.x * sinA + localPx.y * cosA };
+                lines[k].color = hullColor;
+            }
+            lines[part.size()] = lines[0];
+            mWindow.draw(lines);
+        }
+    };
+
     auto drawHoverHighlight = [&](b2BodyId bodyId)
     {
         if (B2_IS_NULL(bodyId)) { return; }
@@ -517,6 +550,40 @@ Renderer::drawLevelEditorOverlay()
         }
     };
 
+    // plain fill + outline, no handles/markers: shift-click rows of the
+    // object list (a plain red rect per body); its collision hull shows too
+    auto drawMultiSelectionHighlight = [&](b2BodyId bodyId)
+    {
+        if (B2_IS_NULL(bodyId)) { return; }
+        for (const auto& [level, objects] : mSceneObjects)
+        {
+            for (const auto& object : objects)
+            {
+                if (not bodyIdsEqual(object.mPhysicsBodyId, bodyId))
+                {
+                    continue;
+                }
+                const sf::Vector2f centerPx{
+                    Converter::metersToPixels(object.mPosition.x),
+                    Converter::metersToPixels(object.mPosition.y)};
+                const sf::Vector2f sizePx{
+                    Converter::metersToPixels(object.mSize.x),
+                    Converter::metersToPixels(object.mSize.y)};
+                const float angleRad = bodyAngle(bodyId);
+                rect.setOrigin(sizePx / 2.f);
+                rect.setPosition(centerPx);
+                rect.setRotation(sf::radians(angleRad));
+                rect.setSize(sizePx);
+                rect.setFillColor(hoverFill);
+                rect.setOutlineColor(outline);
+                rect.setOutlineThickness(outlineThickness);
+                mWindow.draw(rect);
+                drawCollisionHull(object, centerPx, angleRad);
+                return;
+            }
+        }
+    };
+
     auto drawSelectionHighlight = [&](b2BodyId bodyId)
     {
         if (B2_IS_NULL(bodyId)) { return; }
@@ -543,6 +610,8 @@ Renderer::drawLevelEditorOverlay()
                 rect.setOutlineThickness(outlineThickness);
                 mWindow.draw(rect);
 
+                // the authored collision hull shows along with the object
+                drawCollisionHull(object, centerPx, angleRad);
                 if (mSelectionStyle == SelectionStyle::RotateMarkers)
                 {
                     drawRotateMarkers(centerPx, sizePx, angleRad);
@@ -585,6 +654,14 @@ Renderer::drawLevelEditorOverlay()
     if (not B2_IS_NULL(mSelectedBodyId))
     {
         drawSelectionHighlight(mSelectedBodyId);
+    }
+
+    // shift-click multi-selection of the object list: a plain red rect
+    // per selected body (marker style follows the primary selection)
+    for (const auto& bodyId : mMultiSelectedBodyIds)
+    {
+        if (bodyIdsEqual(bodyId, mSelectedBodyId)) { continue; }
+        drawMultiSelectionHighlight(bodyId);
     }
 
     // pivot point of the selected object (rotate tool)
@@ -631,10 +708,18 @@ Renderer::onPhysicsObjectCreated(const PhysicsObjectCreatedEvent& event)
         auto spriteNode = std::make_unique<SpriteNode>(*texture, textureRect);
         spriteNode->setScale(sizePixels.componentWiseDiv(rectSize));
         spriteNode->setOrigin(rectSize / 2.f);
-        spriteNode->setPosition(sf::Vector2f{
+        const sf::Vector2f bodyPx{
             Converter::metersToPixels(event.position.x),
             Converter::metersToPixels(event.position.y)
-        });
+        };
+        const sf::Vector2f offsetPx{
+            Converter::metersToPixels(event.visualOffset.x)
+                + mTextureRegistry.semanticOffsetPx(event.textureName).x,
+            Converter::metersToPixels(event.visualOffset.y)
+                + mTextureRegistry.semanticOffsetPx(event.textureName).y
+        };
+        mBodyVisualOffsets[event.bodyId] = offsetPx;
+        spriteNode->setPosition(bodyPx + offsetPx);
         spriteNode->setRotation(sf::radians(event.rotation));
 
         auto& layerNode = mSceneLayers[static_cast<size_t>(
@@ -720,10 +805,15 @@ Renderer::onPhysicsObjectUpdated(const PhysicsObjectUpdatedEvent& event)
         if (node)
         {
             // Convert position from meters (Box2D) to pixels (SFML)
-            node->setPosition(sf::Vector2f{
+            const sf::Vector2f bodyPx{
                 Converter::metersToPixels(event.position.x),
                 Converter::metersToPixels(event.position.y)
-            });
+            };
+            auto offsetIt = mBodyVisualOffsets.find(event.bodyId);
+            const sf::Vector2f offset =
+                offsetIt != mBodyVisualOffsets.end() ? offsetIt->second
+                                                     : sf::Vector2f{};
+            node->setPosition(bodyPx + offset);
             node->setRotation(sf::radians(event.rotation));
         }
     }
@@ -749,6 +839,7 @@ Renderer::onPhysicsObjectDestroyed(const PhysicsObjectDestroyedEvent& event)
         }
     }
     mPhysicsBodyToNode.erase(event.bodyId);
+    mBodyVisualOffsets.erase(event.bodyId);
 
     // The node itself is destroyed by the scenegraph (detachChild owns it).
     // Note: With the scenegraph approach, we don't need to manually destroy
@@ -792,6 +883,13 @@ void Renderer::createSceneFromConfiguration(ELevel level)
             Converter::metersToPixels(obj.mPosition.y)
         });
         spriteNode->setRotation(sf::radians(obj.mRotation));
+        spriteNode->setPosition(spriteNode->getPosition()
+            + sf::Vector2f{
+                Converter::metersToPixels(obj.mVisualOffset.x)
+                    + mTextureRegistry.semanticOffsetPx(obj.mTextureId).x,
+                Converter::metersToPixels(obj.mVisualOffset.y)
+                    + mTextureRegistry.semanticOffsetPx(obj.mTextureId).y
+            });
         
         // Use the layer specified in the scene object configuration
         mSceneLayers[static_cast<size_t>(obj.mLayer)]->attachChild(std::move(spriteNode));
