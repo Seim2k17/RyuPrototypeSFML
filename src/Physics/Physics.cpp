@@ -39,8 +39,8 @@ CharacterPhysicsParameters::CharacterPhysicsParameters() :
     mFixtureRestitution(0.1f),
     mRaycastLength(40.0f),
     mMoveMultiplier({1.05f, 1.47f}),
-    mJumpForwardImpulse({150, -250}),
-    mJumpUpImpulse({0, -200}),
+    mJumpForwardImpulse({50, -125}),
+    mJumpUpImpulse({0, -100}),
     mMassCenter({0, 0}),
     mBodyMass(25)
 {}
@@ -380,12 +380,22 @@ Physics::initCharacterPhysics(ICharacter& character, bool inDuckMode)
                                  ? position.y + (DUCK_FRAME_SIZE.second / 2)
                                  : position.y);
     bodyDef.fixedRotation = true;
-    bodyDef.gravityScale = 9.8f; //charPhysics.mGravityScale;
+    bodyDef.gravityScale = CHARACTER_BODY_GRAVITY_SCALE; //charPhysics.mGravityScale;
 
     charPhysics.mBodyId = b2CreateBody(mPhysicsWorldId, &bodyDef);
     
     // Create a the shape
-    b2Polygon polygonBoxShape = b2MakeBox(Converter::pixelsToMeters<double>(size_x * 0.5f), Converter::pixelsToMeters<double>(size_y * 0.5f));
+    // rounded corners so the collider slides over the internal edges of
+    // adjacent tile colliders instead of snagging. CAUTION: Box2D EXPANDS a
+    // polygon beyond its vertices by its radius, so the inner box must be
+    // INSET by the rounding to keep the total extents at size_x/size_y
+    // (bug seen as: body too big, floating above ground, early wall hits)
+    const float roundingM
+        = Converter::pixelsToMeters<float>(CHARACTER_COLLIDER_ROUNDING_PX);
+    b2Polygon polygonBoxShape = b2MakeRoundedBox(
+        Converter::pixelsToMeters<float>(size_x * 0.5f) - roundingM,
+        Converter::pixelsToMeters<float>(size_y * 0.5f) - roundingM,
+        roundingM);
     b2ShapeDef shapeDef = b2DefaultShapeDef(); // initialize shapedefinition
     shapeDef.density = 4; //charPhysics.mDensity;
     //shapeDef.friction = charPhysics.mFriction; deprecated since Box2D 3.1, different concept
@@ -411,7 +421,12 @@ Physics::initCharacterPhysics(ICharacter& character, bool inDuckMode)
 
     b2Body_SetUserData(charPhysics.mBodyId, shape);
     //b2ShapeId shapeId = b2Body_AddShape(charPhysics.mBodyId, )
-    
+
+    fmt::print("Character body created: size {}x{}, mass: {:.3f}, "
+               "gravityScale: {:.1f}\n",
+               size_x, size_y, b2Body_GetMass(charPhysics.mBodyId),
+               b2Body_GetGravityScale(charPhysics.mBodyId));
+
     fmt::print("Init character at position {},{}\n",
                Converter::metersToPixels(bodyDef.position.x),
                Converter::metersToPixels(bodyDef.position.y));
@@ -457,7 +472,12 @@ Physics::recreateCharacterPhysics(ICharacter& character, bool inDuckMode)
     // gives the old half-height.
     const b2Vec2 oldCenter = b2Body_GetPosition(charPhysics.mBodyId);
     const b2Polygon oldPolygon = b2Shape_GetPolygon(charPhysics.mShapeId);
-    const double oldHalfHeightM = std::fabs(oldPolygon.vertices[0].y);
+    // radius-aware: the rounded collider stores the corners INSET by its
+    // radius and Box2D expands outward again, so the bottom edge sits at
+    // vertex_extent + radius (not just the vertex)
+    const double oldHalfHeightM
+        = std::fabs(static_cast<double>(oldPolygon.vertices[0].y))
+          + oldPolygon.radius;
     const double oldBottomM = oldCenter.y + oldHalfHeightM;
 
     // keep doubts in the transition minimal: carry over the velocity
@@ -480,15 +500,19 @@ Physics::recreateCharacterPhysics(ICharacter& character, bool inDuckMode)
     b2BodyDef bodyDef = b2DefaultBodyDef();
     bodyDef.type = b2_dynamicBody;
     bodyDef.fixedRotation = true;
-    bodyDef.gravityScale = 9.8f;
+    bodyDef.gravityScale = CHARACTER_BODY_GRAVITY_SCALE;
     bodyDef.position.x = oldCenter.x;
     bodyDef.position.y = newCenterM;
 
     charPhysics.mBodyId = b2CreateBody(mPhysicsWorldId, &bodyDef);
 
-    b2Polygon polygonBoxShape = b2MakeBox(
-        Converter::pixelsToMeters<double>(size_x * 0.5f),
-        Converter::pixelsToMeters<double>(size_y * 0.5f));
+    // rounded corners like in initCharacterPhysics (see there)
+    const float recreateRoundingM
+        = Converter::pixelsToMeters<float>(CHARACTER_COLLIDER_ROUNDING_PX);
+    b2Polygon polygonBoxShape = b2MakeRoundedBox(
+        Converter::pixelsToMeters<float>(size_x * 0.5f) - recreateRoundingM,
+        Converter::pixelsToMeters<float>(size_y * 0.5f) - recreateRoundingM,
+        recreateRoundingM);
     charPhysics.mShapeDef = b2DefaultShapeDef();
     charPhysics.mShapeDef.density = 4;
     charPhysics.mShapeId = b2CreatePolygonShape(charPhysics.mBodyId,
@@ -503,6 +527,11 @@ Physics::recreateCharacterPhysics(ICharacter& character, bool inDuckMode)
 
     b2Body_SetLinearVelocity(charPhysics.mBodyId, velocity);
     b2Body_SetAwake(charPhysics.mBodyId, true);
+    fmt::print("Character body recreated: {} -> mass: {:.3f} (gravityScale "
+               "{:.1f}), carried vy {:.2f}\n",
+               inDuckMode ? "DUCK" : "STAND",
+               b2Body_GetMass(charPhysics.mBodyId),
+               b2Body_GetGravityScale(charPhysics.mBodyId), velocity.y);
 
     // the character holds its bodyId; hand over the fresh one
     character.setBodyId(charPhysics.mBodyId);
@@ -537,6 +566,10 @@ Physics::getCharacterRect(ECharacters character) const
         halfWidth = std::max(halfWidth, std::fabs(polygon.vertices[i].x));
         halfHeight = std::max(halfHeight, std::fabs(polygon.vertices[i].y));
     }
+    // the polygon radius expands the shape BEYOND the vertices (rounded
+    // character collider), include it or the rect is too small
+    halfWidth += polygon.radius;
+    halfHeight += polygon.radius;
     rect.sizePx = sf::Vector2f(Converter::metersToPixels(halfWidth * 2.f),
                                Converter::metersToPixels(halfHeight * 2.f));
     return rect;
@@ -680,7 +713,15 @@ Physics::createPhysicsBody(SceneObjectPhysicsParameters& sceneObject, int& i)
     }
     else if (sceneObject.mCollisionParts.empty())
     {
-        b2Polygon box = b2MakeBox((objSize.x / 2.0), (objSize.y / 2.0));
+        // slightly rounded corners: flattens the internal edges between
+        // adjacent tile colliders. The inner box is inset by the rounding
+        // so the tiles' OUTER bounds stay exactly objSize (Box2D expands
+        // polygons by their radius - see the character collider above)
+        constexpr float tileRoundingM = 0.07f; // ~2.2px
+        b2Polygon box = b2MakeRoundedBox(
+            static_cast<float>(objSize.x / 2.0) - tileRoundingM,
+            static_cast<float>(objSize.y / 2.0) - tileRoundingM,
+            tileRoundingM);
 
         shapeId = b2CreatePolygonShape(bodyId, &shapeDef, &box);
         b2Shape_SetSurfaceMaterial(shapeId, material);
@@ -701,6 +742,9 @@ Physics::createPhysicsBody(SceneObjectPhysicsParameters& sceneObject, int& i)
                            sceneObject.mName);
                 continue;
             }
+            // no rounding: tile-editor authored vertices are the exact
+            // collision surface, a radius would EXPAND them (see Box2D
+            // polygon radius semantics above)
             const b2Polygon polygon = b2MakePolygon(&hull, 0.0f);
             shapeId = b2CreatePolygonShape(bodyId, &shapeDef, &polygon);
             b2Shape_SetSurfaceMaterial(shapeId, material);
