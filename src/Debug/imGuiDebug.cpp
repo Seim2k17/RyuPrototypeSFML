@@ -55,20 +55,48 @@ void DebugWidgets::ShowWidgets() {
                            debugData.charJumpForce.y);
         ImGui::Separator();
 
-        if (ImGui::InputFloat2("JumpForceForward",
-                               debugData.jumpImpulseForwardVec)) {
-            debugData.jumpImpulseForward.x = debugData.jumpImpulseForwardVec[0];
-            debugData.jumpImpulseForward.y = debugData.jumpImpulseForwardVec[1];
-            fmt::print("Set jumpForceForward {}/{}\n",
-                       debugData.jumpImpulseForward.x,
-                       debugData.jumpImpulseForward.y);
-            notify(*playerCharacter.lock(), Ryu::EEvent::DebugValuesChanged);
-        }
-        if (ImGui::InputFloat2("JumpForceUp", debugData.jumpImpulseUpVec)) {
-            debugData.jumpImpulseUp.x = debugData.jumpImpulseUpVec[0];
-            debugData.jumpImpulseUp.y = debugData.jumpImpulseUpVec[1];
-            fmt::print("Set jumpForceUp\n");
-            notify(*playerCharacter.lock(), Ryu::EEvent::DebugValuesChanged);
+        // LIVE tuning: the impulses are applied to the character's
+        // settings directly, so toggling the debug panel and jumping in
+        // the level shows the effect without a recompile or restart
+        if (auto character = playerCharacter.lock()) {
+            // display the REAL live value on every frame (also proves
+            // the panel and jumpUp() see the same number)
+            debugData.charJumpForce = character->getJumpUpImpulse();
+            // seed the input fields with the character's current values
+            // once (the same order the fields are edited in)
+            if (debugData.jumpImpulseUpVec[0] == 0.f
+                && debugData.jumpImpulseUpVec[1] == 0.f) {
+                debugData.jumpImpulseUpVec[0]
+                    = character->getJumpUpImpulse().x;
+                debugData.jumpImpulseUpVec[1]
+                    = character->getJumpUpImpulse().y;
+            }
+            if (debugData.jumpImpulseForwardVec[0] == 0.f
+                && debugData.jumpImpulseForwardVec[1] == 0.f) {
+                debugData.jumpImpulseForwardVec[0]
+                    = character->getJumpForwardImpulse().x;
+                debugData.jumpImpulseForwardVec[1]
+                    = character->getJumpForwardImpulse().y;
+            }
+
+            if (ImGui::InputFloat2("JumpForceUp",
+                                   debugData.jumpImpulseUpVec)) {
+                character->setJumpUpImpulse(
+                    {debugData.jumpImpulseUpVec[0],
+                     debugData.jumpImpulseUpVec[1]});
+                fmt::print("Set jumpForceUp {}/{}\n",
+                           debugData.jumpImpulseUpVec[0],
+                           debugData.jumpImpulseUpVec[1]);
+            }
+            if (ImGui::InputFloat2("JumpForceForward",
+                                   debugData.jumpImpulseForwardVec)) {
+                character->setJumpForwardImpulse(
+                    {debugData.jumpImpulseForwardVec[0],
+                     debugData.jumpImpulseForwardVec[1]});
+                fmt::print("Set jumpForceForward {}/{}\n",
+                           debugData.jumpImpulseForwardVec[0],
+                           debugData.jumpImpulseForwardVec[1]);
+            }
         }
         if (ImGui::InputFloat2("Masscenter", debugData.massCenterVec)) {
             fmt::print("Set center of mass\n");
@@ -79,13 +107,16 @@ void DebugWidgets::ShowWidgets() {
             notify(*playerCharacter.lock(), Ryu::EEvent::TeleportWait);
         }
         if (ImGui::Button("Reset Values")) {
-            debugData.jumpImpulseForwardVec[0] = 150;
-            debugData.jumpImpulseForwardVec[1] = -250;
-            debugData.jumpImpulseForward = {150, -250};
-            debugData.jumpImpulseUpVec[0] = 0;
-            debugData.jumpImpulseUpVec[1] = -200;
-            debugData.jumpImpulseUp = {0, -200};
-            notify(*playerCharacter.lock(), Ryu::EEvent::DebugValuesChanged);
+            constexpr b2Vec2 defaultJumpUp{0, -100};
+            constexpr b2Vec2 defaultJumpForward{50, -125};
+            debugData.jumpImpulseUpVec[0] = defaultJumpUp.x;
+            debugData.jumpImpulseUpVec[1] = defaultJumpUp.y;
+            debugData.jumpImpulseForwardVec[0] = defaultJumpForward.x;
+            debugData.jumpImpulseForwardVec[1] = defaultJumpForward.y;
+            if (auto character = playerCharacter.lock()) {
+                character->setJumpUpImpulse(defaultJumpUp);
+                character->setJumpForwardImpulse(defaultJumpForward);
+            }
         }
 
         if (ImGui::InputInt2("PositionCross-Offset", debugData.positionCross)) {

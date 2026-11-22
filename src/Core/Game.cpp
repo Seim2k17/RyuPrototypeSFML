@@ -30,7 +30,7 @@
 
 #include <unistd.h>
 
-constexpr std::string_view PROJECT_NAME{"Ryu prototype 0.1"};
+constexpr std::string_view PROJECT_NAME{"Ryu prototype 0.2"};
 
 // Canvas resolution (640x360)
 const sf::Vector2f CANVAS_RESOLUTION{640.f, 360.f};
