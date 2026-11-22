@@ -159,12 +159,16 @@ ln -sfn /tmp/prefix-x/usr/share/X11/xkb/* /tmp/xkbdata123456/
 python3 - <<'EOF'
 p = '/tmp/prefix-x/usr/bin/Xvfb'
 d = bytearray(open(p, 'rb').read())
+orig_len = len(d)
 def rep(old, new):
     assert d.count(old) == 1, (old, d.count(old))
     assert len(new) <= len(old)
-    d.extend(b'')
     i = d.find(old)
-    d[i:i+len(new)] = new + b'\x00' * (len(old) - len(new))
+    # replace IN PLACE over the full length of the old string: a slice of
+    # len(new) would INSERT the padding bytes and shift the rest of the
+    # binary (the patched Xvfb segfaults otherwise)
+    d[i:i+len(old)] = new + b'\x00' * (len(old) - len(new))
+assert len(d) == orig_len
 rep(b'/usr/lib/x86_64-linux-gnu/dri\x00', b'/tmp/dri\x00')
 rep(b'/usr/share/X11/xkb\x00',         b'/tmp/xkbdata123456\x00')
 rep(b'/usr/bin\x00',                   b'/tmp/pX\x00')
