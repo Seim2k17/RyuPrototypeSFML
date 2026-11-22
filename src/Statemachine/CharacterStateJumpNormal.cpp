@@ -3,6 +3,7 @@
 #include <Ryu/Statemachine/CharacterState.h>
 #include <Ryu/Statemachine/CharacterStateIdle.h>
 #include <Ryu/Statemachine/CharacterStateJumpNormal.h>
+#include <Ryu/Statemachine/CharacterStateLedgeHang.h>
 
 #include <fmt/core.h>
 
@@ -45,6 +46,13 @@ void CharacterStateJumpNormal::onNotify(CharacterBase &character,
 }
 
 void CharacterStateJumpNormal::update(CharacterBase &character) {
+
+    if (character.checkLedgeGrab()) {
+        std::unique_ptr<CharacterStateLedgeHang> state =
+            std::make_unique<CharacterStateLedgeHang>();
+        character.changeState(std::move(state));
+        return;
+    }
 
     if (character.getSpriteAnimation().isFinished()) {
 

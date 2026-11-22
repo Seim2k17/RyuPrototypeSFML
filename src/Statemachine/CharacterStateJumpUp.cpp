@@ -52,12 +52,16 @@ CharacterStateJumpUp::onNotify(CharacterBase &character, Ryu::EEvent event)
 void
 CharacterStateJumpUp::update(CharacterBase &character)
 {
+    if (character.checkLedgeGrab())
+    {
+        std::unique_ptr<CharacterStateLedgeHang> state =
+            std::make_unique<CharacterStateLedgeHang>();
+        character.changeState(std::move(state));
+        return;
+    }
 
     if (character.getSpriteAnimation().isFinished())
     {
-        // FIXME: hang state transition tmp disabled
-        // std::unique_ptr<CharacterStateLedgeHang> state =
-        //    std::make_unique<CharacterStateLedgeHang>();
         std::unique_ptr<CharacterStateIdle> state
             = std::make_unique<CharacterStateIdle>();
 

@@ -9,6 +9,7 @@
 #include <Ryu/Control/CharacterEnums.h>
 #include <Ryu/Core/AssetIdentifiers.h>
 #include <Ryu/Core/AssetManager.h>
+#include <Ryu/Core/Utilities.h>
 #include <Ryu/Character/ICharacter.h>
 #include <Ryu/Events/EventEnums.h>
 #include <Ryu/Events/Observer.h>
@@ -22,6 +23,7 @@
 #include <SFML/Graphics.hpp>
 #include <Thirdparty/glm/glm.hpp>
 #include <box2d/box2d.h>
+#include <SFML/System/Time.hpp>
 #include <fmt/core.h>
 #include <iostream>
 #include <memory.h>
@@ -46,6 +48,14 @@ class b2Fixture;
 struct CharacterSetting {
 };
 
+// gravity scale of the character body: ONE source of truth. It must be
+// used for the body creation (init/recreate) AND every state restore
+// (ledge hang/climbup exit) - mixing 9.8 from the bodyDef with 4.8 here
+// made the jump height depend on the path taken through the states
+// (after a ledge grab the scale silently became 4.8 and jumps floated,
+// the duck body recreation reset it to 9.8 and jumps felt halved)
+inline constexpr float CHARACTER_BODY_GRAVITY_SCALE = 9.8f;
+
 struct CharacterFinalSetting {
     // due increase of gravityscale (falling is then more gamey) the physicbody
     // needs some adustments for movement so its not behind the movement of
@@ -62,8 +72,8 @@ struct CharacterFinalSetting {
         MoveMultiplierX = 1.05f;
         MoveMultiplierY = 1.47f;
 
-        jumpForwardImpulse = {150, -250};
-        jumpUpImpulse = {0, -200};
+        jumpForwardImpulse = {50, -125};
+        jumpUpImpulse = {0, -100};
         massCenter = {0, 0};
         bodyMass = 25;
     }
@@ -227,6 +237,14 @@ class CharacterBase : public SceneNode, public Subject, public Observer, public 
     bool getHit(RaycastPosition rcName) {
         return mRaycastComponent.getHit(rcName);
     }
+    sf::Vector2f getHitPoint(RaycastPosition rcName) {
+        return {Converter::metersToPixels<float>(mRaycastComponent.getHitPoint(rcName).x),
+                 Converter::metersToPixels<float>(mRaycastComponent.getHitPoint(rcName).y)};
+    }
+    /// \brief ledge probe: casts LedgeWall/LedgeAbove/LedgeTop rays and
+    /// stores the ledge corner (pixels) on success
+    bool checkLedgeGrab();
+    sf::Vector2f getLedgeGrabPoint() const { return mLedgeGrabPoint; }
     void createRaycasts();
     void eraseRaycast(RaycastPosition rcName) {
         mRaycastComponent.eraseRaycast(rcName);
@@ -245,6 +263,17 @@ class CharacterBase : public SceneNode, public Subject, public Observer, public 
     bool inDuckMode() const;
     void jumpUp();
     void jumpForward();
+    /// suppresses ledge grabbing for a short time (e.g. after
+    /// releasing a hang with PressDown, so the character can fall
+    /// past the ledge instead of instantly re-grabbing it)
+    void setLedgeGrabCooldown(sf::Time cooldown);
+
+    /// live tuning of the jump impulses (debug panel): applied on the next
+    /// jump, no restart needed
+    void setJumpUpImpulse(b2Vec2 impulse);
+    void setJumpForwardImpulse(b2Vec2 impulse);
+    b2Vec2 getJumpUpImpulse() const { return mFinalCharSettings.jumpUpImpulse; }
+    b2Vec2 getJumpForwardImpulse() const { return mFinalCharSettings.jumpForwardImpulse; }
     float getDirectionMultiplier();
     [[deprecated]] void setCharacterSettings(CharacterSetting settings);
     [[deprecated]] void resetCharacterSettings();
@@ -305,6 +334,7 @@ class CharacterBase : public SceneNode, public Subject, public Observer, public 
     int testStateCurrent = 0;
     sf::Vector2f positionCrossOffset{0, 0};
     sf::Vector2f lastPositionCrossOffset{0, 0};
+    sf::Vector2f mLedgeGrabPoint{0.f, 0.f};
     bool mSetOffset;
     b2Vec2 mLastBodyPosition;
     RyuContactListener contactListener;
@@ -333,6 +363,8 @@ class CharacterBase : public SceneNode, public Subject, public Observer, public 
 
   public:
     CharacterSetting mCharSettings{};
+    /// remaining time in which checkLedgeGrab stays inactive
+    sf::Time mLedgeGrabCooldownRemaining{};
     CharacterFinalSetting mFinalCharSettings{};
 };
 

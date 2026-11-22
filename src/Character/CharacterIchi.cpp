@@ -101,9 +101,10 @@ static std::map<Textures::SpritesheetID, std::string> spritesheePaths = {
     {Textures::SpritesheetID::Ichi64x64,
      //"assets/spritesheets/ichi/ichi_spritesheet_level1.png"},
      "assets/spritesheets/ichi/ichi_level1.png"},
-    /*
-        {Textures::SpritesheetID::Ichi128x196,
-        "assets/spritesheets/ichi/ichi_climb_up_ledge_128x196.png"},*/
+    // the ledge animations (IchiLedgeHangIdle/IchiLedgeClimbUp) live on
+    // their own sheet until they are merged into the 64x64 atlas
+    //{Textures::SpritesheetID::Ichi128x196,
+    // "assets/spritesheets/ichi/ichi_climb_up_ledge_128x196.png"},
 };
 
 void

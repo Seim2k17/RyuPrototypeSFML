@@ -6,4 +6,7 @@ enum class RaycastPosition
   Mid,
   Down,
   Below,
+  LedgeWall,
+  LedgeAbove,
+  LedgeTop,
 };

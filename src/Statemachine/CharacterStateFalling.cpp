@@ -2,6 +2,7 @@
 #include <Ryu/Character/CharacterBase.h>
 #include <Ryu/Statemachine/CharacterStateFalling.h>
 #include <Ryu/Statemachine/CharacterStateFallingEnd.h>
+#include <Ryu/Statemachine/CharacterStateLedgeHang.h>
 #include <Ryu/Statemachine/CharacterStateIdle.h>
 #include <Ryu/Statemachine/CharacterState.h>
 #include <Ryu/Core/Utilities.h>
@@ -68,6 +69,16 @@ CharacterStateFalling::update(CharacterBase& character)
           restingTicks = 0;
       }
 
+      if (character.checkLedgeGrab())
+      {
+        touchedFloor = true;
+        character.eraseRaycast(RaycastPosition::Below);
+        std::unique_ptr<CharacterStateLedgeHang> state =
+            std::make_unique<CharacterStateLedgeHang>();
+        character.changeState(std::move(state));
+        return;
+      }
+
       if (character.getHit(RaycastPosition::Below)
           || restingTicks >= RESTING_TICKS_REQUIRED)
       {
@@ -108,6 +119,9 @@ CharacterStateFalling::exit(CharacterBase& character)
         character.setActionHeight(EActionHeight::High);
     }
     character.eraseRaycastPoints(RaycastPosition::Below);
+    character.eraseRaycast(RaycastPosition::LedgeWall);
+    character.eraseRaycast(RaycastPosition::LedgeAbove);
+    character.eraseRaycast(RaycastPosition::LedgeTop);
     character.getSpriteAnimation().restart();
 }
 

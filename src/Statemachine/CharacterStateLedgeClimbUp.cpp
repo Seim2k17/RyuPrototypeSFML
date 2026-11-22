@@ -8,11 +8,12 @@
 
 #include <SFML/System/Vector2.hpp>
 #include <box2d/box2d.h>
-#include <fmt/core.h>
 #include <memory>
 
-
-//namespace ryu{
+// how far the character ends up on the ledge after the climb (pixels from
+// the corner); the sprite anchoring is shared with the hang state (see
+// ICharacter.h, both states use the same fixed frame camera)
+constexpr float CLIMBUP_STAND_X_OFFSET = 10.f;
 
 CharacterStateLedgeClimbUp::CharacterStateLedgeClimbUp(){}
 
@@ -25,18 +26,9 @@ CharacterStateLedgeClimbUp::handleInput(CharacterBase& character,EInput input)
     {
        case EInput::PressLeft:
        case EInput::PressRight:
-       {
-       }
-
        case EInput::PressUp:
-       {
-       }
-
        case EInput::ActionInput:
-       {
-       }
-
-    default:
+       default:
         break;
     }
 
@@ -46,18 +38,23 @@ CharacterStateLedgeClimbUp::handleInput(CharacterBase& character,EInput input)
 void
 CharacterStateLedgeClimbUp::update(CharacterBase& character)
 {
-    fmt::print("Current frame: {}\n",character.getSpriteAnimation().getCurrentFrame());
-    if (character.getSpriteAnimation().getCurrentFrame() == (character.getSpriteAnimation().getFramesCount())) {
-/*
-        b2Vec2 newBodyPos{Converter::pixelsToMeters<float>(character.getPositionCross().x),
-                          Converter::pixelsToMeters<float>(character.getPositionCross().y)};
-*/
-        //character.getBody()->SetTransform((character.getBody()->GetPosition() + newBodyPos), 0.f);
-        //character.getSpriteAnimation().restart();
-        // TODO: check ob das mit der Zeit der animation zusammenaengt ? -> muessen das multiple von frametime sein
-        // - check fps and set aniframetimes to multiples from fps time
+    if (character.getSpriteAnimation().getCurrentFrame()
+        >= character.getSpriteAnimation().getFramesCount())
+    {
+        auto corner = character.getLedgeGrabPoint();
+        float dir = character.getDirectionMultiplier();
+
+        sf::Vector2f bodyPos{
+            corner.x + dir * CLIMBUP_STAND_X_OFFSET,
+            corner.y - (INIT_FRAME_SIZE.second / 2.f)};
+        auto bodyId = character.getBody();
+        b2Body_SetTransform(bodyId,
+                            {Converter::pixelsToMeters<float>(bodyPos.x),
+                             Converter::pixelsToMeters<float>(bodyPos.y)},
+                            b2Rot_identity);
+        b2Body_SetLinearVelocity(bodyId, {0.f, 0.f});
+
         character.changeState(std::move(std::make_unique<CharacterStateIdle>()));
-        //return;
     }
 }
 
@@ -65,22 +62,35 @@ CharacterStateLedgeClimbUp::update(CharacterBase& character)
 void
 CharacterStateLedgeClimbUp::enter(CharacterBase& character)
 {
-    // TODO: tmp:
-    //character.getSpriteAnimation().setOrigin(0,40);
+    auto bodyId = character.getBody();
+    b2Body_SetGravityScale(bodyId, 0);
+    b2Body_SetLinearVelocity(bodyId, {0.f, 0.f});
+
     auto& spriteAni = character.getSpriteAnimation();
-    auto pivot = spriteAni.getPivotAbs();
-    fmt::print("LedgeClimbup - Pivot: {}/{}\n", pivot.x, pivot.y);
-    //spriteAni.setOrigin((float)pivot.x,(float)pivot.y );
     character.setupAnimation(Textures::CharacterID::IchiLedgeClimbUp);
-    //character.setupAnimation(Textures::CharacterID::IchiLandLow);
     character.setCharacterStateEnum(ECharacterState::ClimbUp);
+
+    auto corner = character.getLedgeGrabPoint();
+    float dir = character.getDirectionMultiplier();
+    // same anchor as the hang state (one shared frame camera): frame-internal
+    // ledge corner onto the wall corner, the climb motion happens inside the
+    // frames
+    spriteAni.setAnimationPosition({
+        // -2: the raycast corner points dir*2 INTO the wall, the hands
+        // grip ON the visible corner (wall face at the ledge top)
+        corner.x
+            + dir * (LEDGE_FRAME_ANCHOR_X - LEDGE_FRAME_GRIP_X - 2.f),
+        corner.y + (LEDGE_FRAME_ANCHOR_Y - LEDGE_FRAME_GRIP_Y)});
 }
 
 void
 CharacterStateLedgeClimbUp::exit(CharacterBase& character)
 {
     character.getSpriteAnimation().restart();
-    fmt::print("exit ledgeclimb");
+    auto bodyId = character.getBody();
+    // restore the shared character gravity scale (see
+    // CHARACTER_BODY_GRAVITY_SCALE - previously this restored 4.8 while
+    // the body was created with 9.8, silently changing jump heights
+    // depending on the state path)
+    b2Body_SetGravityScale(bodyId, CHARACTER_BODY_GRAVITY_SCALE);
 }
-
-//} /// namespace ryu

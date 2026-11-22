@@ -194,40 +194,57 @@ CharacterBase::getDirectionMultiplier()
 void
 CharacterBase::jumpForward()
 {
-    // TODO: physicsrelated stuff now in the PhysicsClass please move this also
-    /*
-    fmt::print("JumpForward: x:{} y:{}\n", mCharSettings.jumpForwardImpulse.x,
-               mCharSettings.jumpForwardImpulse.y);
-
-    b2MassData mass{.mass = mCharSettings.bodyMass,
-                    .center = mCharSettings.massCenter,
-                    .I = 0};
-    mBody->SetMassData(&mass);
-    fmt::print("dirMultiplier: {}\n", getDirectionMultiplier());
-    fmt::print("dirDirectionn: {}\n", static_cast<int>(getMoveDirection()));
-    mBody->ApplyLinearImpulseToCenter(
-        b2Vec2(mCharSettings.jumpForwardImpulse.x * getDirectionMultiplier(),
-               mCharSettings.jumpForwardImpulse.y),
+    fmt::print("JumpForward x:{} y: {}\n",
+               mFinalCharSettings.jumpForwardImpulse.x,
+               mFinalCharSettings.jumpForwardImpulse.y);
+    // live-tunable impulse (see the debug panel); the horizontal part is
+    // mirrored with the facing direction
+    const float mass = b2Body_GetMass(mBodyId);
+    b2Body_ApplyLinearImpulseToCenter(mBodyId,
+        b2Vec2(mFinalCharSettings.jumpForwardImpulse.x
+                   * getDirectionMultiplier(),
+               mFinalCharSettings.jumpForwardImpulse.y),
         true);
-    */
+    fmt::print("JumpForward x:{:.1f} y: {:.1f} | mass: {:.3f}\n",
+               mFinalCharSettings.jumpForwardImpulse.x
+                   * getDirectionMultiplier(),
+               mFinalCharSettings.jumpForwardImpulse.y, mass);
+}
+
+void
+CharacterBase::setJumpUpImpulse(b2Vec2 impulse)
+{
+    fmt::print("CharacterBase: live jumpUpImpulse set to {}/{}\n",
+               impulse.x, impulse.y);
+    mFinalCharSettings.jumpUpImpulse = impulse;
+}
+
+void
+CharacterBase::setJumpForwardImpulse(b2Vec2 impulse)
+{
+    fmt::print("CharacterBase: live jumpForwardImpulse set to {}/{}\n",
+               impulse.x, impulse.y);
+    mFinalCharSettings.jumpForwardImpulse = impulse;
 }
 
 void
 CharacterBase::jumpUp()
 {
-    // TODO: physicsrelated stuff now in the PhysicsClass please move this also
-    fmt::print("JumpUp x:{} y: {}\n",
-               mFinalCharSettings.jumpUpImpulse.x,
-               mFinalCharSettings.jumpUpImpulse.y);
-
-    // The jump animation fires EEvent::CharacterStartJump after the
-    // prepare-to-jump frames are played (currently frame 10 of IchiJumpUp);
-    // only then the physics body gets its upward impulse. The sprite follows
-    // the body position (see updateCharacterPosition), so the character
-    // leaves the ground from this point on.
+    // print impulse AND body mass (+ resulting velocity change): a heavier
+    // body turns the same impulse into a weaker jump, this makes such
+    // changes visible in the log (e.g. after duck-mode body recreation)
+    const float mass = b2Body_GetMass(mBodyId);
+    const b2Vec2 vyBefore = b2Body_GetLinearVelocity(mBodyId);
     b2Body_ApplyLinearImpulseToCenter(mBodyId,
                                       mFinalCharSettings.jumpUpImpulse,
                                       true);
+    const b2Vec2 vyAfter = b2Body_GetLinearVelocity(mBodyId);
+    fmt::print("JumpUp x:{:.1f} y: {:.1f} | mass: {:.3f} | vy: {:.2f} -> "
+               "{:.2f} (expected dv = {:.2f})\n",
+               mFinalCharSettings.jumpUpImpulse.x,
+               mFinalCharSettings.jumpUpImpulse.y, mass, vyBefore.y,
+               vyAfter.y,
+               -mFinalCharSettings.jumpUpImpulse.y / mass);
 }
 
 void
@@ -337,6 +354,12 @@ CharacterBase::inDuckMode() const
 }
 
 void
+CharacterBase::setLedgeGrabCooldown(sf::Time cooldown)
+{
+    mLedgeGrabCooldownRemaining = cooldown;
+}
+
+void
 CharacterBase::setDuckState(bool duckstate)
 {
     // entering/leaving the duck mode needs no body rebuild when it's
@@ -378,6 +401,66 @@ CharacterBase::checkContactObjects()
     //{
     return contactListener.contactObject;
     //}
+}
+
+bool
+CharacterBase::checkLedgeGrab()
+{
+    if (mPhysics == nullptr)
+    {
+        return false;
+    }
+
+    b2Vec2 velocity = b2Body_GetLinearVelocity(mBodyId);
+    if (velocity.y < 0.f)
+    {
+        return false;
+    }
+
+    b2WorldId worldId = mPhysics->getPhysicsWorldId();
+    b2Vec2 bodyPos = b2Body_GetPosition(mBodyId);
+    sf::Vector2f charPos{Converter::metersToPixels<float>(bodyPos.x),
+                         Converter::metersToPixels<float>(bodyPos.y)};
+
+    // after releasing a hang the hands fall straight through the grab
+    // window of the SAME ledge: stay grab-blind for a moment so the
+    // character can actually drop instead of instantly re-hanging
+    if (mLedgeGrabCooldownRemaining > sf::Time::Zero)
+    {
+        return false;
+    }
+
+    constexpr float ledgeRayLength = 40.f;
+    constexpr float ledgeTopRayLength = 50.f;
+    const float handY = charPos.y - Ryu::Physics::raycastOffset;
+    const float headY = charPos.y - (INIT_FRAME_SIZE.second / 2.f) - 10.f;
+
+    mRaycastComponent.createCharacterRaycast(
+        RaycastPosition::LedgeWall, charPos.x, handY, 0, ledgeRayLength,
+        getMoveDirection(), worldId, mBodyId);
+    mRaycastComponent.createCharacterRaycast(
+        RaycastPosition::LedgeAbove, charPos.x, headY, 0, ledgeRayLength,
+        getMoveDirection(), worldId, mBodyId);
+
+    if (not getHit(RaycastPosition::LedgeWall)
+        || getHit(RaycastPosition::LedgeAbove))
+    {
+        return false;
+    }
+
+    sf::Vector2f wallHit = getHitPoint(RaycastPosition::LedgeWall);
+    float dir = getDirectionMultiplier();
+    mRaycastComponent.createCharacterRaycast(
+        RaycastPosition::LedgeTop, wallHit.x + dir * 2.f, headY, 90.f,
+        ledgeTopRayLength, getMoveDirection(), worldId, mBodyId);
+
+    if (not getHit(RaycastPosition::LedgeTop))
+    {
+        return false;
+    }
+
+    mLedgeGrabPoint = getHitPoint(RaycastPosition::LedgeTop);
+    return true;
 }
 
 void
@@ -505,28 +588,12 @@ CharacterBase::checkClimbingState()
 void
 CharacterBase::toggleTestStates()
 {
-    // TODO:
-    // make this cleaner
-    // as these are on another spritesheet we need to change the
-    // textureatlas on the character and setup fresh preferences for
-    // center/texturesize etc. / evtl. we need to change the character- position
-    // (see reference point (cross in adventures when changing outfits /
-    // animations))
-    if (testStateCurrent == testStatesCount)
-        testStateCurrent = 0;
-
-    if (testStateCurrent == 0)
-    {
-        changeState(std::make_unique<CharacterStateLedgeHang>());
-    }
-    if (testStateCurrent == 1)
-    {
-        changeState(std::make_unique<CharacterStateLedgeClimbUp>());
-    }
-
-    testStateCurrent++;
-
-    // mBody->Dump(); // what was dump() doing ?
+    // the ledge states are now reached through gameplay (ledge grab in
+    // Falling/Jump via checkLedgeGrab); forcing them here would snap the
+    // character to a stale ledge corner, so the former test toggle is
+    // disabled
+    fmt::print("toggleTestStates: ledge states are triggered through "
+               "gameplay now (fall/jump towards a ledge)\n");
 }
 
 void
@@ -603,10 +670,19 @@ CharacterBase::updateCharacterPosition(sf::Time deltaTime)
     //TODO: please check how to update the position acc to physics !!!
     mCharacterAnimation.update(deltaTime);
 
+    // tick the ledge-grab cooldown (suppresses re-grabbing a ledge right
+    // after releasing the hang)
+    if (mLedgeGrabCooldownRemaining > sf::Time::Zero)
+    {
+        mLedgeGrabCooldownRemaining -= deltaTime;
+    }
+
     //
     if (mECharacterState._value != ECharacterState::FallingEnd
         && mECharacterState._value != ECharacterState::JumpUp
         && mECharacterState._value != ECharacterState::JumpForward
+        && mECharacterState._value != ECharacterState::Hanging
+        && mECharacterState._value != ECharacterState::ClimbUp
         && not mCharacterFalling)
     {
         // The physics body is driven by the requested movement: the input
