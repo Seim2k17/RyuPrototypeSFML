@@ -1005,7 +1005,7 @@
     },
     {
      "duration": 100,
-     "event": "None",
+     "event": "CharacterStartJump",
      "height": 64,
      "width": 64,
      "x_sheet": 512,
@@ -1122,7 +1122,7 @@
     },
     {
      "duration": 100,
-     "event": "None",
+     "event": "CharacterStartJump",
      "height": 64,
      "width": 64,
      "x_sheet": 512,
