@@ -45,6 +45,14 @@ void AssetManager<Resource, Identifier>::load(Identifier id, const std::string& 
         throw std::runtime_error("ResourceHolder:load - Failed to load " + filename);
     }
 
-    // give ownership to TextureMap; a reload replaces the resource
-    mResourceMap.insert_or_assign(id, std::move(resource));
+    // give ownership to TextureMap
+    auto inserted = mResourceMap.insert(std::make_pair(id,std::move(resource)));
+    assert(inserted.second);
+}
+
+template <typename Resource, typename Identifier>
+bool
+AssetManager<Resource, Identifier>::hasResource(Identifier id) const
+{
+    return mResourceMap.find(id) != mResourceMap.end();
 }

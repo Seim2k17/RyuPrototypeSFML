@@ -751,7 +751,13 @@ Renderer::onPhysicsObjectCreated(const PhysicsObjectCreatedEvent& event)
     }
     else if(auto* spriteSheetTextureId = std::get_if<Textures::SpritesheetID>(&event.textureId))
     {
-        texture = &mCharacterAssetsManager.getResource(*spriteSheetTextureId);
+        // no spritesheet textures are loaded into the renderer (the
+        // character draws itself via its SpritesheetAnimation), so only
+        // resolve the texture when it actually exists
+        if (mCharacterAssetsManager.hasResource(*spriteSheetTextureId))
+        {
+            texture = &mCharacterAssetsManager.getResource(*spriteSheetTextureId);
+        }
     }
 
     if (texture)

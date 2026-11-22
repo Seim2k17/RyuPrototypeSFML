@@ -18,6 +18,7 @@ class AssetManager
         bool isLoaded(Identifier id) const { return mResourceMap.find(id) != mResourceMap.end(); }
         Resource& getResource(Identifier id);
         const Resource& getResource(Identifier id) const;
+        bool hasResource(Identifier id) const;
 
     private:
         std::map<Identifier, std::unique_ptr<Resource> > mResourceMap;
