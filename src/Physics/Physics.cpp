@@ -8,6 +8,7 @@
 #include <Ryu/Events/EventBus.h>
 
 #include <Ryu/Core/Utilities.h>
+#include <Ryu/Physics/ShapeUtils.h>
 #include <Ryu/Scene/LevelData.h>
 
 #include <Ryu/Character/ICharacter.h>
@@ -392,10 +393,10 @@ Physics::initCharacterPhysics(ICharacter& character, bool inDuckMode)
     // (bug seen as: body too big, floating above ground, early wall hits)
     const float roundingM
         = Converter::pixelsToMeters<float>(CHARACTER_COLLIDER_ROUNDING_PX);
-    b2Polygon polygonBoxShape = b2MakeRoundedBox(
-        Converter::pixelsToMeters<float>(size_x * 0.5f) - roundingM,
-        Converter::pixelsToMeters<float>(size_y * 0.5f) - roundingM,
-        roundingM);
+    b2Polygon polygonBoxShape = RyuPhysics::makeSafeRoundedBox(
+        Converter::pixelsToMeters<float>(size_x),
+        Converter::pixelsToMeters<float>(size_y),
+        roundingM, "character collider");
     b2ShapeDef shapeDef = b2DefaultShapeDef(); // initialize shapedefinition
     shapeDef.density = 4; //charPhysics.mDensity;
     //shapeDef.friction = charPhysics.mFriction; deprecated since Box2D 3.1, different concept
@@ -509,10 +510,10 @@ Physics::recreateCharacterPhysics(ICharacter& character, bool inDuckMode)
     // rounded corners like in initCharacterPhysics (see there)
     const float recreateRoundingM
         = Converter::pixelsToMeters<float>(CHARACTER_COLLIDER_ROUNDING_PX);
-    b2Polygon polygonBoxShape = b2MakeRoundedBox(
-        Converter::pixelsToMeters<float>(size_x * 0.5f) - recreateRoundingM,
-        Converter::pixelsToMeters<float>(size_y * 0.5f) - recreateRoundingM,
-        recreateRoundingM);
+    b2Polygon polygonBoxShape = RyuPhysics::makeSafeRoundedBox(
+        Converter::pixelsToMeters<float>(size_x),
+        Converter::pixelsToMeters<float>(size_y),
+        recreateRoundingM, "character collider (recreated)");
     charPhysics.mShapeDef = b2DefaultShapeDef();
     charPhysics.mShapeDef.density = 4;
     charPhysics.mShapeId = b2CreatePolygonShape(charPhysics.mBodyId,
@@ -718,10 +719,12 @@ Physics::createPhysicsBody(SceneObjectPhysicsParameters& sceneObject, int& i)
         // so the tiles' OUTER bounds stay exactly objSize (Box2D expands
         // polygons by their radius - see the character collider above)
         constexpr float tileRoundingM = 0.07f; // ~2.2px
-        b2Polygon box = b2MakeRoundedBox(
-            static_cast<float>(objSize.x / 2.0) - tileRoundingM,
-            static_cast<float>(objSize.y / 2.0) - tileRoundingM,
-            tileRoundingM);
+        // clamped helper: an object smaller than 2x the rounding (e.g. a
+        // 4px tall button) would otherwise produce a NEGATIVE half extent
+        // and trip B2_ASSERT in b2MakeBox (SIGILL in non-NDEBUG builds)
+        b2Polygon box = RyuPhysics::makeSafeRoundedBox(
+            static_cast<float>(objSize.x), static_cast<float>(objSize.y),
+            tileRoundingM, sceneObject.mName.c_str());
 
         shapeId = b2CreatePolygonShape(bodyId, &shapeDef, &box);
         b2Shape_SetSurfaceMaterial(shapeId, material);

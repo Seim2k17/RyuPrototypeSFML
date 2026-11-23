@@ -1,6 +1,7 @@
 #include <Ryu/Scene/Crate.h>
 #include <Ryu/Core/AssetManager.h>
 #include <Ryu/Core/AssetIdentifiers.h>
+#include <Ryu/Physics/ShapeUtils.h>
 
 #include <SFML/Graphics/Sprite.hpp>
 #include <SFML/Graphics/Texture.hpp>
@@ -36,8 +37,9 @@ Crate::init(b2WorldId phWorld, const glm::vec2 &position, const glm::vec2 &dimen
     bodyDef.position = (b2Vec2){position.x,position.y};
     mBodyId = b2CreateBody(phWorld, &bodyDef);
 
-    // Create the shape (v3.1)
-    b2Polygon box = b2MakeBox(dimension.x/2.f,dimension.y/2.f);
+    // Create the shape (v3.1); clamped so a non-positive dimension cannot
+    // trip B2_ASSERT(half > 0) in b2MakeBox
+    b2Polygon box = RyuPhysics::makeSafeBox(dimension.x, dimension.y, "crate");
 
     b2SurfaceMaterial material =b2DefaultSurfaceMaterial();
     material.friction = 0.3f; /// recommended by b2d docu
