@@ -30,7 +30,15 @@ Editor::Editor()
 
 Editor::~Editor()
 {
-    imnodes::DestroyContext();
+    // DestroyContext() with no current context dereferences nullptr
+    // (ImNodes::Shutdown -> EditorContextFree(ctx->DefaultEditorCtx) with
+    // ctx == 0) and segfaults on shutdown; only tear down a context that
+    // was actually created (mImNodesReady is set in createEditorWidgets)
+    if (mImNodesReady)
+    {
+        imnodes::DestroyContext();
+        mImNodesReady = false;
+    }
 }
 
 void
