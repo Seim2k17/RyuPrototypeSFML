@@ -1,7 +1,10 @@
 {
- "levelName": "2",
+ "levelName": "Level2",
  "objects": [
   {
+   "bodyType": "static",
+   "entityType": "None",
+   "layer": 1,
    "name": "floor",
    "positionPx": [
     320.0,
@@ -11,72 +14,72 @@
     640.0,
     9.0
    ],
-   "bodyType": "static",
-   "textureId": "Grass",
-   "entityType": "None",
-   "layer": 1
+   "textureId": "Grass"
   },
   {
+   "bodyType": "static",
+   "entityType": "None",
+   "layer": 1,
    "name": "left_side",
    "positionPx": [
-    4.0,
-    261.0
+    5.8551025390625,
+    216.0550079345703
    ],
    "sizePx": [
     9.0,
-    369.0
+    276.020751953125
    ],
-   "bodyType": "static",
-   "textureId": "Grass",
-   "entityType": "None",
-   "layer": 1
+   "textureId": "Grass"
   },
   {
+   "bodyType": "static",
+   "entityType": "None",
+   "layer": 1,
    "name": "right_side",
    "positionPx": [
-    635.0,
-    261.0
+    633.886962890625,
+    176.2053680419922
    ],
    "sizePx": [
     9.0,
-    495.0
+    355.4713439941406
    ],
-   "bodyType": "static",
-   "textureId": "Grass",
-   "entityType": "None",
-   "layer": 1
+   "textureId": "Grass"
   },
   {
+   "bodyType": "static",
+   "entityType": "None",
+   "layer": 1,
    "name": "platform_1",
    "positionPx": [
-    59.0,
-    68.0
+    69.5,
+    71.0
    ],
    "sizePx": [
     117.0,
     14.0
    ],
-   "bodyType": "static",
-   "textureId": "Grass",
-   "entityType": "None",
-   "layer": 1
+   "textureId": "Grass"
   },
   {
+   "bodyType": "static",
+   "entityType": "None",
+   "layer": 1,
    "name": "platform_2",
    "positionPx": [
-    240.0,
-    68.0
+    253.5,
+    71.0
    ],
    "sizePx": [
     133.0,
     14.0
    ],
-   "bodyType": "static",
-   "textureId": "Grass",
-   "entityType": "None",
-   "layer": 1
+   "textureId": "Grass"
   },
   {
+   "bodyType": "static",
+   "entityType": "None",
+   "layer": 1,
    "name": "grate_1",
    "positionPx": [
     205.0,
@@ -86,42 +89,42 @@
     17.0,
     45.0
    ],
-   "bodyType": "static",
-   "textureId": "Grate",
-   "entityType": "None",
-   "layer": 1
+   "textureId": "Grate"
   },
   {
+   "bodyType": "static",
+   "entityType": "None",
+   "layer": 1,
    "name": "platform_3",
    "positionPx": [
-    203.0,
-    167.0
+    137.52182006835938,
+    229.34152221679688
    ],
    "sizePx": [
-    103.0,
-    14.0
+    108.95635986328125,
+    10.683029174804688
    ],
-   "bodyType": "static",
-   "textureId": "Grass",
-   "entityType": "None",
-   "layer": 1
+   "textureId": "Grass"
   },
   {
+   "bodyType": "static",
+   "entityType": "None",
+   "layer": 1,
    "name": "button_1",
    "positionPx": [
-    213.0,
-    164.0
+    239.21568298339844,
+    125.69230651855469
    ],
    "sizePx": [
-    32.0,
-    9.0
+    27.450973510742188,
+    4.0
    ],
-   "bodyType": "static",
-   "textureId": "Button",
-   "entityType": "None",
-   "layer": 1
+   "textureId": "Button"
   },
   {
+   "bodyType": "static",
+   "entityType": "None",
+   "layer": 1,
    "name": "button_2",
    "positionPx": [
     576.0,
@@ -131,42 +134,42 @@
     32.0,
     9.0
    ],
-   "bodyType": "static",
-   "textureId": "Button",
-   "entityType": "None",
-   "layer": 1
+   "textureId": "Button"
   },
   {
+   "bodyType": "static",
+   "entityType": "None",
+   "layer": 1,
    "name": "platform_3_wall",
    "positionPx": [
-    265.0,
-    155.0
+    191.1698455810547,
+    133.02024841308594
    ],
    "sizePx": [
-    17.0,
-    38.0
+    126.99371337890625,
+    10.040496826171875
    ],
-   "bodyType": "static",
-   "textureId": "Grass",
-   "entityType": "None",
-   "layer": 1
+   "textureId": "Grass"
   },
   {
+   "bodyType": "static",
+   "entityType": "None",
+   "layer": 1,
    "name": "middle_wall",
    "positionPx": [
     315.0,
-    196.0
+    190.73141479492188
    ],
    "sizePx": [
     17.0,
-    268.0
+    257.46282958984375
    ],
-   "bodyType": "static",
-   "textureId": "Grass",
-   "entityType": "None",
-   "layer": 1
+   "textureId": "Grass"
   },
   {
+   "bodyType": "dynamic",
+   "entityType": "None",
+   "layer": 1,
    "name": "box_pushable_1",
    "positionPx": [
     400.0,
@@ -176,12 +179,12 @@
     27.0,
     23.0
    ],
-   "bodyType": "dynamic",
-   "textureId": "BoxPushable",
-   "entityType": "None",
-   "layer": 1
+   "textureId": "BoxPushable"
   },
   {
+   "bodyType": "dynamic",
+   "entityType": "None",
+   "layer": 1,
    "name": "box_pushable_2",
    "positionPx": [
     480.0,
@@ -191,12 +194,12 @@
     27.0,
     23.0
    ],
-   "bodyType": "dynamic",
-   "textureId": "BoxPushable",
-   "entityType": "None",
-   "layer": 1
+   "textureId": "BoxPushable"
   },
   {
+   "bodyType": "static",
+   "entityType": "None",
+   "layer": 1,
    "name": "teleport_1",
    "positionPx": [
     32.0,
@@ -206,12 +209,12 @@
     32.0,
     9.0
    ],
-   "bodyType": "static",
-   "textureId": "Teleport",
-   "entityType": "None",
-   "layer": 1
+   "textureId": "Teleport"
   },
   {
+   "bodyType": "static",
+   "entityType": "None",
+   "layer": 1,
    "name": "teleport_2",
    "positionPx": [
     468.0,
@@ -221,12 +224,12 @@
     32.0,
     9.0
    ],
-   "bodyType": "static",
-   "textureId": "Teleport",
-   "entityType": "None",
-   "layer": 1
+   "textureId": "Teleport"
   },
   {
+   "bodyType": "static",
+   "entityType": "None",
+   "layer": 1,
    "name": "platform_4",
    "positionPx": [
     507.0,
@@ -236,10 +239,52 @@
     133.0,
     14.0
    ],
+   "textureId": "Grass"
+  },
+  {
    "bodyType": "static",
-   "textureId": "Grass",
    "entityType": "None",
-   "layer": 1
+   "layer": 1,
+   "name": "platform_5",
+   "positionPx": [
+    536.0,
+    215.0
+   ],
+   "sizePx": [
+    133.0,
+    14.0
+   ],
+   "textureId": "Grass"
+  },
+  {
+   "bodyType": "static",
+   "entityType": "None",
+   "layer": 1,
+   "name": "platform_3",
+   "positionPx": [
+    221.70242309570313,
+    274.93975830078125
+   ],
+   "sizePx": [
+    142.1169891357422,
+    9.156570434570313
+   ],
+   "textureId": "Grass"
+  },
+  {
+   "bodyType": "static",
+   "entityType": "None",
+   "layer": 1,
+   "name": "middle_wall2",
+   "positionPx": [
+    344.2702331542969,
+    168.60787963867188
+   ],
+   "sizePx": [
+    12.225128173828125,
+    248.72750854492188
+   ],
+   "textureId": "Grass"
   }
  ]
 }

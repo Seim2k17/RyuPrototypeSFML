@@ -1,0 +1,22 @@
+{
+ "levelName": "Level3",
+ "objects": [
+  {
+   "bodyType": "static",
+   "entityType": "None",
+   "hasPhysics": true,
+   "layer": 1,
+   "name": "floor",
+   "positionPx": [
+    320.3009033203125,
+    356.5
+   ],
+   "rotationDeg": 0.0,
+   "sizePx": [
+    640.0,
+    9.0
+   ],
+   "textureId": "Grass"
+  }
+ ]
+}

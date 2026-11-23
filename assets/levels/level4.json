@@ -1,0 +1,548 @@
+{
+ "levelName": "Level4",
+ "objects": [
+  {
+   "bodyType": "static",
+   "entityType": "None",
+   "hasPhysics": true,
+   "layer": 1,
+   "name": "floor",
+   "positionPx": [
+    320.0,
+    360.0
+   ],
+   "rotationDeg": 0.0,
+   "sizePx": [
+    640.0,
+    9.0
+   ],
+   "textureId": "Grass"
+  },
+  {
+   "bodyType": "static",
+   "entityType": "None",
+   "hasPhysics": false,
+   "layer": 2,
+   "name": "tile_test_16_2_1_0017",
+   "positionPx": [
+    104.0,
+    312.0
+   ],
+   "rotationDeg": 0.0,
+   "sizePx": [
+    16.0,
+    16.0
+   ],
+   "textureId": "test_16",
+   "tile": [
+    2,
+    1
+   ]
+  },
+  {
+   "bodyType": "static",
+   "entityType": "None",
+   "hasPhysics": false,
+   "layer": 2,
+   "name": "tile_test_16_2_1_0018",
+   "positionPx": [
+    104.0,
+    328.0
+   ],
+   "rotationDeg": 0.0,
+   "sizePx": [
+    16.0,
+    16.0
+   ],
+   "textureId": "test_16",
+   "tile": [
+    2,
+    1
+   ]
+  },
+  {
+   "bodyType": "static",
+   "entityType": "None",
+   "hasPhysics": false,
+   "layer": 2,
+   "name": "tile_test_16_2_1_0019",
+   "positionPx": [
+    104.0,
+    344.0
+   ],
+   "rotationDeg": 0.0,
+   "sizePx": [
+    16.0,
+    16.0
+   ],
+   "textureId": "test_16",
+   "tile": [
+    2,
+    1
+   ]
+  },
+  {
+   "bodyType": "static",
+   "entityType": "None",
+   "hasPhysics": false,
+   "layer": 0,
+   "name": "tile_test_16_2_1_0020",
+   "positionPx": [
+    136.0,
+    344.0
+   ],
+   "rotationDeg": 0.0,
+   "sizePx": [
+    16.0,
+    16.0
+   ],
+   "textureId": "test_16",
+   "tile": [
+    2,
+    1
+   ]
+  },
+  {
+   "bodyType": "static",
+   "entityType": "None",
+   "hasPhysics": false,
+   "layer": 0,
+   "name": "tile_test_16_2_1_0021",
+   "positionPx": [
+    136.0,
+    328.0
+   ],
+   "rotationDeg": 0.0,
+   "sizePx": [
+    16.0,
+    16.0
+   ],
+   "textureId": "test_16",
+   "tile": [
+    2,
+    1
+   ]
+  },
+  {
+   "bodyType": "static",
+   "entityType": "None",
+   "hasPhysics": false,
+   "layer": 0,
+   "name": "tile_test_16_2_1_0022",
+   "positionPx": [
+    136.0,
+    312.0
+   ],
+   "rotationDeg": 0.0,
+   "sizePx": [
+    16.0,
+    16.0
+   ],
+   "textureId": "test_16",
+   "tile": [
+    2,
+    1
+   ]
+  },
+  {
+   "bodyType": "static",
+   "entityType": "None",
+   "hasPhysics": false,
+   "layer": 0,
+   "name": "tile_test_16_2_1_0023",
+   "positionPx": [
+    136.0,
+    296.0
+   ],
+   "rotationDeg": 0.0,
+   "sizePx": [
+    16.0,
+    16.0
+   ],
+   "textureId": "test_16",
+   "tile": [
+    2,
+    1
+   ]
+  },
+  {
+   "bodyType": "static",
+   "entityType": "None",
+   "hasPhysics": false,
+   "layer": 2,
+   "name": "tile_test_16_2_1_0025",
+   "positionPx": [
+    184.0,
+    296.0
+   ],
+   "rotationDeg": 0.0,
+   "sizePx": [
+    16.0,
+    16.0
+   ],
+   "textureId": "test_16",
+   "tile": [
+    2,
+    1
+   ]
+  },
+  {
+   "bodyType": "static",
+   "entityType": "None",
+   "hasPhysics": false,
+   "layer": 2,
+   "name": "tile_test_16_2_1_0026",
+   "positionPx": [
+    184.0,
+    312.0
+   ],
+   "rotationDeg": 0.0,
+   "sizePx": [
+    16.0,
+    16.0
+   ],
+   "textureId": "test_16",
+   "tile": [
+    2,
+    1
+   ]
+  },
+  {
+   "bodyType": "static",
+   "entityType": "None",
+   "hasPhysics": false,
+   "layer": 2,
+   "name": "tile_test_16_2_1_0027",
+   "positionPx": [
+    184.0,
+    328.0
+   ],
+   "rotationDeg": 0.0,
+   "sizePx": [
+    16.0,
+    16.0
+   ],
+   "textureId": "test_16",
+   "tile": [
+    2,
+    1
+   ]
+  },
+  {
+   "bodyType": "static",
+   "entityType": "None",
+   "hasPhysics": false,
+   "layer": 2,
+   "name": "tile_test_16_2_1_0028",
+   "positionPx": [
+    184.0,
+    344.0
+   ],
+   "rotationDeg": 0.0,
+   "sizePx": [
+    16.0,
+    16.0
+   ],
+   "textureId": "test_16",
+   "tile": [
+    2,
+    1
+   ]
+  },
+  {
+   "bodyType": "static",
+   "entityType": "None",
+   "hasPhysics": true,
+   "layer": 1,
+   "name": "collision",
+   "positionPx": [
+    94.07513427734375,
+    279.78961181640625
+   ],
+   "rotationDeg": 0.0,
+   "sizePx": [
+    190.23809814453125,
+    20.0
+   ],
+   "textureId": "Unknown"
+  },
+  {
+   "bodyType": "static",
+   "entityType": "None",
+   "hasPhysics": false,
+   "layer": 1,
+   "name": "tile_test_16_3_2_0029",
+   "positionPx": [
+    8.0,
+    280.0
+   ],
+   "rotationDeg": 0.0,
+   "sizePx": [
+    16.0,
+    16.0
+   ],
+   "textureId": "test_16",
+   "tile": [
+    3,
+    2
+   ]
+  },
+  {
+   "bodyType": "static",
+   "entityType": "None",
+   "hasPhysics": false,
+   "layer": 1,
+   "name": "tile_test_16_3_2_0030",
+   "positionPx": [
+    24.0,
+    280.0
+   ],
+   "rotationDeg": 0.0,
+   "sizePx": [
+    16.0,
+    16.0
+   ],
+   "textureId": "test_16",
+   "tile": [
+    3,
+    2
+   ]
+  },
+  {
+   "bodyType": "static",
+   "entityType": "None",
+   "hasPhysics": false,
+   "layer": 1,
+   "name": "tile_test_16_3_2_0031",
+   "positionPx": [
+    40.0,
+    280.0
+   ],
+   "rotationDeg": 0.0,
+   "sizePx": [
+    16.0,
+    16.0
+   ],
+   "textureId": "test_16",
+   "tile": [
+    3,
+    2
+   ]
+  },
+  {
+   "bodyType": "static",
+   "entityType": "None",
+   "hasPhysics": false,
+   "layer": 1,
+   "name": "tile_test_16_3_2_0032",
+   "positionPx": [
+    56.0,
+    280.0
+   ],
+   "rotationDeg": 0.0,
+   "sizePx": [
+    16.0,
+    16.0
+   ],
+   "textureId": "test_16",
+   "tile": [
+    3,
+    2
+   ]
+  },
+  {
+   "bodyType": "static",
+   "entityType": "None",
+   "hasPhysics": false,
+   "layer": 1,
+   "name": "tile_test_16_3_2_0033",
+   "positionPx": [
+    72.0,
+    280.0
+   ],
+   "rotationDeg": 0.0,
+   "sizePx": [
+    16.0,
+    16.0
+   ],
+   "textureId": "test_16",
+   "tile": [
+    3,
+    2
+   ]
+  },
+  {
+   "bodyType": "static",
+   "entityType": "None",
+   "hasPhysics": false,
+   "layer": 1,
+   "name": "tile_test_16_3_2_0034",
+   "positionPx": [
+    88.0,
+    280.0
+   ],
+   "rotationDeg": 0.0,
+   "sizePx": [
+    16.0,
+    16.0
+   ],
+   "textureId": "test_16",
+   "tile": [
+    3,
+    2
+   ]
+  },
+  {
+   "bodyType": "static",
+   "entityType": "None",
+   "hasPhysics": false,
+   "layer": 1,
+   "name": "tile_test_16_3_2_0035",
+   "positionPx": [
+    104.0,
+    280.0
+   ],
+   "rotationDeg": 0.0,
+   "sizePx": [
+    16.0,
+    16.0
+   ],
+   "textureId": "test_16",
+   "tile": [
+    3,
+    2
+   ]
+  },
+  {
+   "bodyType": "static",
+   "entityType": "None",
+   "hasPhysics": false,
+   "layer": 1,
+   "name": "tile_test_16_3_2_0036",
+   "positionPx": [
+    120.0,
+    280.0
+   ],
+   "rotationDeg": 0.0,
+   "sizePx": [
+    16.0,
+    16.0
+   ],
+   "textureId": "test_16",
+   "tile": [
+    3,
+    2
+   ]
+  },
+  {
+   "bodyType": "static",
+   "entityType": "None",
+   "hasPhysics": false,
+   "layer": 1,
+   "name": "tile_test_16_3_2_0037",
+   "positionPx": [
+    136.0,
+    280.0
+   ],
+   "rotationDeg": 0.0,
+   "sizePx": [
+    16.0,
+    16.0
+   ],
+   "textureId": "test_16",
+   "tile": [
+    3,
+    2
+   ]
+  },
+  {
+   "bodyType": "static",
+   "entityType": "None",
+   "hasPhysics": false,
+   "layer": 1,
+   "name": "tile_test_16_3_2_0038",
+   "positionPx": [
+    152.0,
+    280.0
+   ],
+   "rotationDeg": 0.0,
+   "sizePx": [
+    16.0,
+    16.0
+   ],
+   "textureId": "test_16",
+   "tile": [
+    3,
+    2
+   ]
+  },
+  {
+   "bodyType": "static",
+   "entityType": "None",
+   "hasPhysics": false,
+   "layer": 1,
+   "name": "tile_test_16_3_2_0039",
+   "positionPx": [
+    168.0,
+    280.0
+   ],
+   "rotationDeg": 0.0,
+   "sizePx": [
+    16.0,
+    16.0
+   ],
+   "textureId": "test_16",
+   "tile": [
+    3,
+    2
+   ]
+  },
+  {
+   "bodyType": "static",
+   "entityType": "None",
+   "hasPhysics": false,
+   "layer": 1,
+   "name": "tile_test_16_3_2_0040",
+   "positionPx": [
+    184.0,
+    280.0
+   ],
+   "rotationDeg": 0.0,
+   "sizePx": [
+    16.0,
+    16.0
+   ],
+   "textureId": "test_16",
+   "tile": [
+    3,
+    2
+   ]
+  },
+  {
+   "bodyType": "static",
+   "entityType": "None",
+   "hasPhysics": false,
+   "layer": 2,
+   "name": "tile_test_16_3_2_0041",
+   "positionPx": [
+    104.0,
+    296.0
+   ],
+   "rotationDeg": 0.0,
+   "sizePx": [
+    16.0,
+    16.0
+   ],
+   "textureId": "test_16",
+   "tile": [
+    3,
+    2
+   ]
+  }
+ ],
+ "parallax": [
+  0.5,
+  1.0,
+  1.2000000476837158
+ ]
+}
