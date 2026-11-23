@@ -126,6 +126,27 @@ void DebugWidgets::ShowWidgets() {
     }
     ImGui::Separator();
     ImGui::Text("For ImGui-Demo-Window press '-' ");
+    ImGui::Separator();
+    if (ImGui::CollapsingHeader("Frame Inspection")) {
+        // pause the simulation and step a single 17ms tick per press to
+        // watch state transitions frame by frame (e.g. the ledge-grab or
+        // climb-up end): rendering and this panel keep running
+        if (ImGui::Button(debugData.debugPaused ? "Continue":"Pause Simulation"))
+        {
+            debugData.debugPaused = !debugData.debugPaused;
+            fmt::print("FrameInspection: simulation {}\n",
+                       debugData.debugPaused ? "PAUSED" : "continuing");
+        }
+        ImGui::SameLine();
+        ImGui::BeginDisabled(!debugData.debugPaused);
+        if (ImGui::Button("Step 1 frame")) {
+            debugData.stepOneFrame = true;
+            fmt::print("FrameInspection: stepping one 17ms tick\n");
+        }
+        ImGui::EndDisabled();
+        ImGui::TextWrapped("paused: the game world freezes, advancing "
+                            "happens only via Step 1 frame");
+    }
 }
 
 void DebugWidgets::DebugSpritesheetInfo() {

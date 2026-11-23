@@ -654,6 +654,15 @@ CharacterBase::setupAnimation(Textures::CharacterID aniId)
          static_cast<float>(config.frameSize.y) / 2.f});
     spriteAni.setPivotAbs(config.pivotAbsolute);
     spriteAni.setPivotNorm(config.pivotNormalized);
+    // apply the new animation's FIRST FRAME immediately (restart ->
+    // setCurrentFrame(0) also sets the sprite's texture rect): the tick
+    // order is updateCharacterPosition/animation-update BEFORE
+    // mCharacterState->update (*this), so without this the sprite kept
+    // displaying the PREVIOUS animation's frame (or the old state's
+    // exit()-restart frame) for one rendered tick after every state
+    // transition - the visible flicker on JumpUp -> ledge hang and at the
+    // end of a climb-up
+    spriteAni.restart();
     // the first time we need to init physics-body etc
     if (not physicsInitialized)
     {

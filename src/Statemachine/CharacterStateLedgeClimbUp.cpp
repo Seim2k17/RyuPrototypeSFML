@@ -54,6 +54,13 @@ CharacterStateLedgeClimbUp::update(CharacterBase& character)
                             b2Rot_identity);
         b2Body_SetLinearVelocity(bodyId, {0.f, 0.f});
 
+        // sync the sprite to the teleported body IMMEDIATELY: the tick
+        // order in CharacterBase::update is position-sync BEFORE the
+        // state update, so without this the character rendered one tick
+        // at the old climb-up position after the teleport (flicker)
+        character.getSpriteAnimation().setAnimationPosition(
+            character.animationPositionFromBody(b2Body_GetPosition(bodyId)));
+
         character.changeState(std::move(std::make_unique<CharacterStateIdle>()));
     }
 }

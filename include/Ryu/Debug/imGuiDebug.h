@@ -47,6 +47,10 @@ struct DebugData{
     float mousPos[2] = {.0f, .0f};
     bool readMousePos = false;
     float worldUpdateFactor = 1.0f;
+    // frame-by-frame inspection: pause the simulation ticks and advance
+    // one 17ms tick per button press (rendering and the panel keep running)
+    bool debugPaused = false;
+    bool stepOneFrame = false;
 };
 
 class DebugWidgets : public Subject {

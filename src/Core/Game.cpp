@@ -221,8 +221,18 @@ void Game::run()
 				ImGui::SFML::ProcessEvent(mWindow, event.value());
 				processEvents(event.value(), commands);
 			}
-			if (!mIsPaused )
+			// frame inspection (debug panel): when the simulation is
+			// paused only the "Step 1 frame" button advances exactly one
+			// 17ms tick so state transitions can be watched frame by
+			// frame (rendering and the debug panel always keep running)
+			const bool stepRequested
+				= mDebugWidgets.debugData.stepOneFrame;
+			if (!mIsPaused
+				&& (not mDebugWidgets.debugData.debugPaused
+					|| stepRequested))
 			{
+				mDebugWidgets.debugData.stepOneFrame = false;
+
 				mPlayerController->handleRealtimeInput(commands);
 
 				update(TimePerFrame*mDebugWidgets.debugData.worldUpdateFactor);
@@ -254,7 +264,7 @@ void Game::run()
 		// ImGui frame: NewFrame, our widget calls and Render must happen exactly
 		// once per rendered frame (not per simulation tick).
 		ImGui::SFML::Update(mWindow, imguiClock.restart());
-		if (!mIsPaused)
+		if (!mIsPaused || mDebugWidgets.debugData.debugPaused)
 		{
 			mDebugWidgets.CreateDebugGui();
 		}//!mAnimator.showAnimationEditor
