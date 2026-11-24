@@ -49,6 +49,7 @@ CharacterBase::CharacterBase(const sf::Vector2i &position)
       mCharacterAnimation(this),
       mECharacterState(ECharacterState::None),
       mDuckStateActive(false),
+      mLedgeHangStateActive(false),
       mPhysics(nullptr),
       mAnimationManager(std::make_unique<AnimationManager>()),
       mCharacterPhysicsValues({}),
@@ -84,6 +85,7 @@ CharacterBase::CharacterBase(ECharacterState startState,
       mCharSettings(),
       mCurrentLevel(Textures::LevelID::Level1),
       mDuckStateActive(false),
+      mLedgeHangStateActive(false),
       mPhysics(nullptr),
       mSetOffset(false),
       mCharacterAnimation(this),
@@ -369,11 +371,35 @@ CharacterBase::setDuckState(bool duckstate)
     if (mPhysics != nullptr)
     {
         // the body shape changes between duck/stand: rebuild it feet-anchored
-        mPhysics->recreateCharacterPhysics(*this, duckstate);
+        mPhysics->recreateCharacterPhysics(
+            *this, duckstate ? Physics::ECharacterShape::Duck
+                             : Physics::ECharacterShape::Stand);
     }
     else
     {
         fmt::print("WARNING: no Physics-owner set, duck body not resized\n");
+    }
+}
+
+void
+CharacterBase::setLedgeHangState(bool hangstate)
+{
+    // entering/leaving the ledge-hang needs no body rebuild when it's
+    // already in the requested mode (states call this repeatedly)
+    if (mLedgeHangStateActive == hangstate) { return; }
+    mLedgeHangStateActive = hangstate;
+    if (mPhysics != nullptr)
+    {
+        // rebuild with the small/gapped hang collider (or the stand shape
+        // again when the hang is released via climb-up/fall-down), keeping
+        // the old body's bottom edge anchored
+        mPhysics->recreateCharacterPhysics(
+            *this, hangstate ? Physics::ECharacterShape::LedgeHang
+                             : Physics::ECharacterShape::Stand);
+    }
+    else
+    {
+        fmt::print("WARNING: no Physics-owner set, hang body not resized\n");
     }
 }
 

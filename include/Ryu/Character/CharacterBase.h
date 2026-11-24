@@ -287,6 +287,12 @@ class CharacterBase : public SceneNode, public Subject, public Observer, public 
     /// must be set with setPhysics() - the World does this after character
     /// creation (Physics owns all bodies)
     void setDuckState(bool duckstate);
+    /// rebuilds the character body with the smaller ledge-hang collider
+    /// (HANG_FRAME_SIZE) or back to the stand shape - the hang state calls
+    /// this on enter/exit so the collider cannot overlap the ledge
+    /// colliders (overlapped body stuck instead of dropping on PressDown)
+    void setLedgeHangState(bool hangstate);
+    bool ledgeHangStateActive() const { return mLedgeHangStateActive; }
     /// connect the character with its Physics-owner (no ownership)
     void setPhysics(Physics* physics) { mPhysics = physics; }
     virtual void onNotify(const SceneNode &entity, Ryu::EEvent event) override;
@@ -328,6 +334,7 @@ class CharacterBase : public SceneNode, public Subject, public Observer, public 
     // TODO: move to Renderer-class ?!
     BaseTextureManager baseTextureManager;
     bool mDuckStateActive;
+    bool mLedgeHangStateActive;
     /// physics-owner (no ownership, set by World after character creation)
     Physics* mPhysics;
     int testStatesCount = 2;

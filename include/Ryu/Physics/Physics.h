@@ -140,10 +140,15 @@ class Physics : public Subject {
     sf::Shape* getShapeFromPhysicsBody(b2BodyId physicsBodyId);
     b2WorldId& getPhysicsWorldId(){return mPhysicsWorldId;}
     void initCharacterPhysics(ICharacter& character, bool inDuckMode);
-    /// rebuilds the character body with the duck/non-duck shape, keeping the
-    /// FEET anchored at the old body's bottom edge (called when the duck
-    /// state changes); needed since Physics owns all bodies
-    void recreateCharacterPhysics(ICharacter& character, bool inDuckMode);
+    /// which collider a (re)build of the character body uses; the modes map
+    /// to INIT_FRAME_SIZE / DUCK_FRAME_SIZE / HANG_FRAME_SIZE
+    enum class ECharacterShape { Stand, Duck, LedgeHang };
+    /// rebuilds the character body with the duck/non-duck (or ledge-hang)
+    /// shape, keeping the FEET anchored at the old body's bottom edge
+    /// (called when the duck/hang state changes); needed since Physics owns
+    /// all bodies
+    void recreateCharacterPhysics(ICharacter& character,
+                                  ECharacterShape shape);
     /// rect of the character physics body (duck/stand shape aware) for the
     /// level editor
     CharacterPhysicsRect getCharacterRect(ECharacters character) const;

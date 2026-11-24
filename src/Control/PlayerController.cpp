@@ -199,6 +199,10 @@ PlayerController::handleEvent(const sf::Event& event, CommandQueue& commands)
             case sf::Keyboard::Scancode::Right:
             {
                 playerCharacter->handleInput(EInput::PressRight);
+                // while hanging on a ledge the character must not turn
+                // around: only the sprite/animation would mirror, the
+                // grab anchor stays on the grabbed wall side
+                if (playerCharacter->ledgeHangStateActive()) { break; }
                 playerCharacter->getSpriteAnimation().flipAnimationRight();
                 playerCharacter->setMoveDirection(EMoveDirection::Right);
                 break;
@@ -208,6 +212,7 @@ PlayerController::handleEvent(const sf::Event& event, CommandQueue& commands)
             case sf::Keyboard::Scancode::Left:
             {
                 playerCharacter->handleInput(EInput::PressLeft);
+                if (playerCharacter->ledgeHangStateActive()) { break; }
                 playerCharacter->getSpriteAnimation().flipAnimationLeft();
                 playerCharacter->setMoveDirection(EMoveDirection::Left);
                 break;

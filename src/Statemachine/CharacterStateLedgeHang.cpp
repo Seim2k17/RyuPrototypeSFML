@@ -54,6 +54,9 @@ CharacterStateLedgeHang::update(CharacterBase& character)
 void
 CharacterStateLedgeHang::enter(CharacterBase& character)
 {
+    // shrink the collider to the narrow hang shape FIRST: this rebuilds the
+    // body, so the bodyId has to be picked up fresh afterwards
+    character.setLedgeHangState(true);
     auto bodyId = character.getBody();
     b2Body_SetGravityScale(bodyId, 0);
     b2Body_SetLinearVelocity(bodyId, {0.f, 0.f});
@@ -65,9 +68,15 @@ CharacterStateLedgeHang::enter(CharacterBase& character)
     float dir = character.getDirectionMultiplier();
 
     // hands grab at the ledge corner: the hands sit raycastOffset above the
-    // body center, the body back rests on the wall face
-    sf::Vector2f bodyPos{corner.x - dir * (INIT_FRAME_SIZE.first / 2.f),
-                         corner.y + Ryu::Physics::raycastOffset};
+    // body center. The narrow HANG collider is pushed a gap AWAY from the
+    // wall face (the raycast corner points dir*2 into the wall) so it
+    // cannot overlap the ledge colliders - an overlapping body is
+    // depenetrated by Box2D and the character stuck on the ledge instead
+    // of dropping on PressDown
+    sf::Vector2f bodyPos{
+        corner.x - dir * (HANG_FRAME_SIZE.first / 2.f
+                         + LEDGE_HANG_WALL_GAP_PX + 2.f),
+        corner.y + Ryu::Physics::raycastOffset};
     b2Body_SetTransform(bodyId,
                         {Converter::pixelsToMeters<float>(bodyPos.x),
                          Converter::pixelsToMeters<float>(bodyPos.y)},
@@ -89,6 +98,9 @@ void
 CharacterStateLedgeHang::exit(CharacterBase& character)
 {
     character.getSpriteAnimation().restart();
+    // restore the full-size stand collider before climbing up or falling
+    // down (the hang collider is a temporary smaller box, see enter)
+    character.setLedgeHangState(false);
     // releasing a hang (PressDown/other transitions to Falling) must not
     // instantly re-grab the SAME ledge while the hands are still in the
     // grab window - stay grab-blind for a moment

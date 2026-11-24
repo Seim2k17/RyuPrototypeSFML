@@ -27,6 +27,17 @@ constexpr float LEDGE_FRAME_ANCHOR_X = 40.f;
 constexpr float LEDGE_FRAME_ANCHOR_Y = 64.f;
 static constexpr std::pair<int, int> DUCK_FRAME_SIZE(30, 34);
 
+/// Ledge-hang collider (see CharacterStateLedgeHang::enter): narrower and
+/// taller than the stand box, and pushed a gap away from the wall face so
+/// it cannot overlap/penetrate the ledge colliders while hanging (an
+/// overlapped body gets depenetrated upward/downward by Box2D and the
+/// character used to get stuck instead of dropping on PressDown).
+static constexpr std::pair<int, int> HANG_FRAME_SIZE(24, 68);
+/// gap (pixels) between the hang collider's front edge and the wall face
+/// (the raycast corner points dir*2 INTO the wall, the wall face sits 2px
+/// back towards the character)
+static constexpr float LEDGE_HANG_WALL_GAP_PX = 2.f;
+
 /// Corner rounding of the character collider (pixels). The collider is a
 /// ROUNDED BOX whose TOTAL extents stay INIT_FRAME_SIZE/DUCK_FRAME_SIZE:
 /// Box2D EXPANDS shapes beyond their vertices by the polygon radius, so

@@ -455,13 +455,14 @@ Physics::initCharacterPhysics(ICharacter& character, bool inDuckMode)
 }
 
 void
-Physics::recreateCharacterPhysics(ICharacter& character, bool inDuckMode)
+Physics::recreateCharacterPhysics(ICharacter& character,
+                                   Physics::ECharacterShape shapeMode)
 {
     auto it = mCharacterPhysics.find(character.getCharacterName());
     if (it == mCharacterPhysics.end() || not b2Body_IsValid(it->second.mBodyId))
     {
         // nothing to rebuild: fall back to a fresh initialization
-        initCharacterPhysics(character, inDuckMode);
+        initCharacterPhysics(character, shapeMode == ECharacterShape::Duck);
         return;
     }
 
@@ -490,7 +491,10 @@ Physics::recreateCharacterPhysics(ICharacter& character, bool inDuckMode)
     b2DestroyBody(charPhysics.mBodyId);
     charPhysics.mBodyId = b2_nullBodyId;
 
-    const auto shapeSize = inDuckMode ? DUCK_FRAME_SIZE : INIT_FRAME_SIZE;
+    const auto shapeSize = shapeMode == ECharacterShape::Duck  ? DUCK_FRAME_SIZE
+                           : shapeMode == ECharacterShape::LedgeHang
+                               ? HANG_FRAME_SIZE
+                               : INIT_FRAME_SIZE;
     const float size_x = shapeSize.first;
     const float size_y = shapeSize.second;
 
@@ -530,7 +534,9 @@ Physics::recreateCharacterPhysics(ICharacter& character, bool inDuckMode)
     b2Body_SetAwake(charPhysics.mBodyId, true);
     fmt::print("Character body recreated: {} -> mass: {:.3f} (gravityScale "
                "{:.1f}), carried vy {:.2f}\n",
-               inDuckMode ? "DUCK" : "STAND",
+               shapeMode == ECharacterShape::Duck ? "DUCK"
+               : shapeMode == ECharacterShape::LedgeHang ? "LEDGE-HANG"
+               : "STAND",
                b2Body_GetMass(charPhysics.mBodyId),
                b2Body_GetGravityScale(charPhysics.mBodyId), velocity.y);
 
